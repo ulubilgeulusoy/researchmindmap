@@ -4,6 +4,28 @@ Local browser-based research mapping and literature-review prototype. The app co
 
 The core UI is plain HTML/CSS/JavaScript. The local FastAPI backend serves the app and enables local-only integrations such as Zotero, PDF opening/annotation extraction, image saving, GROBID, and file-based autosaves.
 
+## How To Run
+
+Install backend dependencies:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Start the backend:
+
+```powershell
+python -m uvicorn server:app --host 127.0.0.1 --port 8000
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000
+```
+
+If `python` is not the command for your environment, activate your preferred Python environment first, then run the same `python -m ...` commands. Restart Uvicorn after changing `server.py`. Browser cache is versioned in `index.html`, but a hard refresh with `Ctrl+F5` can help if the UI looks stale.
+
 ## Current Features
 
 - Visual mind map with circular clickable nodes and directed connections.
@@ -149,10 +171,10 @@ The backend first tries Zotero Desktop's local API:
 http://localhost:23119/api/
 ```
 
-If needed, it can also inspect the local Zotero data directory. The expected default on this machine is:
+If needed, it can also inspect the local Zotero data directory. On Windows, the usual default is:
 
 ```text
-C:\Users\ulubi\Zotero
+C:\Users\<your-username>\Zotero
 ```
 
 Imported Zotero publication nodes store available metadata such as:
@@ -337,28 +359,6 @@ It ignores:
 - exported `research-map.json`
 - logs and `.env`
 
-## How To Run
-
-Install backend dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-Start the backend:
-
-```powershell
-C:\Users\ulubi\Anaconda3\python.exe -m uvicorn server:app --host 127.0.0.1 --port 8000
-```
-
-Open:
-
-```text
-http://127.0.0.1:8000
-```
-
-Restart Uvicorn after changing `server.py`. Browser cache is versioned in `index.html`, but a hard refresh with `Ctrl+F5` can help if the UI looks stale.
-
 ## Private Sharing With Tailscale
 
 This app can be shared privately across trusted devices through Tailscale. Tailscale is not configured inside the repo and no Tailscale secrets should be committed.
@@ -366,8 +366,8 @@ This app can be shared privately across trusted devices through Tailscale. Tails
 Start the FastAPI server locally:
 
 ```powershell
-cd "C:\Users\ulubi\Desktop\Software Applications\ulumindmap"
-C:\Users\ulubi\Anaconda3\python.exe -m uvicorn server:app --host 127.0.0.1 --port 8000
+cd "C:\path\to\ulumindmap"
+python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
 In another PowerShell window, expose it to your Tailnet:
