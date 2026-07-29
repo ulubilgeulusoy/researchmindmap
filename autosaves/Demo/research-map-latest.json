@@ -1,0 +1,106 @@
+{
+  "savedAt": "2026-07-28T22:59:42.416259-06:00",
+  "project": "Demo",
+  "nodeTypes": [
+    {
+      "name": "Publication",
+      "color": "#2d7ff9"
+    },
+    {
+      "name": "Idea",
+      "color": "#2f9d68"
+    },
+    {
+      "name": "Unassigned",
+      "color": "#9ca3af"
+    }
+  ],
+  "elements": [
+    {
+      "group": "nodes",
+      "data": {
+        "id": "node-example-publication",
+        "label": "Example Publication",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "",
+        "tags": [
+          "example"
+        ],
+        "size": 96,
+        "textWidth": 88,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "publicationNotes": {
+          "notes": "This is an example publication node.Use the Node button to add a new node.Select the node and set its type to Publication in the right-side details panel.Add a title, URL, citation, tags, and notes for literature review work.If imported from Zotero, this node can also connect to a local PDF.",
+          "notesHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>",
+          "citation": "Example citation text can go here.",
+          "url": "",
+          "abstract": ""
+        },
+        "zIndex": 1,
+        "primaryTag": "",
+        "documentHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>"
+      },
+      "position": {
+        "x": 778.8920550276955,
+        "y": 1406.6983215248636
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "node-example-idea",
+        "label": "Example Idea",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "example"
+        ],
+        "size": 96,
+        "textWidth": 88,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "documentHtml": "<p>This is an example idea node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Idea</strong> in the right-side details panel.</li><li>Use idea nodes for concepts, themes, hypotheses, questions, or synthesis notes.</li><li>Use the <strong>Connection</strong> button to link ideas to publications or other ideas.</li></ul>",
+        "zIndex": 1,
+        "primaryTag": "",
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": 546.5177471585991,
+        "y": 1418.8488091560187
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-example-publication-idea",
+        "source": "node-example-publication",
+        "target": "node-example-idea",
+        "tags": [
+          "example"
+        ],
+        "notes": "Example connection between a publication and an idea.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  ]
+}

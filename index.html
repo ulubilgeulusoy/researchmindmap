@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Research Mind Map Prototype</title>
+  <link rel="stylesheet" href="style.css?v=20260728-remove-cluster-extra-controls">
+  <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="toolbar" aria-label="Research map controls">
+      <div class="toolbar-main">
+        <div class="toolbar-row">
+      <div class="toolbar-group toolbar-cluster view-tabs" aria-label="Workspace views">
+        <span class="toolbar-label">View</span>
+        <div class="toolbar-buttons">
+          <button type="button" id="mapViewButton" class="active-view">Map</button>
+          <button type="button" id="documentViewButton">Document</button>
+          <button type="button" id="multiViewButton">Multi View</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group toolbar-cluster">
+        <span class="toolbar-label">Add</span>
+        <div class="toolbar-buttons">
+          <button type="button" data-add-type="Idea">Node</button>
+          <button type="button" id="connectionButton">Connection</button>
+          <button type="button" id="nodeSettingsButton" class="icon-toolbar-button" title="Node type settings" aria-label="Node type settings">⚙</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group toolbar-cluster">
+        <span class="toolbar-label">File</span>
+        <div class="toolbar-buttons">
+          <button type="button" id="saveButton">Save</button>
+          <button type="button" id="exportButton">Export</button>
+          <button type="button" id="importButton">Import</button>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+
+      <div class="toolbar-group toolbar-cluster">
+        <span class="toolbar-label">Project</span>
+        <div class="toolbar-buttons">
+          <select id="projectSelect" class="toolbar-project-select" aria-label="Select project">
+            <option value="MMEA">MMEA</option>
+            <option value="Demo">Demo</option>
+            <option value="Psychophys Modelling">Psychophys Modelling</option>
+          </select>
+          <button type="button" id="newProjectButton">New Project</button>
+        </div>
+      </div>
+
+        </div>
+
+        <div class="toolbar-row">
+      <div class="toolbar-group toolbar-cluster">
+        <span class="toolbar-label">Sources</span>
+        <div class="toolbar-buttons">
+          <button type="button" id="zoteroButton">Zotero</button>
+          <button type="button" id="grobidButton">GROBID</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group toolbar-cluster utility-cluster">
+        <span class="toolbar-label">View Tools</span>
+        <div class="toolbar-buttons">
+          <label class="toolbar-select-label">
+            <span>Cluster</span>
+            <select id="clusterModeSelect" aria-label="Cluster map nodes">
+              <option value="none">No Cluster</option>
+              <option value="tags">By Tags</option>
+              <option value="authors">By Author</option>
+              <option value="connections">By Connections</option>
+            </select>
+          </label>
+          <label class="toolbar-range-label">
+            <span>Spacing</span>
+            <input id="clusterSpacingSlider" type="range" min="0.8" max="3" step="0.05" value="1" aria-label="Cluster spacing">
+            <output id="clusterSpacingValue" for="clusterSpacingSlider">1.0x</output>
+          </label>
+          <button type="button" id="clusterSettingsButton" class="icon-toolbar-button" title="Cluster background settings" aria-label="Cluster background settings">⚙</button>
+          <button type="button" id="resetViewButton">Reset View</button>
+        </div>
+      </div>
+
+      <div class="toolbar-group toolbar-cluster">
+        <span class="toolbar-label">Search</span>
+        <div class="toolbar-buttons">
+          <button type="button" id="searchButton">Search</button>
+        </div>
+      </div>
+      <div class="toolbar-group toolbar-cluster presence-cluster">
+        <span class="toolbar-label">Presence</span>
+        <div class="toolbar-buttons">
+          <span id="presenceIndicator" class="presence-indicator" title="Online viewers for this project">
+            <span class="presence-dot"></span>
+            <span id="presenceText">Online: 1</span>
+          </span>
+        </div>
+      </div>
+        </div>
+      </div>
+      <div class="toolbar-status">
+        <p id="statusMessage" class="status-message" role="status">Ready.</p>
+        <p id="autosaveMessage" class="autosave-message">Autosave ready.</p>
+      </div>
+    </header>
+
+    <main id="mapWorkspace" class="workspace">
+      <section class="canvas-wrap" aria-label="Mind map canvas">
+        <svg id="tagBubbleOverlay" class="tag-bubble-overlay" aria-hidden="true"></svg>
+        <div id="cy"></div>
+        <aside id="mapLegend" class="map-legend" aria-label="Node color legend"></aside>
+        <div id="resizeOverlay" class="resize-overlay" hidden>
+          <span class="resize-handle handle-nw" data-resize-handle="nw"></span>
+          <span class="resize-handle handle-ne" data-resize-handle="ne"></span>
+          <span class="resize-handle handle-sw" data-resize-handle="sw"></span>
+          <span class="resize-handle handle-se" data-resize-handle="se"></span>
+        </div>
+        <div id="mapZoomControl" class="map-zoom-control" aria-label="Map zoom controls">
+          <button type="button" id="zoomOutButton" aria-label="Zoom out">-</button>
+          <input id="mapZoomSlider" type="range" min="0.05" max="2" step="0.01" value="1" aria-label="Map zoom level">
+          <button type="button" id="zoomInButton" aria-label="Zoom in">+</button>
+          <label class="map-zoom-number">
+            <input id="mapZoomValue" type="number" min="5" max="200" step="1" value="100" aria-label="Map zoom percentage">
+            <span>%</span>
+          </label>
+        </div>
+        <div id="multiFormatBar" class="multi-format-bar" aria-label="Node formatting controls">
+          <div class="multi-format-field node-size-field">
+            <span>Node size</span>
+            <input id="multiNodeSize" type="range" min="56" max="1000" step="4" disabled>
+            <input id="multiNodeSizeNumber" type="number" min="56" max="1000" step="4" disabled>
+          </div>
+          <label class="multi-format-field">
+            <span>Font size</span>
+            <input id="multiNodeFontSize" type="number" min="8" max="96" step="1" disabled>
+          </label>
+          <label class="multi-format-field">
+            <span>Font type</span>
+            <select id="multiNodeFontFamily" disabled>
+              <option value="Arial, Helvetica, sans-serif">Arial</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="'Times New Roman', Times, serif">Times New Roman</option>
+              <option value="'Courier New', Courier, monospace">Courier New</option>
+              <option value="Verdana, Geneva, sans-serif">Verdana</option>
+            </select>
+          </label>
+          <label class="multi-format-field">
+            <span>Font style</span>
+            <select id="multiNodeFontStyle" disabled>
+              <option value="normal">Normal</option>
+              <option value="bold">Bold</option>
+              <option value="italic">Italic</option>
+              <option value="bold italic">Bold Italic</option>
+            </select>
+          </label>
+          <div class="multi-format-actions">
+            <button type="button" id="multiCopyNodeStyleButton" disabled>Copy Style</button>
+            <button type="button" id="multiPasteNodeStyleButton" disabled>Paste Style</button>
+          </div>
+        </div>
+        <section id="publicationNotesModal" class="floating-notes-panel" aria-labelledby="publicationNotesTitle" hidden>
+          <div class="notes-modal" role="dialog" aria-modal="false">
+            <div id="publicationNotesDragHandle" class="notes-modal-header">
+              <div>
+                <h2 id="publicationNotesTitle">Publication Notes</h2>
+                <p id="publicationNotesSubtitle">Literature review notes</p>
+              </div>
+              <button type="button" id="closePublicationNotes" class="modal-close">Close</button>
+            </div>
+
+            <form id="publicationNotesForm" class="publication-notes-form">
+              <label>
+                Notes
+                <textarea id="publicationNotesText" rows="12"></textarea>
+              </label>
+
+              <label>
+                Citation
+                <textarea id="publicationCitation" rows="3"></textarea>
+              </label>
+
+              <label>
+                URL
+                <input id="publicationUrl" type="url" placeholder="https://...">
+              </label>
+
+              <label>
+                Abstract
+                <textarea id="publicationAbstract" rows="5"></textarea>
+              </label>
+            </form>
+          </div>
+        </section>
+      </section>
+
+      <aside class="details-panel" aria-label="Node details and editor">
+        <div class="panel-heading">
+          <h1>Details</h1>
+          <span id="selectedKind">No selection</span>
+        </div>
+
+        <div class="panel-switch" aria-label="Details panel mode">
+          <button type="button" id="detailsTabButton" class="active-panel-tab">Details</button>
+          <button type="button" id="formattingTabButton">Formatting</button>
+        </div>
+
+        <form id="detailsForm" class="details-form">
+          <section class="details-section" data-details-panel="details">
+            <h2>Details</h2>
+
+            <label>
+              Title / label
+              <input id="nodeTitle" name="title" type="text" disabled>
+            </label>
+
+            <label>
+              Type
+              <select id="nodeType" name="type" disabled></select>
+            </label>
+
+            <label>
+              URL
+              <input id="nodeUrl" name="url" type="url" placeholder="https://..." disabled>
+            </label>
+
+            <label id="nodeCitationLabel" hidden>
+              Citation
+              <textarea id="nodeCitation" name="citation" rows="4" placeholder="Publication citation" disabled></textarea>
+            </label>
+
+            <label>
+              Tags
+              <input id="nodeTags" name="tags" type="text" placeholder="prompting, synthesis" disabled>
+            </label>
+
+            <button type="button" id="openNotesButton" disabled>Open Notes</button>
+            <button type="button" id="openLinkButton" disabled>Open Link</button>
+            <button type="button" id="openPdfButton" disabled>Open PDF</button>
+            <button type="button" id="openPdfFolderButton">Open PDF Folder</button>
+            <button type="button" id="importPdfHighlightsButton" hidden disabled>Import PDF Annotations</button>
+          </section>
+
+          <section class="details-section" data-details-panel="formatting" hidden>
+            <h2>Formatting</h2>
+
+            <label>
+              Node size
+              <div class="range-row">
+                <input id="nodeSize" name="size" type="range" min="56" max="1000" step="4" disabled>
+                <input id="nodeSizeNumber" name="sizeNumber" type="number" min="56" max="1000" step="4" disabled>
+              </div>
+            </label>
+
+            <label>
+              Font size
+              <input id="nodeFontSize" name="fontSize" type="number" min="8" max="96" step="1" disabled>
+            </label>
+
+            <label>
+              Font type
+              <select id="nodeFontFamily" name="fontFamily" disabled>
+                <option value="Arial, Helvetica, sans-serif">Arial</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                <option value="'Courier New', Courier, monospace">Courier New</option>
+                <option value="Verdana, Geneva, sans-serif">Verdana</option>
+              </select>
+            </label>
+
+            <label>
+              Font style
+              <select id="nodeFontStyle" name="fontStyle" disabled>
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+                <option value="italic">Italic</option>
+                <option value="bold italic">Bold Italic</option>
+              </select>
+            </label>
+
+            <div class="style-copy-row">
+              <button type="button" id="copyNodeStyleButton" disabled>Copy Style</button>
+              <button type="button" id="pasteNodeStyleButton" disabled>Paste Style</button>
+            </div>
+          </section>
+        </form>
+
+        <div class="panel-help">
+          <p id="panelMessage">Select a node to edit its research metadata.</p>
+        </div>
+
+        <section id="edgeNotesPanel" class="edge-notes-panel" hidden>
+          <div class="connection-detail-title" id="edgeDetailTitle">Connection</div>
+          <label>
+            From
+            <textarea id="edgeFromNode" rows="3" readonly></textarea>
+          </label>
+          <label>
+            To
+            <textarea id="edgeToNode" rows="3" readonly></textarea>
+          </label>
+          <label>
+            Connection notes
+            <textarea id="edgeNotesText" rows="8" placeholder="Why are these items connected?"></textarea>
+          </label>
+          <label>
+            Tags
+            <input id="edgeTagsText" type="text" placeholder="method, contrast, supports">
+          </label>
+          <section class="connection-style-controls" aria-label="Global connection style">
+            <h2>Connection style</h2>
+            <label>
+              Arrow color
+              <input id="edgeColorInput" type="color" value="#9aa6b8">
+            </label>
+            <label>
+              Arrow thickness
+              <div class="range-row">
+                <input id="edgeWidthInput" type="range" min="1" max="12" step="1" value="3">
+                <input id="edgeWidthNumber" type="number" min="1" max="12" step="1" value="3">
+              </div>
+            </label>
+          </section>
+        </section>
+      </aside>
+    </main>
+
+    <main id="documentWorkspace" class="document-workspace" hidden>
+      <aside class="document-outline" aria-label="Document outline">
+        <div class="panel-heading">
+          <h1>Outline</h1>
+        </div>
+        <label class="outline-select-label">
+          <span>Show</span>
+          <select id="outlineViewSelect" aria-label="Outline category"></select>
+        </label>
+        <div id="documentOutlineList" class="outline-list"></div>
+      </aside>
+
+      <section class="document-editor-shell" aria-label="Linked document editor">
+        <div class="doc-toolbar" aria-label="Document formatting">
+          <div class="doc-toolbar-group">
+            <select id="docFontFamily" aria-label="Font family" data-doc-value-command="fontName">
+              <option value="Arial">Arial</option>
+              <option value="Calibri">Calibri</option>
+              <option value="Cambria">Cambria</option>
+              <option value="Courier New">Courier New</option>
+              <option value="Garamond">Garamond</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="Inter">Inter</option>
+              <option value="Palatino Linotype">Palatino Linotype</option>
+              <option value="Segoe UI">Segoe UI</option>
+              <option value="Tahoma">Tahoma</option>
+              <option value="Times New Roman">Times New Roman</option>
+              <option value="Trebuchet MS">Trebuchet MS</option>
+              <option value="Verdana">Verdana</option>
+            </select>
+            <select id="docFontSize" aria-label="Font size">
+            </select>
+            <select id="docParagraphStyle" aria-label="Paragraph style">
+              <option value="p">Normal</option>
+              <option value="h1">Heading 1</option>
+              <option value="h2">Heading 2</option>
+              <option value="h3">Heading 3</option>
+              <option value="blockquote">Quote</option>
+            </select>
+          </div>
+
+          <div class="doc-toolbar-group">
+            <button type="button" id="docOpenPdfButton" class="doc-action-button" disabled>Open PDF</button>
+            <button type="button" id="docImportPdfHighlightsButton" class="doc-action-button" disabled>Import PDF Annotations</button>
+          </div>
+
+          <div class="doc-toolbar-group">
+            <button type="button" class="doc-icon-button" data-doc-command="bold" title="Bold" aria-label="Bold"><strong>B</strong></button>
+            <button type="button" class="doc-icon-button" data-doc-command="italic" title="Italic" aria-label="Italic"><em>I</em></button>
+            <button type="button" class="doc-icon-button" data-doc-command="underline" title="Underline" aria-label="Underline"><span class="underline-icon">U</span></button>
+            <button type="button" id="docFormatPainterButton" class="doc-icon-button" title="Format painter" aria-label="Format painter">
+              <svg class="format-painter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 14h8v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5Z"></path>
+                <path d="M4 14V9h10.5a3.5 3.5 0 0 0 0-7H12v4"></path>
+                <path d="M12 2h5a3 3 0 0 1 3 3v1a3 3 0 0 1-3 3h-2.5"></path>
+              </svg>
+            </button>
+            <button type="button" id="docLinkButton" class="doc-icon-button" title="Add hyperlink" aria-label="Add hyperlink">Link</button>
+            <button type="button" id="docNodeLinkButton" class="doc-icon-button" title="Link to node" aria-label="Link to node">Node Link</button>
+            <button type="button" id="docImageButton" class="doc-icon-button" title="Insert image" aria-label="Insert image">Image</button>
+            <button type="button" id="docTableButton" class="doc-icon-button" title="Insert table" aria-label="Insert table">Table</button>
+            <input id="docImageInput" type="file" accept="image/*" hidden>
+            <label class="doc-image-size-control" title="Selected image width">
+              <span>Image width</span>
+              <input id="docImageWidth" type="range" min="80" max="1200" step="10" disabled aria-label="Selected image width">
+              <input id="docImageWidthNumber" type="number" min="80" max="1200" step="10" disabled aria-label="Selected image width in pixels">
+            </label>
+            <div class="doc-split-color-control" title="Text color">
+              <button type="button" id="docApplyTextColor" class="doc-color-apply" aria-label="Apply text color">
+                <span>A</span>
+                <span id="docTextColorBar" class="doc-color-bar" style="background: #1f2937;"></span>
+              </button>
+              <button type="button" id="docPickTextColor" class="doc-color-picker-button" aria-label="Choose text color">
+                <span id="docTextColorSwatch" class="doc-color-swatch" style="background: #1f2937;"></span>
+              </button>
+              <div id="docTextColorMenu" class="doc-color-menu" hidden></div>
+              <input id="docTextColor" type="color" value="#1f2937" hidden>
+            </div>
+            <div class="doc-split-color-control" title="Highlight color">
+              <button type="button" id="docApplyHighlightColor" class="doc-color-apply" aria-label="Apply highlight color">
+                <span>HL</span>
+                <span id="docHighlightColorBar" class="doc-color-bar" style="background: #fff2a8;"></span>
+              </button>
+              <button type="button" id="docPickHighlightColor" class="doc-color-picker-button" aria-label="Choose highlight color">
+                <span id="docHighlightColorSwatch" class="doc-color-swatch" style="background: #fff2a8;"></span>
+              </button>
+              <div id="docHighlightColorMenu" class="doc-color-menu" hidden></div>
+              <input id="docHighlightColor" type="color" value="#fff2a8" hidden>
+            </div>
+          </div>
+
+          <div class="doc-toolbar-group">
+            <button type="button" class="doc-icon-button" data-doc-command="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list">&bull;</button>
+            <button type="button" class="doc-icon-button" data-doc-command="insertOrderedList" title="Numbered list" aria-label="Numbered list">1.</button>
+            <div class="doc-align-control">
+              <button type="button" id="docApplyAlignment" class="doc-align-apply" title="Apply alignment" aria-label="Apply alignment">
+                <span id="docAlignmentIcon" class="align-icon align-left" aria-hidden="true"></span>
+              </button>
+              <button type="button" id="docAlignmentMenuButton" class="doc-align-menu-button" aria-label="Choose alignment">▾</button>
+              <div id="docAlignmentMenu" class="doc-align-menu" hidden>
+                <button type="button" data-align-command="justifyLeft"><span class="align-icon align-left" aria-hidden="true"></span> Left</button>
+                <button type="button" data-align-command="justifyCenter"><span class="align-icon align-center" aria-hidden="true"></span> Center</button>
+                <button type="button" data-align-command="justifyRight"><span class="align-icon align-right" aria-hidden="true"></span> Right</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="document-page-scroll">
+          <article class="document-page">
+            <label id="documentPrimaryTagControl" class="document-primary-tag-control" hidden>
+              <span>Group this node by</span>
+              <select id="documentPrimaryTag">
+                <option value="">First tag</option>
+              </select>
+            </label>
+            <textarea id="documentSectionTitle" class="document-title-input" rows="1" placeholder="Select a node section" disabled></textarea>
+            <div id="documentEditor" class="document-editor" contenteditable="false">
+              Select a node from the outline or the map to edit its linked document section.
+            </div>
+            <div id="documentImageResizeOverlay" class="document-image-resize-overlay" hidden>
+              <button type="button" class="document-image-resize-handle top-left" data-image-resize-handle="top-left" aria-label="Resize image from top left"></button>
+              <button type="button" class="document-image-resize-handle top-right" data-image-resize-handle="top-right" aria-label="Resize image from top right"></button>
+              <button type="button" class="document-image-resize-handle bottom-left" data-image-resize-handle="bottom-left" aria-label="Resize image from bottom left"></button>
+              <button type="button" class="document-image-resize-handle bottom-right" data-image-resize-handle="bottom-right" aria-label="Resize image from bottom right"></button>
+            </div>
+            <section id="documentConnectionContext" class="document-connection-context" hidden></section>
+            <div id="documentLinkPopover" class="document-link-popover" hidden>
+              <a id="documentLinkUrl" href="#" target="_blank" rel="noopener noreferrer"></a>
+              <div class="document-link-actions">
+                <button type="button" id="openDocumentLink">Open</button>
+                <button type="button" id="removeDocumentLink">Unlink</button>
+              </div>
+            </div>
+            <div id="documentNodeLinkPicker" class="document-node-link-picker" hidden>
+              <div class="document-node-link-header">
+                <strong>Link to node</strong>
+                <button type="button" id="closeDocumentNodeLinkPicker">Close</button>
+              </div>
+              <div class="document-node-link-filters">
+                <input id="documentNodeLinkSearch" type="search" placeholder="Search nodes..." autocomplete="off">
+                <div id="documentNodeLinkTypeFilters" class="document-node-link-type-filters"></div>
+              </div>
+              <div id="documentNodeLinkList" class="document-node-link-list"></div>
+            </div>
+            <div id="documentTablePicker" class="document-table-picker" hidden>
+              <div class="document-node-link-header">
+                <strong>Insert table</strong>
+                <button type="button" id="closeDocumentTablePicker">Close</button>
+              </div>
+              <div class="document-table-picker-grid">
+                <label>
+                  Rows
+                  <input id="documentTableRows" type="number" min="1" max="20" value="3">
+                </label>
+                <label>
+                  Columns
+                  <input id="documentTableColumns" type="number" min="1" max="12" value="3">
+                </label>
+              </div>
+              <button type="button" id="insertDocumentTableButton" class="document-table-insert-button">Insert Table</button>
+            </div>
+            <div id="documentTableTools" class="document-table-tools" hidden>
+              <button type="button" data-table-action="select-row">Select Row</button>
+              <button type="button" data-table-action="select-column">Select Column</button>
+              <button type="button" data-table-action="select-table">Select Table</button>
+              <span class="document-table-tools-divider"></span>
+              <button type="button" data-table-action="row-above">Row Above</button>
+              <button type="button" data-table-action="row-below">Row Below</button>
+              <button type="button" data-table-action="delete-row">Delete Row</button>
+              <span class="document-table-tools-divider"></span>
+              <button type="button" data-table-action="column-left">Column Left</button>
+              <button type="button" data-table-action="column-right">Column Right</button>
+              <button type="button" data-table-action="delete-column">Delete Column</button>
+              <span class="document-table-tools-divider"></span>
+              <button type="button" data-table-action="align-top">Top</button>
+              <button type="button" data-table-action="align-middle">Middle</button>
+              <button type="button" data-table-action="align-bottom">Bottom</button>
+            </div>
+            <div id="documentMetadata" class="document-metadata" hidden>
+              <label>
+                Citation
+                <textarea id="documentCitation" rows="2" disabled></textarea>
+              </label>
+              <label>
+                URL
+                <input id="documentUrl" type="url" placeholder="https://..." disabled>
+              </label>
+              <textarea id="documentAbstract" hidden disabled></textarea>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <section id="pdfHighlightsModal" class="pdf-highlights-modal" hidden>
+      <div class="pdf-highlights-dialog" role="dialog" aria-modal="true" aria-labelledby="pdfHighlightsTitle">
+        <div class="pdf-highlights-header">
+          <div>
+            <h3 id="pdfHighlightsTitle">PDF Annotations</h3>
+            <p id="pdfHighlightsStatus">No annotations imported yet.</p>
+          </div>
+          <button type="button" id="closePdfHighlightsButton" class="modal-close">Close</button>
+        </div>
+        <div id="pdfHighlightsList" class="pdf-highlights-list"></div>
+        <div class="pdf-highlights-actions">
+          <button type="button" id="selectAllPdfHighlightsButton">Select All</button>
+          <button type="button" id="deselectAllPdfHighlightsButton">Deselect All</button>
+          <button type="button" id="appendPdfHighlightsButton">Append Selected</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="nodeTypeSettingsPanel" class="node-type-settings-panel" hidden>
+      <div class="node-type-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="nodeTypeSettingsTitle">
+        <div class="node-type-settings-header">
+          <div>
+            <h2 id="nodeTypeSettingsTitle">Node Type Settings</h2>
+            <p>Change node colors, add node types, or move deleted types to Unassigned.</p>
+          </div>
+          <button type="button" id="closeNodeTypeSettingsButton">Close</button>
+        </div>
+        <div id="nodeTypeSettingsList" class="node-type-settings-list"></div>
+        <div class="node-type-add-row">
+          <input id="newNodeTypeName" type="text" placeholder="New node type">
+          <input id="newNodeTypeColor" type="color" value="#8b5cf6" aria-label="New node type color">
+          <button type="button" id="addNodeTypeButton">Add Type</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="clusterSettingsPanel" class="node-type-settings-panel" hidden>
+      <div class="node-type-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="clusterSettingsTitle">
+        <div class="node-type-settings-header">
+          <div>
+            <h2 id="clusterSettingsTitle">Tag Cluster Background Settings</h2>
+            <p>Adjust tag cluster circle and label styling.</p>
+          </div>
+          <button type="button" id="closeClusterSettingsButton">Close</button>
+        </div>
+        <div class="cluster-settings-grid">
+          <label>
+            Circle color
+            <input id="clusterCircleColor" type="color" value="#dbeafe">
+          </label>
+          <label>
+            Text color
+            <input id="clusterTextColor" type="color" value="#475569">
+          </label>
+          <label>
+            Text size
+            <input id="clusterTextSize" type="number" min="8" max="72" step="1" value="22">
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section id="searchPanel" class="search-panel" hidden>
+      <div class="search-panel-dialog" role="dialog" aria-modal="true" aria-labelledby="searchPanelTitle">
+        <div class="search-panel-header">
+          <div>
+            <h2 id="searchPanelTitle">Search Map</h2>
+            <p id="searchPanelStatus">Find nodes, connections, notes, citations, URLs, and tags.</p>
+          </div>
+          <button type="button" id="closeSearchPanel">Close</button>
+        </div>
+        <div class="search-controls">
+          <input id="appSearchInput" type="search" placeholder="Search titles, notes, citations, tags, URLs..." autocomplete="off">
+        </div>
+        <div id="searchResultsList" class="search-results-list"></div>
+      </div>
+    </section>
+
+    <nav id="nodeContextMenu" class="context-menu" aria-label="Node actions" hidden>
+      <button type="button" data-menu-action="edit">Edit Node</button>
+      <button type="button" data-menu-action="start-connection">Start Connection From This Node</button>
+      <button type="button" data-menu-action="finish-connection">Connect To This Node</button>
+      <button type="button" data-menu-action="duplicate">Duplicate Node</button>
+      <button type="button" data-menu-action="open-link">Open Link</button>
+      <button type="button" data-menu-action="copy-style">Copy Style</button>
+      <button type="button" data-menu-action="paste-style">Paste Style</button>
+      <button type="button" data-menu-action="bring-front">Bring To Front</button>
+      <button type="button" data-menu-action="send-back">Send To Back</button>
+      <div class="context-menu-section">
+        <span>Change Type</span>
+        <div id="contextTypeButtons" class="context-type-buttons"></div>
+      </div>
+      <button type="button" class="danger-action" data-menu-action="delete">Delete Node</button>
+    </nav>
+
+    <section id="zoteroPanel" class="zotero-panel" hidden>
+      <div class="zotero-panel-header">
+        <div>
+          <h2>Zotero Import</h2>
+          <p id="zoteroStatusText">Connect to Zotero Desktop on this computer.</p>
+        </div>
+        <button type="button" id="closeZoteroPanel">Close</button>
+      </div>
+
+      <div class="zotero-controls">
+        <button type="button" id="checkZoteroButton">Check Zotero</button>
+        <select id="zoteroCollectionSelect">
+          <option value="">All top-level items</option>
+        </select>
+        <button type="button" id="loadZoteroItemsButton">Load Items</button>
+      </div>
+
+      <div class="zotero-search-row">
+        <input id="zoteroSearchInput" type="search" placeholder="Search selected Zotero library..." autocomplete="off">
+        <button type="button" id="clearZoteroSearchButton" aria-label="Clear Zotero search">Clear</button>
+      </div>
+
+      <div id="zoteroListActions" class="list-actions" hidden>
+        <span>Zotero items</span>
+        <button type="button" id="selectAllZoteroItemsButton">Select All</button>
+        <button type="button" id="deselectAllZoteroItemsButton">Deselect All</button>
+        <button type="button" id="importZoteroItemsButton">Import Selected</button>
+      </div>
+      <div id="zoteroItemsList" class="zotero-items-list"></div>
+    </section>
+
+    <section id="grobidPanel" class="zotero-panel" hidden>
+      <div class="zotero-panel-header">
+        <div>
+          <h2>GROBID Citation Links</h2>
+          <p id="grobidStatusText">Analyze Zotero PDFs to find citation links between map publications.</p>
+        </div>
+        <button type="button" id="closeGrobidPanel">Close</button>
+      </div>
+
+      <div class="zotero-controls">
+        <button type="button" id="checkGrobidButton">Check GROBID</button>
+        <button type="button" id="analyzeGrobidButton">Analyze All Publications</button>
+      </div>
+
+      <div id="grobidProgress" class="grobid-progress" hidden>
+        <div class="grobid-progress-track">
+          <div id="grobidProgressBar" class="grobid-progress-bar"></div>
+        </div>
+        <p id="grobidProgressText">Preparing analysis...</p>
+      </div>
+
+      <div id="grobidErrorLog" class="grobid-error-log" hidden></div>
+
+      <div id="grobidListActions" class="list-actions" hidden>
+        <span>New citation suggestions</span>
+        <button type="button" id="selectAllGrobidSuggestionsButton">Select All</button>
+        <button type="button" id="deselectAllGrobidSuggestionsButton">Deselect All</button>
+        <button type="button" id="addGrobidConnectionsButton">Add Selected Connections</button>
+      </div>
+      <div id="grobidSuggestionsList" class="zotero-items-list"></div>
+    </section>
+
+  </div>
+
+  <script src="app.js?v=20260728-remove-cluster-extra-controls"></script>
+</body>
+</html>
