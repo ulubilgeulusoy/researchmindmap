@@ -137,12 +137,15 @@ let copiedNodeStyle = null;
 let savedDocumentRange = null;
 let selectedDocumentImage = null;
 let selectedDocumentTable = null;
+let selectedDocumentTableCells = null;
 let selectedDocumentTableColumn = null;
 let selectedDocumentTableRow = null;
 let activeDocumentTableCell = null;
 let activeDocumentTable = null;
 let documentImageResizeDrag = null;
+let documentTableSelectionDrag = null;
 let copiedDocumentImage = null;
+let copiedDocumentTableCells = null;
 let activeOutlineView = "type:Publication";
 let isAdditiveSelectKeyDown = false;
 let copiedNodesClipboard = [];
@@ -791,6 +794,10 @@ document.addEventListener("keydown", (event) => {
   }
 
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+    if (copySelectedDocumentTableCells()) {
+      event.preventDefault();
+      return;
+    }
     if (documentEditor.contains(event.target)) return;
     if (copySelectedDocumentImage()) {
       event.preventDefault();
@@ -803,6 +810,10 @@ document.addEventListener("keydown", (event) => {
   }
 
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+    if (pasteCopiedDocumentTableCells()) {
+      event.preventDefault();
+      return;
+    }
     if (documentEditor.contains(event.target)) return;
     if (copiedDocumentImage && isDocumentImagePasteContext(event.target) && !hasEditableTextSelection()) {
       event.preventDefault();
@@ -867,6 +878,8 @@ documentImageResizeOverlay.querySelectorAll("[data-image-resize-handle]").forEac
 });
 window.addEventListener("pointermove", continueDocumentImageResize);
 window.addEventListener("pointerup", finishDocumentImageResize);
+window.addEventListener("pointermove", continueDocumentTableSelectionDrag);
+window.addEventListener("pointerup", finishDocumentTableSelectionDrag);
 
 Object.values(fields).forEach((field) => {
   field.addEventListener("focus", beginNodeEdit);
@@ -908,6 +921,7 @@ documentEditor.addEventListener("keydown", handleDocumentEditorKeydown);
 documentEditor.addEventListener("paste", handleDocumentEditorPaste);
 documentEditor.addEventListener("dragover", handleDocumentEditorDragOver);
 documentEditor.addEventListener("drop", handleDocumentEditorDrop);
+document.addEventListener("keydown", handleDocumentSelectionEscape, true);
 documentEditor.closest(".document-editor-shell").addEventListener("scroll", () => {
   updateDocumentImageResizeOverlay();
   updateDocumentTableToolsPosition();
@@ -5081,6 +5095,9 @@ function getCleanDocumentEditorHtml() {
   clone.querySelectorAll(".selected-doc-table-row").forEach((cell) => {
     cell.classList.remove("selected-doc-table-row");
   });
+  clone.querySelectorAll(".selected-doc-table-cell").forEach((cell) => {
+    cell.classList.remove("selected-doc-table-cell");
+  });
   clone.querySelectorAll('img[src^="data:image/"]').forEach((image) => {
     const placeholder = document.createElement("span");
     placeholder.className = "unsaved-image-placeholder";
@@ -5162,6 +5179,7 @@ function populateDocumentFontSizes() {
 
 function runDocumentCommand(command) {
   if (documentEditor.contentEditable !== "true") return;
+  if (runTableFormattingCommand(command)) return;
   beginDocumentEdit();
   restoreDocumentSelection();
   documentEditor.focus();
@@ -5172,6 +5190,7 @@ function runDocumentCommand(command) {
 
 function runDocumentValueCommand(command, value) {
   if (documentEditor.contentEditable !== "true") return;
+  if (runTableValueFormattingCommand(command, value)) return;
   const commandKey = `${command}:${value}`;
   if (runDocumentValueCommand.lastCommandKey === commandKey) return;
   runDocumentValueCommand.lastCommandKey = commandKey;
@@ -5196,6 +5215,15 @@ function preserveDocumentSelectionForToolbar() {
 
 function handleDocumentFormatPainter() {
   if (documentEditor.contentEditable !== "true") return;
+  copiedDocumentFormat = captureTableCellFormatFromSelection();
+  if (copiedDocumentFormat) {
+    formatPainterSourceText = "";
+    formatPainterSourceRange = null;
+    docFormatPainterButton.classList.add("active-tool");
+    setStatus("Copied table cell formatting. Select target cell(s) to apply it.");
+    return;
+  }
+
   restoreDocumentSelection();
 
   copiedDocumentFormat = captureDocumentFormatFromSelection();
@@ -5214,6 +5242,14 @@ function handleDocumentFormatPainter() {
 function handleDocumentSelectionForFormatPainter() {
   saveDocumentSelection();
   if (!copiedDocumentFormat) return;
+
+  if (copiedDocumentFormat.kind === "table-cell") {
+    if (applyCopiedTableCellFormat()) {
+      clearDocumentFormatPainter();
+      setStatus("Applied table cell formatting.");
+    }
+    return;
+  }
 
   const targetText = getCurrentDocumentSelectionText();
   const targetRange = getCurrentDocumentRange();
@@ -5248,6 +5284,48 @@ function captureDocumentFormatFromSelection() {
     color: style.color,
     backgroundColor: isTransparentColor(style.backgroundColor) ? "" : style.backgroundColor
   };
+}
+
+function captureTableCellFormatFromSelection() {
+  const cells = getActiveTableCellsForFormatting();
+  if (!cells.length || !hasActiveTableCellFormattingTarget()) return null;
+  const cell = cells[0];
+  const style = window.getComputedStyle(cell);
+  return {
+    kind: "table-cell",
+    style: {
+      fontFamily: cell.style.fontFamily || style.fontFamily,
+      fontSize: cell.style.fontSize || style.fontSize,
+      fontWeight: cell.style.fontWeight || style.fontWeight,
+      fontStyle: cell.style.fontStyle || style.fontStyle,
+      textDecorationLine: cell.style.textDecorationLine || style.textDecorationLine,
+      color: cell.style.color || style.color,
+      backgroundColor: cell.style.backgroundColor || (isTransparentColor(style.backgroundColor) ? "" : style.backgroundColor),
+      textAlign: cell.style.textAlign || style.textAlign,
+      verticalAlign: cell.style.verticalAlign || style.verticalAlign,
+      border: cell.style.border,
+      borderTop: cell.style.borderTop,
+      borderRight: cell.style.borderRight,
+      borderBottom: cell.style.borderBottom,
+      borderLeft: cell.style.borderLeft,
+      width: cell.style.width,
+      height: cell.style.height
+    }
+  };
+}
+
+function applyCopiedTableCellFormat() {
+  if (copiedDocumentFormat?.kind !== "table-cell") return false;
+  return applyStyleToActiveTableCells((cell) => {
+    applySerializedCellStyle(cell, copiedDocumentFormat.style);
+  }, "Applied table cell formatting.");
+}
+
+function applyCopiedTableCellFormatFromSelectionIfActive() {
+  if (copiedDocumentFormat?.kind !== "table-cell") return false;
+  if (!applyCopiedTableCellFormat()) return false;
+  clearDocumentFormatPainter();
+  return true;
 }
 
 function updateDocumentFontToolbarState() {
@@ -5544,6 +5622,16 @@ function getAlignmentIconClass(command) {
 function handleDocumentEditorKeydown(event) {
   if (documentEditor.contentEditable !== "true") return;
 
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && copySelectedDocumentTableCells()) {
+    event.preventDefault();
+    return;
+  }
+
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v" && pasteCopiedDocumentTableCells()) {
+    event.preventDefault();
+    return;
+  }
+
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && copySelectedDocumentImage()) {
     event.preventDefault();
     return;
@@ -5599,6 +5687,12 @@ function applyDocumentFontSize(size) {
   if (size === "") return;
   const numericSize = clamp(Number(size), 1, 64);
   if (!Number.isFinite(numericSize)) return;
+  if (applyStyleToActiveTableCells((cell) => {
+    cell.style.fontSize = `${numericSize}px`;
+  }, "Formatted selected table cells.")) {
+    updateDocumentFontToolbarState();
+    return;
+  }
   restoreDocumentSelection();
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || !documentEditor.contains(selection.anchorNode)) return;
@@ -6041,6 +6135,11 @@ function insertSelectedDocumentImage(event) {
 }
 
 async function handleDocumentEditorPaste(event) {
+  if (pasteCopiedDocumentTableCells()) {
+    event.preventDefault();
+    return;
+  }
+
   if (copiedDocumentImage && !hasEditableTextSelection()) {
     event.preventDefault();
     pasteCopiedDocumentImage();
@@ -6213,6 +6312,67 @@ function pasteCopiedDocumentImage() {
   return true;
 }
 
+function copySelectedDocumentTableCells() {
+  const cells = getActiveTableCellsForFormatting();
+  if (!cells.length || !hasActiveTableCellFormattingTarget()) return false;
+  copiedDocumentTableCells = serializeDocumentTableCells(cells);
+  setStatus(`Copied ${cells.length} table cell(s). Select a target cell and press Ctrl+V.`);
+  return true;
+}
+
+function pasteCopiedDocumentTableCells() {
+  if (!copiedDocumentTableCells || documentEditor.contentEditable !== "true") return false;
+  const targetCells = getActiveTableCellsForFormatting();
+  if (!targetCells.length) return false;
+
+  beginDocumentEdit();
+  targetCells.forEach((cell, index) => {
+    const source = copiedDocumentTableCells.cells[index % copiedDocumentTableCells.cells.length];
+    if (!source) return;
+    cell.innerHTML = source.html;
+    applySerializedCellStyle(cell, source.style);
+  });
+  updateDocumentBody();
+  commitDocumentEdit();
+  updateDocumentImageResizeOverlay();
+  updateDocumentTableToolsPosition();
+  setStatus(`Pasted into ${targetCells.length} table cell(s).`);
+  return true;
+}
+
+function serializeDocumentTableCells(cells) {
+  return {
+    cells: cells.map((cell) => ({
+      html: cell.innerHTML,
+      style: {
+        fontFamily: cell.style.fontFamily,
+        fontSize: cell.style.fontSize,
+        fontWeight: cell.style.fontWeight,
+        fontStyle: cell.style.fontStyle,
+        textDecorationLine: cell.style.textDecorationLine,
+        textDecoration: cell.style.textDecoration,
+        color: cell.style.color,
+        backgroundColor: cell.style.backgroundColor,
+        textAlign: cell.style.textAlign,
+        verticalAlign: cell.style.verticalAlign,
+        border: cell.style.border,
+        borderTop: cell.style.borderTop,
+        borderRight: cell.style.borderRight,
+        borderBottom: cell.style.borderBottom,
+        borderLeft: cell.style.borderLeft,
+        width: cell.style.width,
+        height: cell.style.height
+      }
+    }))
+  };
+}
+
+function applySerializedCellStyle(cell, style = {}) {
+  Object.entries(style).forEach(([property, value]) => {
+    cell.style[property] = value || "";
+  });
+}
+
 function hasEditableTextSelection() {
   const selection = window.getSelection();
   return Boolean(
@@ -6337,21 +6497,25 @@ function selectDocumentImage(image) {
 }
 
 function selectDocumentTable(table) {
+  if (table) clearNativeDocumentSelection();
   if (selectedDocumentImage) {
     selectedDocumentImage.classList.remove("selected-doc-image");
     selectedDocumentImage = null;
   }
+  clearSelectedDocumentTableCells();
   clearSelectedDocumentTableRow();
   clearSelectedDocumentTableColumn();
   if (selectedDocumentTable && selectedDocumentTable !== table) {
     selectedDocumentTable.classList.remove("selected-doc-table");
   }
 
+  clearSelectedDocumentTableCells();
   selectedDocumentTable = table;
   if (selectedDocumentTable) {
     selectedDocumentTable.classList.add("selected-doc-table");
     syncDocumentImageControls();
     requestDocumentImageResizeOverlayUpdate();
+    applyCopiedTableCellFormatFromSelectionIfActive();
     return;
   }
 
@@ -6365,6 +6529,7 @@ function selectDocumentTableColumn(cell) {
   const row = cell?.parentElement;
   if (!table || !row || !documentEditor.contains(table)) return;
 
+  clearNativeDocumentSelection();
   if (selectedDocumentImage) {
     selectedDocumentImage.classList.remove("selected-doc-image");
     selectedDocumentImage = null;
@@ -6376,15 +6541,15 @@ function selectDocumentTableColumn(cell) {
 
   clearSelectedDocumentTableColumn();
   clearSelectedDocumentTableRow();
-  const columnIndex = Array.from(row.children).indexOf(cell);
+  clearSelectedDocumentTableCells();
+  const visualPosition = getTableCellVisualPosition(table, cell);
+  const columnIndex = visualPosition?.columnIndex ?? -1;
   if (columnIndex < 0) return;
 
-  selectedDocumentTableColumn = { table, columnIndex };
-  getTableColumnCells(table, columnIndex).forEach((columnCell) => {
-    columnCell.classList.add("selected-doc-table-column");
-  });
+  setSelectedDocumentTableColumnRange(table, columnIndex, columnIndex);
   syncDocumentImageControls();
   requestDocumentImageResizeOverlayUpdate();
+  applyCopiedTableCellFormatFromSelectionIfActive();
   setStatus("Selected table column. Drag a side handle to resize it.");
 }
 
@@ -6393,6 +6558,7 @@ function selectDocumentTableRow(cell) {
   const row = cell?.parentElement;
   if (!table || !row || !documentEditor.contains(table)) return;
 
+  clearNativeDocumentSelection();
   if (selectedDocumentImage) {
     selectedDocumentImage.classList.remove("selected-doc-image");
     selectedDocumentImage = null;
@@ -6404,49 +6570,247 @@ function selectDocumentTableRow(cell) {
 
   clearSelectedDocumentTableColumn();
   clearSelectedDocumentTableRow();
-  selectedDocumentTableRow = { table, row };
-  Array.from(row.cells || []).forEach((cellItem) => {
-    cellItem.classList.add("selected-doc-table-row");
-  });
+  clearSelectedDocumentTableCells();
+  const rowIndex = Array.from(table.rows || []).indexOf(row);
+  if (rowIndex < 0) return;
+  setSelectedDocumentTableRowRange(table, rowIndex, rowIndex);
   syncDocumentImageControls();
   requestDocumentImageResizeOverlayUpdate();
+  applyCopiedTableCellFormatFromSelectionIfActive();
   setStatus("Selected table row.");
 }
 
+function setSelectedDocumentTableColumnRange(table, startColumnIndex, endColumnIndex) {
+  clearSelectedDocumentTableColumn();
+  const firstColumnIndex = Math.min(startColumnIndex, endColumnIndex);
+  const lastColumnIndex = Math.max(startColumnIndex, endColumnIndex);
+  selectedDocumentTableColumn = {
+    table,
+    columnIndex: firstColumnIndex,
+    endColumnIndex: lastColumnIndex
+  };
+  getTableColumnRangeCells(table, firstColumnIndex, lastColumnIndex).forEach((columnCell) => {
+    columnCell.classList.add("selected-doc-table-column");
+  });
+}
+
+function setSelectedDocumentTableRowRange(table, startRowIndex, endRowIndex) {
+  clearSelectedDocumentTableRow();
+  const firstRowIndex = Math.min(startRowIndex, endRowIndex);
+  const lastRowIndex = Math.max(startRowIndex, endRowIndex);
+  selectedDocumentTableRow = {
+    table,
+    rowIndex: firstRowIndex,
+    endRowIndex: lastRowIndex,
+    row: table.rows[firstRowIndex]
+  };
+  getTableRowRangeCells(table, firstRowIndex, lastRowIndex).forEach((rowCell) => {
+    rowCell.classList.add("selected-doc-table-row");
+  });
+}
+
+function setSelectedDocumentTableCellRange(table, startRowIndex, startColumnIndex, endRowIndex, endColumnIndex) {
+  clearSelectedDocumentTableCells();
+  clearSelectedDocumentTableColumn();
+  clearSelectedDocumentTableRow();
+  if (selectedDocumentTable) {
+    selectedDocumentTable.classList.remove("selected-doc-table");
+    selectedDocumentTable = null;
+  }
+  const firstRowIndex = Math.min(startRowIndex, endRowIndex);
+  const lastRowIndex = Math.max(startRowIndex, endRowIndex);
+  const firstColumnIndex = Math.min(startColumnIndex, endColumnIndex);
+  const lastColumnIndex = Math.max(startColumnIndex, endColumnIndex);
+  selectedDocumentTableCells = {
+    table,
+    startRowIndex: firstRowIndex,
+    endRowIndex: lastRowIndex,
+    startColumnIndex: firstColumnIndex,
+    endColumnIndex: lastColumnIndex
+  };
+  getTableCellRangeCells(table, firstRowIndex, firstColumnIndex, lastRowIndex, lastColumnIndex).forEach((cell) => {
+    cell.classList.add("selected-doc-table-cell");
+  });
+}
+
 function clearSelectedDocumentTableColumn() {
-  if (!selectedDocumentTableColumn) return;
-  selectedDocumentTableColumn.table?.querySelectorAll(".selected-doc-table-column").forEach((cell) => {
+  documentEditor.querySelectorAll(".selected-doc-table-column").forEach((cell) => {
     cell.classList.remove("selected-doc-table-column");
   });
   selectedDocumentTableColumn = null;
 }
 
 function clearSelectedDocumentTableRow() {
-  if (!selectedDocumentTableRow) return;
-  selectedDocumentTableRow.row?.querySelectorAll(".selected-doc-table-row").forEach((cell) => {
+  documentEditor.querySelectorAll(".selected-doc-table-row").forEach((cell) => {
     cell.classList.remove("selected-doc-table-row");
   });
   selectedDocumentTableRow = null;
 }
 
+function clearSelectedDocumentTableCells() {
+  documentEditor.querySelectorAll(".selected-doc-table-cell").forEach((cell) => {
+    cell.classList.remove("selected-doc-table-cell");
+  });
+  selectedDocumentTableCells = null;
+}
+
+function clearNativeDocumentSelection() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  const anchorInside = documentEditor.contains(selection.anchorNode);
+  const focusInside = documentEditor.contains(selection.focusNode);
+  if (anchorInside || focusInside) selection.removeAllRanges();
+}
+
+function clearSelectedDocumentObject() {
+  const hadSelection = Boolean(
+    selectedDocumentImage
+    || selectedDocumentTable
+    || selectedDocumentTableCells
+    || selectedDocumentTableColumn
+    || selectedDocumentTableRow
+  );
+  if (!hadSelection) return false;
+
+  selectDocumentImage(null);
+  selectDocumentTable(null);
+  clearSelectedDocumentTableCells();
+  clearSelectedDocumentTableColumn();
+  clearSelectedDocumentTableRow();
+  activeDocumentTableCell = null;
+  hideDocumentImageResizeOverlay();
+  hideDocumentTableTools();
+  return true;
+}
+
+function handleDocumentSelectionEscape(event) {
+  if (event.key !== "Escape") return;
+  if (!clearSelectedDocumentObject()) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  setStatus("Cleared document selection.");
+}
+
 function getTableColumnCells(table, columnIndex) {
-  return Array.from(table.rows || [])
-    .map((row) => row.cells[columnIndex])
-    .filter(Boolean);
+  return getTableColumnRangeCells(table, columnIndex, columnIndex);
+}
+
+function getTableColumnRangeCells(table, startColumnIndex, endColumnIndex) {
+  const firstColumnIndex = Math.min(startColumnIndex, endColumnIndex);
+  const lastColumnIndex = Math.max(startColumnIndex, endColumnIndex);
+  const grid = buildTableVisualGrid(table);
+  return getUniqueVisualGridCells(grid, (slot) => (
+    slot.columnIndex <= lastColumnIndex && slot.endColumnIndex >= firstColumnIndex
+  ));
+}
+
+function getTableRowRangeCells(table, startRowIndex, endRowIndex) {
+  const firstRowIndex = Math.min(startRowIndex, endRowIndex);
+  const lastRowIndex = Math.max(startRowIndex, endRowIndex);
+  const grid = buildTableVisualGrid(table);
+  return getUniqueVisualGridCells(grid, (slot) => (
+    slot.rowIndex <= lastRowIndex && slot.endRowIndex >= firstRowIndex
+  ));
+}
+
+function getTableCellRangeCells(table, startRowIndex, startColumnIndex, endRowIndex, endColumnIndex) {
+  const firstRowIndex = Math.min(startRowIndex, endRowIndex);
+  const lastRowIndex = Math.max(startRowIndex, endRowIndex);
+  const firstColumnIndex = Math.min(startColumnIndex, endColumnIndex);
+  const lastColumnIndex = Math.max(startColumnIndex, endColumnIndex);
+  const grid = buildTableVisualGrid(table);
+  return getUniqueVisualGridCells(grid, (slot) => (
+    slot.rowIndex <= lastRowIndex
+    && slot.endRowIndex >= firstRowIndex
+    && slot.columnIndex <= lastColumnIndex
+    && slot.endColumnIndex >= firstColumnIndex
+  ));
+}
+
+function getTableCellVisualPosition(table, cell) {
+  const grid = buildTableVisualGrid(table);
+  return grid.cells.get(cell) || null;
+}
+
+function buildTableVisualGrid(table) {
+  const rows = Array.from(table.rows || []);
+  const occupied = [];
+  const cells = new Map();
+  const slots = [];
+
+  rows.forEach((row, rowIndex) => {
+    if (!occupied[rowIndex]) occupied[rowIndex] = [];
+    let columnIndex = 0;
+    Array.from(row.cells || []).forEach((cell) => {
+      while (occupied[rowIndex][columnIndex]) columnIndex += 1;
+      const rowSpan = Math.max(1, Number.parseInt(cell.getAttribute("rowspan") || cell.rowSpan || "1", 10) || 1);
+      const colSpan = Math.max(1, Number.parseInt(cell.getAttribute("colspan") || cell.colSpan || "1", 10) || 1);
+      const slot = {
+        cell,
+        rowIndex,
+        columnIndex,
+        rowSpan,
+        colSpan,
+        endRowIndex: rowIndex + rowSpan - 1,
+        endColumnIndex: columnIndex + colSpan - 1
+      };
+      cells.set(cell, slot);
+      slots.push(slot);
+      for (let rowOffset = 0; rowOffset < rowSpan; rowOffset += 1) {
+        const targetRow = rowIndex + rowOffset;
+        if (!occupied[targetRow]) occupied[targetRow] = [];
+        for (let columnOffset = 0; columnOffset < colSpan; columnOffset += 1) {
+          occupied[targetRow][columnIndex + columnOffset] = cell;
+        }
+      }
+      columnIndex += colSpan;
+    });
+  });
+
+  return { rows, cells, slots };
+}
+
+function getUniqueVisualGridCells(grid, predicate) {
+  return grid.slots
+    .filter(predicate)
+    .map((slot) => slot.cell);
 }
 
 function getSelectedDocumentResizableElement() {
   if (selectedDocumentImage && documentEditor.contains(selectedDocumentImage)) return selectedDocumentImage;
   if (selectedDocumentTable && documentEditor.contains(selectedDocumentTable)) return selectedDocumentTable;
+  if (selectedDocumentTableCells?.table && documentEditor.contains(selectedDocumentTableCells.table)) return selectedDocumentTableCells.table;
   if (selectedDocumentTableColumn?.table && documentEditor.contains(selectedDocumentTableColumn.table)) return selectedDocumentTableColumn.table;
   if (selectedDocumentTableRow?.row && documentEditor.contains(selectedDocumentTableRow.row)) return selectedDocumentTableRow.row;
   return null;
 }
 
 function deleteSelectedDocumentResizableElement() {
+  if (selectedDocumentTableCells?.table && documentEditor.contains(selectedDocumentTableCells.table)) {
+    beginDocumentEdit();
+    getTableCellRangeCells(
+      selectedDocumentTableCells.table,
+      selectedDocumentTableCells.startRowIndex,
+      selectedDocumentTableCells.startColumnIndex,
+      selectedDocumentTableCells.endRowIndex,
+      selectedDocumentTableCells.endColumnIndex
+    ).forEach((cell) => {
+      cell.innerHTML = "<br>";
+    });
+    updateDocumentBody();
+    commitDocumentEdit();
+    setStatus("Cleared selected table cells.");
+    return;
+  }
+
   if (selectedDocumentTableRow?.row && documentEditor.contains(selectedDocumentTableRow.row)) {
     beginDocumentEdit();
-    Array.from(selectedDocumentTableRow.row.cells || []).forEach((cell) => {
+    getTableRowRangeCells(
+      selectedDocumentTableRow.table,
+      selectedDocumentTableRow.rowIndex,
+      selectedDocumentTableRow.endRowIndex
+    ).forEach((cell) => {
       cell.innerHTML = "<br>";
     });
     updateDocumentBody();
@@ -6457,7 +6821,11 @@ function deleteSelectedDocumentResizableElement() {
 
   if (selectedDocumentTableColumn?.table && documentEditor.contains(selectedDocumentTableColumn.table)) {
     beginDocumentEdit();
-    getTableColumnCells(selectedDocumentTableColumn.table, selectedDocumentTableColumn.columnIndex).forEach((cell) => {
+    getTableColumnRangeCells(
+      selectedDocumentTableColumn.table,
+      selectedDocumentTableColumn.columnIndex,
+      selectedDocumentTableColumn.endColumnIndex
+    ).forEach((cell) => {
       cell.innerHTML = "<br>";
     });
     updateDocumentBody();
@@ -6757,8 +7125,29 @@ function updateDocumentImageResizeOverlay() {
 }
 
 function getSelectedDocumentResizeRect(selectedElement) {
+  if (selectedDocumentTableCells?.table === selectedElement) {
+    const cells = getTableCellRangeCells(
+      selectedDocumentTableCells.table,
+      selectedDocumentTableCells.startRowIndex,
+      selectedDocumentTableCells.startColumnIndex,
+      selectedDocumentTableCells.endRowIndex,
+      selectedDocumentTableCells.endColumnIndex
+    );
+    const rects = cells.map((cell) => cell.getBoundingClientRect()).filter((rect) => rect.width && rect.height);
+    if (rects.length) {
+      const left = Math.min(...rects.map((rect) => rect.left));
+      const top = Math.min(...rects.map((rect) => rect.top));
+      const right = Math.max(...rects.map((rect) => rect.right));
+      const bottom = Math.max(...rects.map((rect) => rect.bottom));
+      return { left, top, right, bottom, width: right - left, height: bottom - top };
+    }
+  }
   if (selectedDocumentTableColumn?.table === selectedElement) {
-    const cells = getTableColumnCells(selectedDocumentTableColumn.table, selectedDocumentTableColumn.columnIndex);
+    const cells = getTableColumnRangeCells(
+      selectedDocumentTableColumn.table,
+      selectedDocumentTableColumn.columnIndex,
+      selectedDocumentTableColumn.endColumnIndex
+    );
     const rects = cells.map((cell) => cell.getBoundingClientRect()).filter((rect) => rect.width && rect.height);
     if (rects.length) {
       const left = Math.min(...rects.map((rect) => rect.left));
@@ -6769,7 +7158,19 @@ function getSelectedDocumentResizeRect(selectedElement) {
     }
   }
   if (selectedDocumentTableRow?.row === selectedElement) {
-    return selectedDocumentTableRow.row.getBoundingClientRect();
+    const cells = getTableRowRangeCells(
+      selectedDocumentTableRow.table,
+      selectedDocumentTableRow.rowIndex,
+      selectedDocumentTableRow.endRowIndex
+    );
+    const rects = cells.map((cell) => cell.getBoundingClientRect()).filter((rect) => rect.width && rect.height);
+    if (rects.length) {
+      const left = Math.min(...rects.map((rect) => rect.left));
+      const top = Math.min(...rects.map((rect) => rect.top));
+      const right = Math.max(...rects.map((rect) => rect.right));
+      const bottom = Math.max(...rects.map((rect) => rect.bottom));
+      return { left, top, right, bottom, width: right - left, height: bottom - top };
+    }
   }
   return selectedElement.getBoundingClientRect();
 }
@@ -6797,6 +7198,16 @@ function startDocumentImageResize(event) {
     startHeight: rect.height,
     aspectRatio: rect.width / Math.max(rect.height, 1)
   };
+  documentImageResizeDrag.cellRangeSelected = selectedDocumentTableCells?.table === selectedElement;
+  documentImageResizeDrag.columnEndIndex = selectedDocumentTableColumn?.table === selectedElement
+    ? selectedDocumentTableColumn.endColumnIndex
+    : null;
+  documentImageResizeDrag.rowStartIndex = selectedDocumentTableRow?.row === selectedElement
+    ? selectedDocumentTableRow.rowIndex
+    : null;
+  documentImageResizeDrag.rowEndIndex = selectedDocumentTableRow?.row === selectedElement
+    ? selectedDocumentTableRow.endRowIndex
+    : null;
   event.currentTarget.setPointerCapture?.(event.pointerId);
 }
 
@@ -6808,15 +7219,25 @@ function continueDocumentImageResize(event) {
   const horizontalDelta = (event.clientX - documentImageResizeDrag.startX) * horizontalSign;
   const selectedElement = documentImageResizeDrag.element;
 
-  if (documentImageResizeDrag.rowSelected) {
+  if (documentImageResizeDrag.cellRangeSelected) {
+    updateDocumentImageResizeOverlay();
+  } else if (documentImageResizeDrag.rowSelected) {
     const verticalDelta = (event.clientY - documentImageResizeDrag.startY) * verticalSign;
     const height = clamp(Math.round(documentImageResizeDrag.startHeight + verticalDelta), 28, 600);
-    Array.from(selectedElement.cells || []).forEach((cell) => {
+    getTableRowRangeCells(
+      selectedDocumentTableRow.table,
+      documentImageResizeDrag.rowStartIndex,
+      documentImageResizeDrag.rowEndIndex
+    ).forEach((cell) => {
       cell.style.height = `${height}px`;
     });
   } else if (selectedElement.tagName === "TABLE" && documentImageResizeDrag.columnIndex !== null) {
     const width = clamp(Math.round(documentImageResizeDrag.startWidth + horizontalDelta), 48, 900);
-    getTableColumnCells(selectedElement, documentImageResizeDrag.columnIndex).forEach((cell) => {
+    getTableColumnRangeCells(
+      selectedElement,
+      documentImageResizeDrag.columnIndex,
+      documentImageResizeDrag.columnEndIndex
+    ).forEach((cell) => {
       cell.style.width = `${width}px`;
     });
   } else if (selectedElement.tagName === "TABLE") {
@@ -6879,20 +7300,24 @@ function shouldCloseDocumentTableTools(event) {
   return true;
 }
 
-function updateDocumentTableToolsPosition(table = activeDocumentTable || activeDocumentTableCell?.closest?.("table") || selectedDocumentTable || selectedDocumentTableColumn?.table || selectedDocumentTableRow?.table) {
+function updateDocumentTableToolsPosition(table = activeDocumentTable || activeDocumentTableCell?.closest?.("table") || selectedDocumentTable || selectedDocumentTableCells?.table || selectedDocumentTableColumn?.table || selectedDocumentTableRow?.table) {
   if (documentTableTools.hidden || !table || !documentEditor.contains(table)) return;
   const pageRect = documentPage.getBoundingClientRect();
   const tableRect = table.getBoundingClientRect();
   const toolsRect = documentTableTools.getBoundingClientRect();
   const left = clamp(tableRect.left - pageRect.left, 8, pageRect.width - toolsRect.width - 8);
-  const top = clamp(tableRect.top - pageRect.top - toolsRect.height - 8, 8, pageRect.height - toolsRect.height - 8);
+  const preferredTop = tableRect.top - pageRect.top - toolsRect.height - 8;
+  const fallbackTop = tableRect.bottom - pageRect.top + 8;
+  const top = preferredTop >= 8
+    ? preferredTop
+    : clamp(fallbackTop, 8, pageRect.height - toolsRect.height - 8);
   documentTableTools.style.left = `${left}px`;
   documentTableTools.style.top = `${top}px`;
 }
 
 function runDocumentTableAction(action) {
   const cell = activeDocumentTableCell;
-  const table = cell?.closest?.("table") || selectedDocumentTable || selectedDocumentTableColumn?.table || selectedDocumentTableRow?.table;
+  const table = cell?.closest?.("table") || selectedDocumentTable || selectedDocumentTableCells?.table || selectedDocumentTableColumn?.table || selectedDocumentTableRow?.table;
   if (!table || !documentEditor.contains(table)) return;
 
   if (action === "select-table") {
@@ -6908,6 +7333,9 @@ function runDocumentTableAction(action) {
   if (action === "select-column") return selectDocumentTableColumn(cell);
   if (action === "align-top" || action === "align-middle" || action === "align-bottom") {
     return applyTableCellVerticalAlignment(action.replace("align-", ""));
+  }
+  if (action === "border-all" || action === "border-outside" || action === "border-none") {
+    return applyTableBorders(action.replace("border-", ""));
   }
 
   beginDocumentEdit();
@@ -6984,11 +7412,28 @@ function deleteTableColumn(cell) {
 }
 
 function getActiveTableCellsForFormatting() {
+  if (selectedDocumentTableCells?.table && documentEditor.contains(selectedDocumentTableCells.table)) {
+    return getTableCellRangeCells(
+      selectedDocumentTableCells.table,
+      selectedDocumentTableCells.startRowIndex,
+      selectedDocumentTableCells.startColumnIndex,
+      selectedDocumentTableCells.endRowIndex,
+      selectedDocumentTableCells.endColumnIndex
+    );
+  }
   if (selectedDocumentTableColumn?.table && documentEditor.contains(selectedDocumentTableColumn.table)) {
-    return getTableColumnCells(selectedDocumentTableColumn.table, selectedDocumentTableColumn.columnIndex);
+    return getTableColumnRangeCells(
+      selectedDocumentTableColumn.table,
+      selectedDocumentTableColumn.columnIndex,
+      selectedDocumentTableColumn.endColumnIndex
+    );
   }
   if (selectedDocumentTableRow?.row && documentEditor.contains(selectedDocumentTableRow.row)) {
-    return Array.from(selectedDocumentTableRow.row.cells || []);
+    return getTableRowRangeCells(
+      selectedDocumentTableRow.table,
+      selectedDocumentTableRow.rowIndex,
+      selectedDocumentTableRow.endRowIndex
+    );
   }
   if (selectedDocumentTable && documentEditor.contains(selectedDocumentTable)) {
     return Array.from(selectedDocumentTable.querySelectorAll("td, th"));
@@ -6997,6 +7442,94 @@ function getActiveTableCellsForFormatting() {
     return [activeDocumentTableCell];
   }
   return [];
+}
+
+function hasActiveTableCellFormattingTarget() {
+  return getActiveTableCellsForFormatting().length > 0
+    && Boolean(selectedDocumentTableCells || selectedDocumentTableColumn || selectedDocumentTableRow || selectedDocumentTable);
+}
+
+function applyStyleToActiveTableCells(applyStyle, status = "Formatted selected table cells.") {
+  if (!hasActiveTableCellFormattingTarget()) return false;
+  const cells = getActiveTableCellsForFormatting();
+  if (!cells.length) return false;
+
+  beginDocumentEdit();
+  cells.forEach(applyStyle);
+  updateDocumentBody();
+  commitDocumentEdit();
+  updateDocumentImageResizeOverlay();
+  updateDocumentTableToolsPosition();
+  setStatus(status);
+  return true;
+}
+
+function runTableFormattingCommand(command) {
+  const handlers = {
+    bold: (cell) => {
+      cell.style.fontWeight = isBoldTableCell(cell) ? "" : "700";
+    },
+    italic: (cell) => {
+      cell.style.fontStyle = cell.style.fontStyle === "italic" ? "" : "italic";
+    },
+    underline: (cell) => {
+      const decorations = new Set(String(cell.style.textDecorationLine || cell.style.textDecoration || "").split(/\s+/).filter(Boolean));
+      if (decorations.has("underline")) decorations.delete("underline");
+      else decorations.add("underline");
+      cell.style.textDecorationLine = Array.from(decorations).join(" ");
+    },
+    justifyLeft: (cell) => {
+      cell.style.textAlign = "left";
+    },
+    justifyCenter: (cell) => {
+      cell.style.textAlign = "center";
+    },
+    justifyRight: (cell) => {
+      cell.style.textAlign = "right";
+    }
+  };
+  if (!handlers[command]) return false;
+  return applyStyleToActiveTableCells(handlers[command], "Formatted selected table cells.");
+}
+
+function runTableValueFormattingCommand(command, value) {
+  const handlers = {
+    fontName: (cell) => {
+      cell.style.fontFamily = value;
+    },
+    foreColor: (cell) => {
+      cell.style.color = value;
+    },
+    hiliteColor: (cell) => {
+      cell.style.backgroundColor = value;
+    },
+    backColor: (cell) => {
+      cell.style.backgroundColor = value;
+    }
+  };
+  if (!handlers[command]) return false;
+  return applyStyleToActiveTableCells(handlers[command], "Formatted selected table cells.");
+}
+
+function applyTableBlockFormatting(block) {
+  const styles = {
+    p: { fontSize: "", fontWeight: "", fontStyle: "", borderLeft: "", paddingLeft: "" },
+    h1: { fontSize: "24px", fontWeight: "700", fontStyle: "", borderLeft: "", paddingLeft: "" },
+    h2: { fontSize: "20px", fontWeight: "700", fontStyle: "", borderLeft: "", paddingLeft: "" },
+    h3: { fontSize: "17px", fontWeight: "700", fontStyle: "", borderLeft: "", paddingLeft: "" },
+    blockquote: { fontStyle: "italic", borderLeft: "3px solid #cbd5e1", paddingLeft: "10px" }
+  };
+  if (!styles[block]) return false;
+  return applyStyleToActiveTableCells((cell) => {
+    Object.entries(styles[block]).forEach(([property, value]) => {
+      cell.style[property] = value;
+    });
+  }, "Formatted selected table cells.");
+}
+
+function isBoldTableCell(cell) {
+  const weight = cell.style.fontWeight || window.getComputedStyle(cell).fontWeight;
+  return weight === "bold" || Number.parseInt(weight, 10) >= 600;
 }
 
 function applyTableCellVerticalAlignment(alignment) {
@@ -7018,6 +7551,56 @@ function applyTableCellVerticalAlignment(alignment) {
   setStatus(`Aligned table text to ${value}.`);
 }
 
+function applyTableBorders(mode) {
+  const table = selectedDocumentTable
+    || selectedDocumentTableCells?.table
+    || selectedDocumentTableColumn?.table
+    || selectedDocumentTableRow?.row?.closest?.("table")
+    || activeDocumentTableCell?.closest?.("table");
+  if (!table || !documentEditor.contains(table)) {
+    setStatus("Click inside a table cell first.");
+    return;
+  }
+
+  beginDocumentEdit();
+  if (mode === "none") {
+    getActiveTableCellsForFormatting().forEach((cell) => {
+      cell.style.border = "0";
+    });
+  } else if (mode === "outside") {
+    applyOutsideTableBorder(table);
+  } else {
+    getActiveTableCellsForFormatting().forEach((cell) => {
+      cell.style.border = "1px solid #111827";
+    });
+  }
+  updateDocumentBody();
+  commitDocumentEdit();
+  updateDocumentImageResizeOverlay();
+  updateDocumentTableToolsPosition(table);
+  setStatus(mode === "none" ? "Removed table borders." : "Updated table borders.");
+}
+
+function applyOutsideTableBorder(table) {
+  const rows = Array.from(table.rows || []);
+  if (!rows.length) return;
+  const selectedCells = new Set(getActiveTableCellsForFormatting());
+  const grid = buildTableVisualGrid(table);
+  const selectedSlots = grid.slots.filter((slot) => selectedCells.has(slot.cell));
+  if (!selectedSlots.length) return;
+
+  const firstSelectedRow = Math.min(...selectedSlots.map((slot) => slot.rowIndex));
+  const lastSelectedRow = Math.max(...selectedSlots.map((slot) => slot.endRowIndex));
+  const firstSelectedColumn = Math.min(...selectedSlots.map((slot) => slot.columnIndex));
+  const lastSelectedColumn = Math.max(...selectedSlots.map((slot) => slot.endColumnIndex));
+  selectedSlots.forEach((slot) => {
+    if (slot.rowIndex === firstSelectedRow) slot.cell.style.borderTop = "1px solid #111827";
+    if (slot.endRowIndex === lastSelectedRow) slot.cell.style.borderBottom = "1px solid #111827";
+    if (slot.columnIndex === firstSelectedColumn) slot.cell.style.borderLeft = "1px solid #111827";
+    if (slot.endColumnIndex === lastSelectedColumn) slot.cell.style.borderRight = "1px solid #111827";
+  });
+}
+
 function handleDocumentEditorPointerDown(event) {
   const image = event.target.closest("img");
   if (image && documentEditor.contains(image)) {
@@ -7034,8 +7617,10 @@ function handleDocumentEditorPointerDown(event) {
       syncDocumentImageControls();
       hideDocumentImageResizeOverlay();
     }
+    clearSelectedDocumentTableCells();
     activeDocumentTableCell = cell;
     showDocumentTableTools(cell.closest("table"));
+    startDocumentTableSelectionDrag(event, cell);
     return;
   }
 
@@ -7054,6 +7639,71 @@ function handleDocumentEditorPointerDown(event) {
   selectDocumentTable(null);
   activeDocumentTableCell = null;
   hideDocumentTableTools();
+}
+
+function startDocumentTableSelectionDrag(event, cell) {
+  if (event.button !== 0) return;
+  const table = cell.closest("table");
+  const visualPosition = getTableCellVisualPosition(table, cell);
+  if (!visualPosition) return;
+
+  documentTableSelectionDrag = {
+    pointerId: event.pointerId,
+    table,
+    startCell: cell,
+    startX: event.clientX,
+    startY: event.clientY,
+    startRowIndex: visualPosition.rowIndex,
+    startColumnIndex: visualPosition.columnIndex,
+    startEndRowIndex: visualPosition.endRowIndex,
+    startEndColumnIndex: visualPosition.endColumnIndex,
+    active: false
+  };
+}
+
+function continueDocumentTableSelectionDrag(event) {
+  if (!documentTableSelectionDrag || event.pointerId !== documentTableSelectionDrag.pointerId) return;
+  const drag = documentTableSelectionDrag;
+  if (!documentEditor.contains(drag.table)) {
+    documentTableSelectionDrag = null;
+    return;
+  }
+
+  const dx = event.clientX - drag.startX;
+  const dy = event.clientY - drag.startY;
+  const distance = Math.hypot(dx, dy);
+  if (!drag.active && distance < 10) return;
+
+  const cell = getTableCellAtPoint(event.clientX, event.clientY, drag.table);
+  if (!cell) return;
+  const visualPosition = getTableCellVisualPosition(drag.table, cell);
+  if (!visualPosition) return;
+
+  event.preventDefault();
+  clearNativeDocumentSelection();
+  drag.active = true;
+  setSelectedDocumentTableCellRange(
+    drag.table,
+    Math.min(drag.startRowIndex, visualPosition.rowIndex),
+    Math.min(drag.startColumnIndex, visualPosition.columnIndex),
+    Math.max(drag.startEndRowIndex, visualPosition.endRowIndex),
+    Math.max(drag.startEndColumnIndex, visualPosition.endColumnIndex)
+  );
+  setStatus("Selected table cells.");
+  syncDocumentImageControls();
+  requestDocumentImageResizeOverlayUpdate();
+  applyCopiedTableCellFormatFromSelectionIfActive();
+}
+
+function finishDocumentTableSelectionDrag(event) {
+  if (!documentTableSelectionDrag || event.pointerId !== documentTableSelectionDrag.pointerId) return;
+  documentTableSelectionDrag = null;
+}
+
+function getTableCellAtPoint(x, y, table) {
+  const element = document.elementFromPoint(x, y);
+  const cell = element?.closest?.("td, th");
+  return cell && table.contains(cell) ? cell : null;
 }
 
 function normalizeHyperlinkUrl(url) {
@@ -7332,6 +7982,7 @@ function edgeConnectsNodes(edge, sourceId, targetId) {
 
 function runDocumentBlockCommand(block) {
   if (documentEditor.contentEditable !== "true") return;
+  if (applyTableBlockFormatting(block)) return;
   beginDocumentEdit();
   documentEditor.focus();
   document.execCommand("formatBlock", false, block);

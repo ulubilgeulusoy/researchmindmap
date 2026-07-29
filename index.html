@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260728-remove-cluster-extra-controls">
+  <link rel="stylesheet" href="style.css?v=20260729-table-copy-format-painter">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
 </head>
 <body>
@@ -492,21 +492,31 @@
               <button type="button" id="insertDocumentTableButton" class="document-table-insert-button">Insert Table</button>
             </div>
             <div id="documentTableTools" class="document-table-tools" hidden>
-              <button type="button" data-table-action="select-row">Select Row</button>
-              <button type="button" data-table-action="select-column">Select Column</button>
-              <button type="button" data-table-action="select-table">Select Table</button>
-              <span class="document-table-tools-divider"></span>
-              <button type="button" data-table-action="row-above">Row Above</button>
-              <button type="button" data-table-action="row-below">Row Below</button>
-              <button type="button" data-table-action="delete-row">Delete Row</button>
-              <span class="document-table-tools-divider"></span>
-              <button type="button" data-table-action="column-left">Column Left</button>
-              <button type="button" data-table-action="column-right">Column Right</button>
-              <button type="button" data-table-action="delete-column">Delete Column</button>
-              <span class="document-table-tools-divider"></span>
-              <button type="button" data-table-action="align-top">Top</button>
-              <button type="button" data-table-action="align-middle">Middle</button>
-              <button type="button" data-table-action="align-bottom">Bottom</button>
+              <div class="table-tools-group" aria-label="Select table parts">
+                <button type="button" data-table-action="select-row" title="Select row" aria-label="Select row">Row</button>
+                <button type="button" data-table-action="select-column" title="Select column" aria-label="Select column">Col</button>
+                <button type="button" data-table-action="select-table" title="Select table" aria-label="Select table">Tbl</button>
+              </div>
+              <div class="table-tools-group" aria-label="Rows">
+                <button type="button" data-table-action="row-above" title="Insert row above" aria-label="Insert row above">+R^</button>
+                <button type="button" data-table-action="row-below" title="Insert row below" aria-label="Insert row below">+Rv</button>
+                <button type="button" data-table-action="delete-row" title="Delete row" aria-label="Delete row">-R</button>
+              </div>
+              <div class="table-tools-group" aria-label="Columns">
+                <button type="button" data-table-action="column-left" title="Insert column left" aria-label="Insert column left">+C&lt;</button>
+                <button type="button" data-table-action="column-right" title="Insert column right" aria-label="Insert column right">+C&gt;</button>
+                <button type="button" data-table-action="delete-column" title="Delete column" aria-label="Delete column">-C</button>
+              </div>
+              <div class="table-tools-group" aria-label="Vertical alignment">
+                <button type="button" data-table-action="align-top" title="Align top" aria-label="Align top">Top</button>
+                <button type="button" data-table-action="align-middle" title="Align middle" aria-label="Align middle">Mid</button>
+                <button type="button" data-table-action="align-bottom" title="Align bottom" aria-label="Align bottom">Bot</button>
+              </div>
+              <div class="table-tools-group" aria-label="Borders">
+                <button type="button" data-table-action="border-all" title="Apply all borders" aria-label="Apply all borders">All</button>
+                <button type="button" data-table-action="border-outside" title="Apply outside border" aria-label="Apply outside border">Out</button>
+                <button type="button" data-table-action="border-none" title="Remove borders" aria-label="Remove borders">None</button>
+              </div>
             </div>
             <div id="documentMetadata" class="document-metadata" hidden>
               <label>
@@ -684,6 +694,6 @@
 
   </div>
 
-  <script src="app.js?v=20260728-remove-cluster-extra-controls"></script>
+  <script src="app.js?v=20260729-table-copy-format-painter"></script>
 </body>
 </html>
