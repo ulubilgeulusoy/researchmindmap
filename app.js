@@ -129,6 +129,7 @@ let documentEditSnapshot = null;
 let currentView = "map";
 let notesPanelDrag = null;
 let openAlexPanelDrag = null;
+let openAlexPanelResize = null;
 let zoteroItemsCache = [];
 let zoteroSearchTimer = null;
 let openAlexResultsCache = [];
@@ -356,6 +357,7 @@ const zoteroSearchInput = document.getElementById("zoteroSearchInput");
 const clearZoteroSearchButton = document.getElementById("clearZoteroSearchButton");
 const openAlexPanel = document.getElementById("openAlexPanel");
 const openAlexPanelHeader = openAlexPanel.querySelector(".zotero-panel-header");
+const openAlexResizeHandle = document.getElementById("openAlexResizeHandle");
 const openAlexStatusText = document.getElementById("openAlexStatusText");
 const openAlexSearchInput = document.getElementById("openAlexSearchInput");
 const openAlexResultsList = document.getElementById("openAlexResultsList");
@@ -943,10 +945,13 @@ pdfHighlightsModal.addEventListener("click", (event) => {
 });
 publicationNotesDragHandle.addEventListener("pointerdown", startNotesPanelDrag);
 openAlexPanelHeader.addEventListener("pointerdown", startOpenAlexPanelDrag);
+openAlexResizeHandle.addEventListener("pointerdown", startOpenAlexPanelResize);
 window.addEventListener("pointermove", continueNotesPanelDrag);
 window.addEventListener("pointermove", continueOpenAlexPanelDrag);
+window.addEventListener("pointermove", continueOpenAlexPanelResize);
 window.addEventListener("pointerup", finishNotesPanelDrag);
 window.addEventListener("pointerup", finishOpenAlexPanelDrag);
+window.addEventListener("pointerup", finishOpenAlexPanelResize);
 Object.values(publicationNoteFields).forEach((field) => {
   field.addEventListener("input", updatePublicationNotes);
 });
@@ -8682,6 +8687,52 @@ function finishOpenAlexPanelDrag() {
     openAlexPanelHeader.releasePointerCapture(openAlexPanelDrag.pointerId);
   }
   openAlexPanelDrag = null;
+}
+
+function startOpenAlexPanelResize(event) {
+  if (event.button !== 0) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = openAlexPanel.getBoundingClientRect();
+  openAlexPanelResize = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startWidth: rect.width,
+    startHeight: rect.height,
+    left: rect.left,
+    top: rect.top
+  };
+  openAlexPanel.style.left = `${rect.left}px`;
+  openAlexPanel.style.top = `${rect.top}px`;
+  openAlexPanel.style.right = "auto";
+  openAlexPanel.style.width = `${rect.width}px`;
+  openAlexPanel.style.height = `${rect.height}px`;
+  openAlexResizeHandle.setPointerCapture(event.pointerId);
+}
+
+function continueOpenAlexPanelResize(event) {
+  if (!openAlexPanelResize) return;
+
+  event.preventDefault();
+  const minWidth = Math.min(760, window.innerWidth - 16);
+  const minHeight = Math.min(460, window.innerHeight - 16);
+  const maxWidth = Math.max(minWidth, window.innerWidth - openAlexPanelResize.left - 8);
+  const maxHeight = Math.max(minHeight, window.innerHeight - openAlexPanelResize.top - 8);
+  const nextWidth = clamp(openAlexPanelResize.startWidth + event.clientX - openAlexPanelResize.startX, minWidth, maxWidth);
+  const nextHeight = clamp(openAlexPanelResize.startHeight + event.clientY - openAlexPanelResize.startY, minHeight, maxHeight);
+  openAlexPanel.style.width = `${nextWidth}px`;
+  openAlexPanel.style.height = `${nextHeight}px`;
+}
+
+function finishOpenAlexPanelResize() {
+  if (!openAlexPanelResize) return;
+
+  if (openAlexResizeHandle.hasPointerCapture(openAlexPanelResize.pointerId)) {
+    openAlexResizeHandle.releasePointerCapture(openAlexPanelResize.pointerId);
+  }
+  openAlexPanelResize = null;
 }
 
 function updatePublicationNotes() {

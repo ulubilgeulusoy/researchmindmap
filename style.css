@@ -2781,6 +2781,7 @@ button:disabled {
 
 #openAlexPanel {
   width: min(1120px, calc(100vw - 36px));
+  height: min(720px, calc(100vh - 96px));
   display: flex;
   flex-direction: column;
 }
@@ -2853,7 +2854,7 @@ button:disabled {
 .openalex-discovery-layout {
   display: grid;
   grid-template-columns: minmax(380px, 0.95fr) minmax(520px, 1.35fr);
-  height: calc(100vh - 218px);
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
@@ -3284,9 +3285,30 @@ button:disabled {
   font-weight: 700;
 }
 
+.openalex-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+}
+
+.openalex-resize-handle::before {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid #94a3b8;
+  border-bottom: 2px solid #94a3b8;
+}
+
 @media (max-width: 900px) {
   #openAlexPanel {
     width: calc(100vw - 24px);
+    height: calc(100vh - 96px);
     right: 12px;
   }
 
@@ -3296,7 +3318,6 @@ button:disabled {
 
   .openalex-discovery-layout {
     grid-template-columns: 1fr;
-    height: calc(100vh - 220px);
     overflow-y: auto;
   }
 
