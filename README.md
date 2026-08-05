@@ -431,6 +431,22 @@ Presence model:
 - The browser sends a heartbeat to FastAPI about every 15 seconds.
 - The backend keeps recent viewers for about 45 seconds.
 - Presence is scoped to the active project.
+- Use the toolbar `Refresh` button to re-check the current server-side presence count without waiting for the next heartbeat.
+- The backend logs each presence heartbeat with the project, client ID, and current online count.
+
+Presence troubleshooting:
+
+Check what the server sees for the active project:
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence" | ConvertTo-Json -Depth 5
+```
+
+Check the detailed debug view, including TTL and all tracked projects:
+
+```powershell
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence/debug" | ConvertTo-Json -Depth 5
+```
 
 Security and editing risks:
 

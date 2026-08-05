@@ -169,6 +169,7 @@ let formatPainterSourceRange = null;
 let activeProject = localStorage.getItem(ACTIVE_PROJECT_KEY) || DEFAULT_PROJECT_NAME;
 let nodeTypes = readNodeTypes();
 let presenceTimer = null;
+let presenceLeaveSent = false;
 const presenceClientId = getPresenceClientId();
 
 const fields = {
@@ -255,6 +256,7 @@ const searchResultsList = document.getElementById("searchResultsList");
 const searchPanelStatus = document.getElementById("searchPanelStatus");
 const presenceIndicator = document.getElementById("presenceIndicator");
 const presenceText = document.getElementById("presenceText");
+const refreshPresenceButton = document.getElementById("refreshPresenceButton");
 const mapWorkspace = document.getElementById("mapWorkspace");
 const documentWorkspace = document.getElementById("documentWorkspace");
 const mapViewButton = document.getElementById("mapViewButton");
@@ -712,6 +714,7 @@ document.getElementById("saveButton").addEventListener("click", saveGraph);
 document.getElementById("exportButton").addEventListener("click", exportJson);
 document.getElementById("importButton").addEventListener("click", () => importFile.click());
 document.getElementById("resetViewButton").addEventListener("click", resetView);
+if (refreshPresenceButton) refreshPresenceButton.addEventListener("click", refreshPresence);
 document.getElementById("zoteroButton").addEventListener("click", openZoteroPanel);
 document.getElementById("grobidButton").addEventListener("click", openGrobidPanel);
 document.getElementById("closeZoteroPanel").addEventListener("click", closeZoteroPanel);
@@ -854,6 +857,12 @@ document.addEventListener("keyup", (event) => {
 window.addEventListener("blur", () => {
   isAdditiveSelectKeyDown = false;
 });
+window.addEventListener("pageshow", () => {
+  presenceLeaveSent = false;
+  startPresenceHeartbeat();
+});
+window.addEventListener("pagehide", sendPresenceLeave);
+window.addEventListener("beforeunload", sendPresenceLeave);
 nodeContextMenu.addEventListener("click", handleContextMenuClick);
 closePublicationNotes.addEventListener("click", closePublicationNotesModal);
 publicationNotesModal.addEventListener("click", (event) => {
@@ -1176,6 +1185,29 @@ function startPresenceHeartbeat() {
   presenceTimer = window.setInterval(sendPresenceHeartbeat, PRESENCE_INTERVAL_MS);
 }
 
+function sendPresenceLeave() {
+  if (presenceLeaveSent) return;
+  presenceLeaveSent = true;
+  window.clearInterval(presenceTimer);
+  const payload = JSON.stringify({
+    clientId: presenceClientId,
+    project: activeProject,
+    label: "Viewer"
+  });
+  if (navigator.sendBeacon) {
+    const body = new Blob([payload], { type: "application/json" });
+    if (navigator.sendBeacon("/api/presence/leave", body)) return;
+  }
+  fetch("/api/presence/leave", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: payload,
+    keepalive: true
+  }).catch((error) => {
+    console.warn("Presence leave failed.", error);
+  });
+}
+
 async function sendPresenceHeartbeat() {
   try {
     const data = await postJson("/api/presence/heartbeat", {
@@ -1190,6 +1222,23 @@ async function sendPresenceHeartbeat() {
   }
 }
 
+async function refreshPresence() {
+  if (refreshPresenceButton) refreshPresenceButton.disabled = true;
+  setStatus("Checking online viewers...");
+  try {
+    const data = await fetchJson(`/api/presence?project=${encodeURIComponent(activeProject)}&_=${Date.now()}`, { timeoutMs: 5000 });
+    const online = data.online || [];
+    updatePresenceIndicator(online);
+    setStatus(`Presence refreshed: ${Math.max(1, online.length || 1)} browser session(s) online.`);
+  } catch (error) {
+    console.warn("Presence refresh failed.", error);
+    updatePresenceIndicator([], true);
+    setStatus(`Presence refresh failed: ${error.message}`);
+  } finally {
+    if (refreshPresenceButton) refreshPresenceButton.disabled = false;
+  }
+}
+
 function updatePresenceIndicator(online = [], offline = false) {
   if (!presenceIndicator || !presenceText) return;
   presenceIndicator.classList.toggle("offline", offline);
@@ -1199,11 +1248,8 @@ function updatePresenceIndicator(online = [], offline = false) {
     return;
   }
   const count = Math.max(1, online.length || 1);
-  const others = online.filter((client) => client.clientId !== presenceClientId).length;
-  presenceText.textContent = others > 0 ? `Online: ${count} (${others} other${others === 1 ? "" : "s"})` : `Online: ${count}`;
-  presenceIndicator.title = others > 0
-    ? `${others} other viewer${others === 1 ? "" : "s"} online in ${activeProject}.`
-    : `Only this browser tab is online in ${activeProject}.`;
+  presenceText.textContent = `Online: ${count}`;
+  presenceIndicator.title = `${count} browser session${count === 1 ? "" : "s"} online in ${activeProject}.`;
 }
 
 function setActiveProject(project) {

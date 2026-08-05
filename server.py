@@ -51,6 +51,14 @@ def open_with_default_app(path: Path) -> None:
     subprocess.run(["xdg-open", str(path)], check=True)
 
 
+@app.on_event("startup")
+def log_server_startup() -> None:
+    print(
+        f"Research Mind Map backend started. Presence TTL: {PRESENCE_TTL_SECONDS}s. "
+        "Debug endpoint: /api/presence/debug"
+    )
+
+
 class MapPublication(BaseModel):
     id: str
     title: str = ""
@@ -1559,13 +1567,59 @@ def presence_heartbeat(payload: PresenceHeartbeatRequest) -> dict[str, Any]:
         "label": (payload.label or "Viewer").strip()[:80],
         "lastSeen": now,
     }
-    return {"ok": True, "online": get_presence_clients(project)}
+    online = get_presence_clients(project)
+    print(f"Presence heartbeat: project={project} online={len(online)} clientId={client_id}")
+    return {"ok": True, "online": online}
+
+
+@app.post("/api/presence/leave")
+def presence_leave(payload: PresenceHeartbeatRequest) -> dict[str, Any]:
+    client_id = (payload.clientId or "").strip()
+    if not client_id:
+        raise HTTPException(status_code=400, detail="Missing presence client ID.")
+    project = safe_project_name(payload.project or DEFAULT_PROJECT_NAME)
+    client = presence_clients.get(client_id)
+    removed = bool(client and client["project"] == project)
+    if removed:
+        presence_clients.pop(client_id, None)
+    online = get_presence_clients(project)
+    print(f"Presence leave: project={project} removed={removed} online={len(online)} clientId={client_id}")
+    return {"ok": True, "removed": removed, "online": online}
 
 
 @app.get("/api/presence")
 def presence_list(project: str = Query(default=DEFAULT_PROJECT_NAME)) -> dict[str, Any]:
     safe_name = safe_project_name(project)
     return {"ok": True, "project": safe_name, "online": get_presence_clients(safe_name)}
+
+
+@app.get("/api/presence/debug")
+def presence_debug(project: str = Query(default=DEFAULT_PROJECT_NAME)) -> dict[str, Any]:
+    safe_name = safe_project_name(project)
+    now = datetime.now().astimezone()
+    cutoff = now - timedelta(seconds=PRESENCE_TTL_SECONDS)
+    online = get_presence_clients(safe_name)
+    all_clients = [
+        {
+            "clientId": client["clientId"],
+            "project": client["project"],
+            "label": client["label"],
+            "lastSeen": client["lastSeen"].isoformat(),
+            "ageSeconds": round((now - client["lastSeen"]).total_seconds(), 1),
+        }
+        for client in presence_clients.values()
+    ]
+    return {
+        "ok": True,
+        "project": safe_name,
+        "onlineCount": len(online),
+        "online": online,
+        "allProjectsClientCount": len(all_clients),
+        "allProjectsClients": all_clients,
+        "ttlSeconds": PRESENCE_TTL_SECONDS,
+        "serverNow": now.isoformat(),
+        "expiresBefore": cutoff.isoformat(),
+    }
 
 
 def get_presence_clients(project: str) -> list[dict[str, Any]]:
