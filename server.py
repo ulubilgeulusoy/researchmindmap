@@ -5,6 +5,8 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
+import sys
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
@@ -37,6 +39,16 @@ DEFAULT_PROJECT_NAME = "MMEA"
 
 app = FastAPI(title="Research Mind Map Local Backend")
 AUTOSAVES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def open_with_default_app(path: Path) -> None:
+    if sys.platform.startswith("win"):
+        os.startfile(str(path))  # type: ignore[attr-defined]
+        return
+    if sys.platform == "darwin":
+        subprocess.run(["open", str(path)], check=True)
+        return
+    subprocess.run(["xdg-open", str(path)], check=True)
 
 
 class MapPublication(BaseModel):
@@ -1277,8 +1289,8 @@ def pdf_open(payload: PdfPrepareRequest) -> dict[str, Any]:
     pdf_path, result = pdf_for_payload(payload)
 
     try:
-        os.startfile(str(pdf_path))
-    except OSError as exc:
+        open_with_default_app(pdf_path)
+    except (OSError, subprocess.CalledProcessError) as exc:
         raise HTTPException(status_code=500, detail=f"Could not open PDF: {exc}") from exc
     return {"ok": True, **result}
 
@@ -1303,8 +1315,8 @@ def pdf_open_folder(payload: Optional[PdfPrepareRequest] = None) -> dict[str, An
     folder = project_library_pdfs_dir(project)
     folder.mkdir(parents=True, exist_ok=True)
     try:
-        os.startfile(str(folder))
-    except OSError as exc:
+        open_with_default_app(folder)
+    except (OSError, subprocess.CalledProcessError) as exc:
         raise HTTPException(status_code=500, detail=f"Could not open PDF folder: {exc}") from exc
     return {"ok": True, "path": str(folder)}
 

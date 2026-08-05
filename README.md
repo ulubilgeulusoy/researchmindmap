@@ -8,13 +8,13 @@ The core UI is plain HTML/CSS/JavaScript. The local FastAPI backend serves the a
 
 Install backend dependencies:
 
-```powershell
+```sh
 python -m pip install -r requirements.txt
 ```
 
 Start the backend:
 
-```powershell
+```sh
 python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
@@ -171,10 +171,11 @@ The backend first tries Zotero Desktop's local API:
 http://localhost:23119/api/
 ```
 
-If needed, it can also inspect the local Zotero data directory. On Windows, the usual default is:
+If needed, it can also inspect the local Zotero data directory. Common defaults include:
 
 ```text
-C:\Users\<your-username>\Zotero
+Windows: C:\Users\<your-username>\Zotero
+macOS/Linux: ~/Zotero
 ```
 
 Imported Zotero publication nodes store available metadata such as:
@@ -365,14 +366,14 @@ This app can be shared privately across trusted devices through Tailscale. Tails
 
 Start the FastAPI server locally:
 
-```powershell
-cd "C:\path\to\ulumindmap"
+```sh
+cd /path/to/ulumindmap
 python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
-In another PowerShell window, expose it to your Tailnet:
+In another terminal window, expose it to your Tailnet:
 
-```powershell
+```sh
 tailscale serve http://127.0.0.1:8000
 ```
 
@@ -400,7 +401,7 @@ Recommended rule shape:
 
 Use the shared device's Tailscale IP address or the device selector accepted by the Tailscale policy editor. You can find the Tailscale IPv4 address on the host machine with:
 
-```powershell
+```sh
 tailscale ip -4
 ```
 
