@@ -1,4 +1,4 @@
-# Research Mind Map Prototype
+﻿# Research Mind Map Prototype
 
 Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, linked writing notes, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
 
@@ -35,8 +35,8 @@ Requirements:
 Clone the repository and create a virtual environment:
 
 ```sh
-git clone https://github.com/ulubilgeulusoy/ulumindmap.git
-cd ulumindmap
+git clone https://github.com/ulubilgeulusoy/researchmindmap.git
+cd researchmindmap
 python -m venv .venv
 ```
 

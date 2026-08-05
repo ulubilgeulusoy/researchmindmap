@@ -16,6 +16,7 @@
 
     <nav class="about-toc" aria-label="Documentation sections">
       <a href="#overview">Overview</a>
+      <a href="#getting-started">Getting Started</a>
       <a href="#views">Views</a>
       <a href="#clustering">Clustering</a>
       <a href="#details">Details Panel</a>
@@ -25,6 +26,7 @@
       <a href="#pdfs">PDFs</a>
       <a href="#images">Images</a>
       <a href="#saving">Saving</a>
+      <a href="#recovery">Recovery</a>
       <a href="#sharing">Sharing</a>
       <a href="#files">Files</a>
       <a href="#roadmap">Potential Improvements</a>
@@ -46,8 +48,23 @@
       </ul>
     </section>
 
+    <section id="getting-started">
+      <h2>Getting Started</h2>
+      <p>A typical first-use workflow is:</p>
+      <ol>
+        <li>Create a new project or select an existing project from the Project control.</li>
+        <li>Add an Idea node manually to capture a concept, question, theme, or hypothesis.</li>
+        <li>Add a Publication node manually, or import publications from Zotero if Zotero Desktop is available.</li>
+        <li>Connect related ideas and publications on the map.</li>
+        <li>Open Document or Multi View to write notes linked to the selected node or connection.</li>
+        <li>Click Save when you want to create a timestamped recovery snapshot.</li>
+        <li>Use Export periodically to download a separate JSON backup.</li>
+      </ol>
+      <p>Zotero and GROBID can make publication workflows richer, but they are optional. The core mapping, note-taking, project, autosave, and JSON import/export features work without them.</p>
+    </section>
+
     <section id="views">
-      <h2>Views And Projects</h2>
+      <h2>Views and Projects</h2>
       <p>The toolbar has three workspace modes: Map, Document, and Multi View. Map shows the visual mind map with the right-side details panel. Document shows a writing workspace linked to map nodes and connections. Multi View shows map and document side by side.</p>
       <p>The project selector switches between project folders. Each project has its own latest autosave, snapshots, copied PDFs, note images, and deleted-image archive. Switching projects loads that project's latest server autosave when the FastAPI backend is running.</p>
       <p>The document outline can group by currently used node types or by connections. Ideas and publications are grouped by document tag. Connections are grouped by first tag and are shown with short labels such as Connection 1, Connection 2, or Citation connection.</p>
@@ -120,25 +137,39 @@ Reference endpoint: POST /api/processReferences</code></pre>
     </section>
 
     <section id="images">
-      <h2>Images In Notes</h2>
+      <h2>Images in Notes</h2>
       <p>Images inserted into document notes are saved through the backend into <code>autosaves/{project}/document_images/</code>. The document stores links to saved image files instead of keeping large base64 images in browser storage. Pasted and dropped images use the same save path.</p>
       <p>When a project loads, the backend reconciles note images by saving embedded base64 images as files, migrating old root-level references into the active project when possible, reporting stale unused images, and reporting missing references. Deleted note images are archived under <code>autosaves/{project}/document_images_deleted/</code>.</p>
     </section>
 
     <section id="saving">
-      <h2>Saving And Backups</h2>
+      <h2>Saving and Backups</h2>
       <p>The app uses browser localStorage for lightweight fallback state, project-specific latest autosaves, manual snapshots, JSON export, and JSON import. Server-side folder autosave is the main working save path and avoids browser quota issues when notes include images.</p>
+      <p><strong>Autosave</strong> continuously updates <code>autosaves/{project}/research-map-latest.json</code>. This is the main working file that the app reloads when you open or switch to a project.</p>
+      <p><strong>Save</strong> does not replace autosave. The Save button creates an additional timestamped snapshot under <code>autosaves/{project}/snapshots/</code> so you have a recovery point from that moment.</p>
       <pre><code>autosaves/{project}/
   research-map-latest.json
   snapshots/
   document_images/
   document_images_deleted/
   library_pdfs/</code></pre>
-      <p>Manual snapshots are written as timestamped JSON files under <code>autosaves/{project}/snapshots/</code>. Use Reset View only to refit the visible workspace; it does not delete data.</p>
+      <p>Use Export periodically to download a separate JSON backup outside the autosave folder. Use Reset View only to refit the visible workspace; it does not delete data.</p>
+    </section>
+
+    <section id="recovery">
+      <h2>Recovery Options</h2>
+      <ol>
+        <li>Use Import to restore a previously exported JSON backup through the app interface.</li>
+        <li>Use a manual snapshot from <code>autosaves/{project}/snapshots/</code> as a recovery point.</li>
+        <li>To recover from a snapshot directly, stop the FastAPI server first so autosave cannot overwrite files while you are replacing them.</li>
+        <li>Copy the selected snapshot JSON and rename the copy to <code>research-map-latest.json</code> in the relevant project folder.</li>
+        <li>Restart the FastAPI server, reload the app, and select the project.</li>
+      </ol>
+      <p>Direct snapshot replacement is supported because manual snapshots and latest autosaves use the same JSON structure: saved timestamp, project name, node types, and graph elements.</p>
     </section>
 
     <section id="sharing">
-      <h2>Private Sharing And Presence</h2>
+      <h2>Private Sharing and Presence</h2>
       <p>The app can be shared privately across trusted devices through Tailscale. Tailscale is not configured inside the repo and no secrets should be committed.</p>
       <h3>Recommended Tailscale Flow</h3>
       <ol>
@@ -178,7 +209,7 @@ Reference endpoint: POST /api/processReferences</code></pre>
     </section>
 
     <section id="files">
-      <h2>Files And Repository Data</h2>
+      <h2>Files and Repository Data</h2>
       <ul>
         <li><code>index.html</code> - page structure, toolbar, panels, document workspace, and modals.</li>
         <li><code>style.css</code> - layout and visual styling.</li>

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -307,7 +307,7 @@ def with_zotero_db() -> sqlite3.Connection:
             detail="Could not find zotero.sqlite. Set ZOTERO_DATA_DIR to your Zotero data directory if it is custom.",
         )
 
-    tmp = Path(tempfile.gettempdir()) / "ulumindmap-zotero.sqlite"
+    tmp = Path(tempfile.gettempdir()) / "researchmindmap-zotero.sqlite"
     wal = database.with_name(f"{database.name}-wal")
     shm = database.with_name(f"{database.name}-shm")
     shutil.copy2(database, tmp)
@@ -1065,7 +1065,7 @@ def grobid_get(path: str) -> str:
 
 
 def grobid_process_references(pdf_path: Path) -> str:
-    boundary = f"----ulumindmap-{uuid.uuid4().hex}"
+    boundary = f"----researchmindmap-{uuid.uuid4().hex}"
     pdf_bytes = pdf_path.read_bytes()
     body = (
         f"--{boundary}\r\n"
