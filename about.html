@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Research Mind Map Manual</title>
+  <link rel="stylesheet" href="style.css?v=20260804-about-docs">
+</head>
+<body class="about-page">
+  <main class="about-doc">
+    <header class="about-hero">
+      <a class="about-back-link" href="index.html">Back to app</a>
+      <h1>Research Mind Map Manual</h1>
+      <p>Detailed guide for the local research mapping prototype, including workflows, integrations, storage, sharing, troubleshooting, and roadmap notes.</p>
+    </header>
+
+    <nav class="about-toc" aria-label="Documentation sections">
+      <a href="#overview">Overview</a>
+      <a href="#views">Views</a>
+      <a href="#clustering">Clustering</a>
+      <a href="#details">Details Panel</a>
+      <a href="#document-editor">Document Editor</a>
+      <a href="#zotero">Zotero</a>
+      <a href="#grobid">GROBID</a>
+      <a href="#pdfs">PDFs</a>
+      <a href="#images">Images</a>
+      <a href="#saving">Saving</a>
+      <a href="#sharing">Sharing</a>
+      <a href="#files">Files</a>
+      <a href="#roadmap">Roadmap</a>
+    </nav>
+
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>The app is a local browser-based research mapping and literature-review prototype. The frontend is plain HTML, CSS, and JavaScript. The backend is FastAPI and enables local-only features such as Zotero, PDF opening and annotation extraction, image saving, GROBID analysis, file autosaves, snapshots, and project workspaces.</p>
+      <h3>Current Feature Summary</h3>
+      <ul>
+        <li>Visual mind map with typed nodes and directed connections.</li>
+        <li>Configurable node types with editable colors.</li>
+        <li>Protected default node types: Publication, Idea, and Unassigned.</li>
+        <li>Right-click node actions for editing, connecting, duplicating, links, ordering, type changes, style copy/paste, and deletion.</li>
+        <li>Undo for graph edits with Ctrl+Z or Command+Z.</li>
+        <li>Application-wide search for nodes, connections, notes, citations, URLs, tags, and metadata.</li>
+        <li>Project workspaces with server autosaves, snapshots, and JSON backup/import.</li>
+        <li>Local integrations for Zotero, PDFs, note images, and GROBID.</li>
+      </ul>
+    </section>
+
+    <section id="views">
+      <h2>Views And Projects</h2>
+      <p>The toolbar has three workspace modes: Map, Document, and Multi View. Map shows the visual mind map with the right-side details panel. Document shows a writing workspace linked to map nodes and connections. Multi View shows map and document side by side.</p>
+      <p>The project selector switches between project folders. Each project has its own latest autosave, snapshots, copied PDFs, note images, and deleted-image archive. Switching projects loads that project's latest server autosave when the FastAPI backend is running.</p>
+      <p>The document outline can group by currently used node types or by connections. Ideas and publications are grouped by document tag. Connections are grouped by first tag and are shown with short labels such as Connection 1, Connection 2, or Citation connection.</p>
+    </section>
+
+    <section id="clustering">
+      <h2>Clustering</h2>
+      <p>The map can cluster by tags, authors, or number of connections. Tag clustering uses the first tag by default and can draw configurable background circles with tag labels. In single-tag mode, connected nodes from other clusters are nudged toward relevant cluster edges to make cross-cluster links easier to read.</p>
+      <p>Author clustering counts every listed publication author, normalizes names by first and last name, and uses an author-frequency threshold to avoid one-paper author clusters. Low-frequency papers are placed into an Other authors area.</p>
+      <p>Connection-count clustering groups nodes by how many map connections they have, which helps identify central and isolated nodes.</p>
+    </section>
+
+    <section id="details">
+      <h2>Map Details Panel</h2>
+      <p>Selecting a node opens details for title, type, URL, publication citation, tags, notes, links, PDF opening, and PDF annotation import. The formatting tab supports node size, font size, font family, font style, and style copy/paste. Multi-select formatting is supported for node size and text style changes.</p>
+      <p>Selecting a connection opens connection details: label, source node, target node, notes, tags, global arrow color, and global arrow thickness. When a connection is selected, both endpoint nodes are highlighted on the map.</p>
+    </section>
+
+    <section id="document-editor">
+      <h2>Document Editor</h2>
+      <p>The document editor is a prototype word-processor-style interface linked to map nodes and connections. It supports font family, font size, paragraph style, bold, italic, underline, format painter, text color, highlight color, lists, alignment, hyperlinks, node links, images, tables, and URL auto-linking.</p>
+      <p>Publication pages include notes plus citation and URL metadata. Idea pages are plain note pages. Connection pages show compact From and To metadata above the editable connection note. Node links are grouped by tag in the node-link picker and can be filtered by search and node type.</p>
+    </section>
+
+    <section id="zotero">
+      <h2>Zotero Integration</h2>
+      <p>Zotero integration requires the FastAPI backend and Zotero Desktop running locally. The backend first tries Zotero Desktop's local API at <code>http://localhost:23119/api/</code>. If needed, it can inspect the local Zotero data directory.</p>
+      <pre><code>Windows: C:\Users\&lt;your-username&gt;\Zotero
+macOS/Linux: ~/Zotero</code></pre>
+      <p>You can set <code>ZOTERO_DATA_DIR</code> if your Zotero directory is custom. Imported publication nodes can store Zotero item key, title, authors, year, DOI, citation, URL, abstract, and tags.</p>
+    </section>
+
+    <section id="grobid">
+      <h2>GROBID Citation Analysis</h2>
+      <p>GROBID is used to find citation relationships between publications already in the map. Expected local setup:</p>
+      <pre><code>Docker image: grobid/grobid:0.9.0-full
+Container name: grobid
+Service URL: http://127.0.0.1:8070
+Health endpoint: GET /api/isalive
+Reference endpoint: POST /api/processReferences</code></pre>
+      <p>Workflow: import publications from Zotero, make sure they have local PDF attachments, open GROBID, check the service, analyze all publications, review suggestions, and add selected citation links. The app does not automatically create citation edges without review.</p>
+      <p>Added citation edges include citation and GROBID tags, connection notes, confidence metadata, and match reasoning. Existing citation connections are filtered out to avoid duplicate edges.</p>
+    </section>
+
+    <section id="pdfs">
+      <h2>Local PDF Workflow</h2>
+      <p>For Zotero-backed publication nodes, PDFs are copied from Zotero into <code>autosaves/{project}/library_pdfs/</code>. The copy is done once. If a copied PDF already exists, the app opens the existing copy and does not overwrite it, protecting annotations and notes.</p>
+      <p>PDF actions include opening the project copy in the system default PDF viewer, opening the project PDF folder, and importing annotations. Annotation extraction uses PyMuPDF and can extract highlights, highlight comments, standalone comments, and free-text annotations. Adobe-style annotations usually work best.</p>
+    </section>
+
+    <section id="images">
+      <h2>Images In Notes</h2>
+      <p>Images inserted into document notes are saved through the backend into <code>autosaves/{project}/document_images/</code>. The document stores links to saved image files instead of keeping large base64 images in browser storage. Pasted and dropped images use the same save path.</p>
+      <p>When a project loads, the backend reconciles note images by saving embedded base64 images as files, migrating old root-level references into the active project when possible, reporting stale unused images, and reporting missing references. Deleted note images are archived under <code>autosaves/{project}/document_images_deleted/</code>.</p>
+    </section>
+
+    <section id="saving">
+      <h2>Saving And Backups</h2>
+      <p>The app uses browser localStorage for lightweight fallback state, project-specific latest autosaves, manual snapshots, JSON export, and JSON import. Server-side folder autosave is the main working save path and avoids browser quota issues when notes include images.</p>
+      <pre><code>autosaves/{project}/
+  research-map-latest.json
+  snapshots/
+  document_images/
+  document_images_deleted/
+  library_pdfs/</code></pre>
+      <p>Manual snapshots are written as timestamped JSON files under <code>autosaves/{project}/snapshots/</code>. Use Reset View only to refit the visible workspace; it does not delete data.</p>
+    </section>
+
+    <section id="sharing">
+      <h2>Private Sharing And Presence</h2>
+      <p>The app can be shared privately across trusted devices through Tailscale. Tailscale is not configured inside the repo and no secrets should be committed.</p>
+      <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8000
+tailscale serve http://127.0.0.1:8000</code></pre>
+      <p>The toolbar presence indicator shows how many browser sessions have the same project open. Each tab gets a temporary client ID in sessionStorage and sends a heartbeat about every 15 seconds. The backend keeps recent viewers for about 45 seconds, and the browser also sends a best-effort leave signal when a tab closes.</p>
+      <h3>Presence Troubleshooting</h3>
+      <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence" | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence/debug" | ConvertTo-Json -Depth 5</code></pre>
+      <h3>Security Notes</h3>
+      <ul>
+        <li>Tailscale is private networking, not app-level authentication.</li>
+        <li>The prototype has no login, roles, read-only mode, edit locks, or conflict resolution.</li>
+        <li>A trusted collaborator can edit and delete project data reachable through the app.</li>
+        <li>Zotero, GROBID, and PDF actions run on the host machine where FastAPI is running.</li>
+        <li>Simultaneous editing is last-save-wins. Create a snapshot before a shared session.</li>
+        <li>Keep Uvicorn bound to <code>127.0.0.1:8000</code> unless you intentionally choose a broader network setup.</li>
+      </ul>
+    </section>
+
+    <section id="files">
+      <h2>Files And Repository Data</h2>
+      <ul>
+        <li><code>index.html</code> - page structure, toolbar, panels, document workspace, and modals.</li>
+        <li><code>style.css</code> - layout and visual styling.</li>
+        <li><code>app.js</code> - graph behavior, document editor, autosave, import/export, and frontend integration logic.</li>
+        <li><code>server.py</code> - FastAPI backend for serving the app, Zotero, PDFs, images, autosaves, snapshots, and GROBID analysis.</li>
+        <li><code>requirements.txt</code> - backend Python dependencies.</li>
+        <li><code>autosaves/</code> - project folders with latest autosaves, snapshots, copied PDFs, note images, and deleted-image archives.</li>
+      </ul>
+      <p>The repo keeps folder placeholders and the committed Demo starter save, but ignores private project autosaves, snapshots, copied PDFs, note images, exported JSON files, logs, and local environment files.</p>
+    </section>
+
+    <section id="roadmap">
+      <h2>Offline Note And Roadmap</h2>
+      <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Zotero and GROBID integrations are local-first, but Cytoscape can later be vendored locally for fully offline use.</p>
+      <ul>
+        <li>Add WebSocket update notifications for trusted shared sessions.</li>
+        <li>Add optional edit locks or read-only viewer mode.</li>
+        <li>Add local LLM support through Ollama or LM Studio for summaries, tag suggestions, and drafted connection notes.</li>
+        <li>Add safer collaboration conflict handling and per-user edit history.</li>
+        <li>Add optional browser-based PDF viewing/download for remote Tailscale users.</li>
+        <li>Explore Local Citation Network-style publication finding with keyword and citation filters.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
