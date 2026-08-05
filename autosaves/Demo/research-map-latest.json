@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-07-28T22:59:42.416259-06:00",
+  "savedAt": "2026-08-05T10:57:16.212827-06:00",
   "project": "Demo",
   "nodeTypes": [
     {
@@ -46,8 +46,8 @@
         "documentHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>"
       },
       "position": {
-        "x": 778.8920550276955,
-        "y": 1406.6983215248636
+        "x": 697.0631594483035,
+        "y": 1283.0457682048932
       }
     },
     {
@@ -80,8 +80,8 @@
         }
       },
       "position": {
-        "x": 546.5177471585991,
-        "y": 1418.8488091560187
+        "x": 549.2453770112455,
+        "y": 1328.8370240186873
       }
     },
     {

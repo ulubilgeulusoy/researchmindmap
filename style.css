@@ -2718,6 +2718,49 @@ button:disabled {
   border-top: 1px solid var(--line);
 }
 
+.settings-connection-style-controls {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-subsection-heading h3,
+.settings-subsection-heading p {
+  margin: 0;
+}
+
+.settings-subsection-heading h3 {
+  font-size: 16px;
+}
+
+.settings-subsection-heading p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.settings-connection-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.settings-connection-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-connection-grid input[type="color"] {
+  width: 56px;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+}
+
 .cluster-settings-grid {
   display: grid;
   gap: 12px;

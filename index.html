@@ -565,6 +565,25 @@
           <input id="newNodeTypeColor" type="color" value="#8b5cf6" aria-label="New node type color">
           <button type="button" id="addNodeTypeButton">Add Type</button>
         </div>
+        <section class="settings-connection-style-controls" aria-label="Global connection settings">
+          <div class="settings-subsection-heading">
+            <h3>Global Connection Settings</h3>
+            <p>Adjust arrow color and thickness for all existing connections.</p>
+          </div>
+          <div class="settings-connection-grid">
+            <label>
+              <span>Arrow color</span>
+              <input id="settingsEdgeColorInput" type="color" value="#9aa6b8">
+            </label>
+            <label>
+              <span>Arrow thickness</span>
+              <div class="range-row">
+                <input id="settingsEdgeWidthInput" type="range" min="1" max="12" step="1" value="3">
+                <input id="settingsEdgeWidthNumber" type="number" min="1" max="12" step="1" value="3">
+              </div>
+            </label>
+          </div>
+        </section>
       </div>
     </section>
 
@@ -745,6 +764,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260805-openalex-resizable"></script>
+  <script src="app.js?v=20260805-global-connection-settings"></script>
 </body>
 </html>

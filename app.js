@@ -224,6 +224,9 @@ const edgeTagsText = document.getElementById("edgeTagsText");
 const edgeColorInput = document.getElementById("edgeColorInput");
 const edgeWidthInput = document.getElementById("edgeWidthInput");
 const edgeWidthNumber = document.getElementById("edgeWidthNumber");
+const settingsEdgeColorInput = document.getElementById("settingsEdgeColorInput");
+const settingsEdgeWidthInput = document.getElementById("settingsEdgeWidthInput");
+const settingsEdgeWidthNumber = document.getElementById("settingsEdgeWidthNumber");
 const nodeContextMenu = document.getElementById("nodeContextMenu");
 const contextTypeButtons = document.getElementById("contextTypeButtons");
 const resizeOverlay = document.getElementById("resizeOverlay");
@@ -845,6 +848,10 @@ edgeColorInput.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthInput.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthNumber.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthNumber.addEventListener("blur", syncGlobalConnectionStyleControls);
+settingsEdgeColorInput.addEventListener("input", updateGlobalConnectionStyle);
+settingsEdgeWidthInput.addEventListener("input", updateGlobalConnectionStyle);
+settingsEdgeWidthNumber.addEventListener("input", updateGlobalConnectionStyle);
+settingsEdgeWidthNumber.addEventListener("blur", syncGlobalConnectionStyleControls);
 document.addEventListener("click", (event) => {
   if (!nodeContextMenu.contains(event.target)) hideContextMenu();
 });
@@ -2181,16 +2188,29 @@ function syncGlobalConnectionStyleControls() {
   edgeColorInput.value = style.color;
   edgeWidthInput.value = style.width;
   edgeWidthNumber.value = style.width;
+  settingsEdgeColorInput.value = style.color;
+  settingsEdgeWidthInput.value = style.width;
+  settingsEdgeWidthNumber.value = style.width;
 }
 
 function updateGlobalConnectionStyle(event) {
-  const widthSource = event?.target === edgeWidthNumber ? edgeWidthNumber : edgeWidthInput;
+  const target = event?.target;
+  const widthSource = target === edgeWidthNumber || target === settingsEdgeWidthNumber
+    ? target
+    : target === settingsEdgeWidthInput
+      ? settingsEdgeWidthInput
+      : edgeWidthInput;
+  const colorSource = target === settingsEdgeColorInput ? settingsEdgeColorInput : edgeColorInput;
   const style = {
-    color: isValidHexColor(edgeColorInput.value) ? edgeColorInput.value : DEFAULT_EDGE_COLOR,
+    color: isValidHexColor(colorSource.value) ? colorSource.value : DEFAULT_EDGE_COLOR,
     width: clamp(Number(widthSource.value) || DEFAULT_EDGE_WIDTH, 1, 12)
   };
   edgeWidthInput.value = style.width;
   edgeWidthNumber.value = style.width;
+  edgeColorInput.value = style.color;
+  settingsEdgeWidthInput.value = style.width;
+  settingsEdgeWidthNumber.value = style.width;
+  settingsEdgeColorInput.value = style.color;
   writeGlobalConnectionStyle(style);
   applyGlobalConnectionStyle(style);
   setStatus("Updated global connection style.");
