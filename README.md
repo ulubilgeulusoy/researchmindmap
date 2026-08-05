@@ -79,8 +79,6 @@ If `python` is not the command for your environment, activate your preferred Pyt
 - Project-scoped autosaves, snapshots, note images, copied PDFs, JSON import/export.
 - Lightweight online-session indicator for trusted private sharing.
 
-OpenAlex, Zotero Desktop, and GROBID are optional integrations. The core mapping, note-taking, project, autosave, and JSON import/export features work without them. A common literature-discovery workflow is to use OpenAlex to find candidate papers, open their DOI/source links, save the useful papers into Zotero with Zotero Connector, then import those Zotero items as publication nodes.
-
 ## Full Documentation
 
 The detailed user guide, integration notes, storage model, Tailscale sharing notes, troubleshooting commands, security limitations, file layout, maturity notes, and roadmap have moved into the in-app documentation page:
