@@ -2665,6 +2665,9 @@ button:disabled {
 .node-type-settings-list {
   display: grid;
   gap: 8px;
+  max-height: min(300px, 34vh);
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .node-type-settings-row,
