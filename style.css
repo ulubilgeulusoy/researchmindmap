@@ -874,6 +874,43 @@ button:disabled {
   overflow-y: hidden;
 }
 
+.doc-toolbar select,
+.doc-toolbar [data-doc-command],
+.doc-toolbar #docFormatPainterButton,
+.doc-toolbar #docLinkButton,
+.doc-toolbar #docTableButton,
+.doc-toolbar .doc-image-size-control,
+.doc-toolbar .doc-split-color-control,
+.doc-toolbar .doc-align-control {
+  display: none !important;
+}
+
+.document-page .jodit-container {
+  width: 100% !important;
+  min-height: 520px;
+  border: 0;
+  background: transparent;
+}
+
+.document-page .jodit-workplace,
+.document-page .jodit-wysiwyg {
+  min-height: 460px !important;
+  background: #ffffff;
+}
+
+.document-page .jodit-wysiwyg {
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.document-page .jodit-toolbar__box {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
 .doc-toolbar-group {
   display: flex;
   flex: 0 0 auto;

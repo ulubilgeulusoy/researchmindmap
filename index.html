@@ -1,11 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
   <link rel="stylesheet" href="style.css?v=20260804-manual-button-row-card">
+  <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+  <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -27,7 +29,7 @@
         <div class="toolbar-buttons">
           <button type="button" data-add-type="Idea">Node</button>
           <button type="button" id="connectionButton">Connection</button>
-          <button type="button" id="nodeSettingsButton" class="icon-toolbar-button" title="Node type settings" aria-label="Node type settings">⚙</button>
+          <button type="button" id="nodeSettingsButton" class="icon-toolbar-button" title="Node type settings" aria-label="Node type settings">âš™</button>
         </div>
       </div>
 
@@ -422,7 +424,7 @@
               <button type="button" id="docApplyAlignment" class="doc-align-apply" title="Apply alignment" aria-label="Apply alignment">
                 <span id="docAlignmentIcon" class="align-icon align-left" aria-hidden="true"></span>
               </button>
-              <button type="button" id="docAlignmentMenuButton" class="doc-align-menu-button" aria-label="Choose alignment">▾</button>
+              <button type="button" id="docAlignmentMenuButton" class="doc-align-menu-button" aria-label="Choose alignment">â–¾</button>
               <div id="docAlignmentMenu" class="doc-align-menu" hidden>
                 <button type="button" data-align-command="justifyLeft"><span class="align-icon align-left" aria-hidden="true"></span> Left</button>
                 <button type="button" data-align-command="justifyCenter"><span class="align-icon align-center" aria-hidden="true"></span> Center</button>
@@ -688,7 +690,6 @@
     </section>
 
   </div>
-
   <script src="app.js?v=20260804-online-refresh-button"></script>
 </body>
 </html>

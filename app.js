@@ -287,6 +287,8 @@ const documentEditor = document.getElementById("documentEditor");
 const documentConnectionContext = document.getElementById("documentConnectionContext");
 const documentPage = document.querySelector(".document-page");
 const documentPageScroll = document.querySelector(".document-page-scroll");
+let joditEditor = null;
+let isLoadingDocumentEditor = false;
 const docFontFamily = document.getElementById("docFontFamily");
 const docFontSize = document.getElementById("docFontSize");
 const docLinkButton = document.getElementById("docLinkButton");
@@ -819,7 +821,7 @@ document.addEventListener("keydown", (event) => {
       event.preventDefault();
       return;
     }
-    if (documentEditor.contains(event.target)) return;
+    if (isInsideDocumentEditor(event.target)) return;
     if (copySelectedDocumentImage()) {
       event.preventDefault();
       return;
@@ -835,7 +837,7 @@ document.addEventListener("keydown", (event) => {
       event.preventDefault();
       return;
     }
-    if (documentEditor.contains(event.target)) return;
+    if (isInsideDocumentEditor(event.target)) return;
     if (copiedDocumentImage && isDocumentImagePasteContext(event.target) && !hasEditableTextSelection()) {
       event.preventDefault();
       pasteCopiedDocumentImage();
@@ -853,7 +855,7 @@ document.addEventListener("keydown", (event) => {
       deleteSelectedDocumentResizableElement();
       return;
     }
-    if (documentEditor.contains(event.target)) return;
+    if (isInsideDocumentEditor(event.target)) return;
     event.preventDefault();
     deleteSelected();
     return;
@@ -963,7 +965,8 @@ openDocumentLink.addEventListener("click", openActiveDocumentLink);
 removeDocumentLink.addEventListener("click", removeActiveDocumentLink);
 document.addEventListener("pointerdown", handleDocumentTableToolsOutsidePointerDown, true);
 document.addEventListener("click", (event) => {
-  if (!documentLinkPopover.hidden && !documentLinkPopover.contains(event.target) && !documentEditor.contains(event.target)) {
+  const editorRoot = getDocumentEditorRoot();
+  if (!documentLinkPopover.hidden && !documentLinkPopover.contains(event.target) && !editorRoot.contains(event.target)) {
     hideDocumentLinkPopover();
   }
   if (!documentNodeLinkPicker.hidden && !documentNodeLinkPicker.contains(event.target) && event.target !== docNodeLinkButton) {
@@ -1015,7 +1018,8 @@ document.addEventListener("keydown", (event) => {
 });
 document.addEventListener("selectionchange", () => {
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || !documentEditor.contains(selection.anchorNode)) return;
+  const editorRoot = getDocumentEditorRoot();
+  if (!selection || selection.rangeCount === 0 || !editorRoot.contains(selection.anchorNode)) return;
   updateDocumentFontToolbarState();
 });
 document.querySelectorAll("[data-doc-command]").forEach((button) => {
@@ -1100,6 +1104,7 @@ docImageWidthNumber.addEventListener("blur", commitDocumentEdit);
 document.getElementById("docParagraphStyle").addEventListener("change", (event) => {
   runDocumentBlockCommand(event.target.value);
 });
+initializeJoditEditor();
 initializeProjects();
 safeStartupStep("render document outline", renderDocumentOutline);
 safeStartupStep("render node type controls", renderNodeTypeControls);
@@ -1113,6 +1118,103 @@ safeStartupStep("update document color swatches", updateDocumentColorSwatches);
 safeStartupStep("set document alignment command", () => setDocumentAlignmentCommand(currentDocumentAlignmentCommand));
 safeStartupStep("sync global connection style controls", syncGlobalConnectionStyleControls);
 safeStartupStep("apply global connection style", applyGlobalConnectionStyle);
+
+function initializeJoditEditor() {
+  if (joditEditor || !window.Jodit || !documentEditor) return;
+  joditEditor = window.Jodit.make(documentEditor, {
+    readonly: true,
+    height: 520,
+    minHeight: 460,
+    toolbarAdaptive: false,
+    toolbarSticky: false,
+    askBeforePasteHTML: false,
+    askBeforePasteFromWord: false,
+    defaultActionOnPaste: "insert_clear_html",
+    buttons: [
+      "source", "|",
+      "bold", "italic", "underline", "strikethrough", "|",
+      "ul", "ol", "|",
+      "font", "fontsize", "brush", "paragraph", "|",
+      "left", "center", "right", "justify", "|",
+      "link", "table", "|",
+      {
+        name: "uluNodeLink",
+        tooltip: "Link to mind-map node",
+        text: "Node Link",
+        exec: () => openDocumentNodeLinkPicker()
+      },
+      {
+        name: "uluImage",
+        tooltip: "Insert project image",
+        text: "Image",
+        exec: () => openDocumentImagePicker()
+      },
+      "|", "undo", "redo", "eraser"
+    ],
+    events: {
+      change: () => {
+        if (isLoadingDocumentEditor) return;
+        handleDocumentEditorInput();
+      },
+      blur: () => {
+        if (isLoadingDocumentEditor) return;
+        updateDocumentBody();
+        commitDocumentEdit();
+      },
+      focus: () => beginDocumentEdit()
+    }
+  });
+  const root = getDocumentEditorRoot();
+  root.addEventListener("click", handleDocumentEditorClick);
+  root.addEventListener("keydown", handleDocumentEditorKeydown, true);
+  root.addEventListener("paste", handleDocumentEditorPaste);
+  root.addEventListener("dragover", handleDocumentEditorDragOver);
+  root.addEventListener("drop", handleDocumentEditorDrop);
+}
+
+function setDocumentEditorEnabled(enabled) {
+  if (joditEditor) {
+    joditEditor.setReadOnly(!enabled);
+  }
+  documentEditor.contentEditable = enabled ? "true" : "false";
+}
+
+function setDocumentEditorHtml(html) {
+  isLoadingDocumentEditor = true;
+  try {
+    if (joditEditor) {
+      joditEditor.value = html || "";
+    } else {
+      documentEditor.innerHTML = html || "";
+    }
+  } finally {
+    window.setTimeout(() => {
+      isLoadingDocumentEditor = false;
+    }, 0);
+  }
+}
+
+function setDocumentEditorText(text) {
+  setDocumentEditorHtml(escapeHtml(text || ""));
+}
+
+function getDocumentEditorHtml() {
+  return joditEditor ? joditEditor.value : documentEditor.innerHTML;
+}
+
+function getDocumentEditorText() {
+  if (joditEditor?.editor) return joditEditor.editor.innerText || "";
+  return documentEditor.innerText || "";
+}
+
+function getDocumentEditorRoot() {
+  return joditEditor?.editor || documentEditor;
+}
+
+function isInsideDocumentEditor(node) {
+  const root = getDocumentEditorRoot();
+  return Boolean(node && (root === node || root.contains(node)));
+}
 
 function safeStartupStep(label, fn) {
   try {
@@ -1990,7 +2092,7 @@ function updateSelectedEdgeNotes() {
   selectedEdge.data("notes", edgeNotesText.value);
   selectedEdge.data("notesHtml", escapeHtml(edgeNotesText.value).replace(/\n/g, "<br>"));
   if (activeDocumentTarget?.type === "edge" && activeDocumentTarget.id === selectedEdge.id()) {
-    documentEditor.innerHTML = selectedEdge.data("notesHtml");
+    setDocumentEditorHtml(selectedEdge.data("notesHtml"));
   }
   scheduleAutosave("Autosaved connection notes.");
 }
@@ -3023,7 +3125,7 @@ function appendSelectedPdfHighlights() {
     publicationNoteFields.notes.value = notes.notes;
   }
   if (activeDocumentNodeId === targetNode.id()) {
-    documentEditor.innerHTML = notes.notesHtml;
+    setDocumentEditorHtml(notes.notesHtml);
   }
 
   scheduleAutosave("Autosaved appended PDF annotations.");
@@ -4981,7 +5083,7 @@ function loadActiveDocumentSection() {
   }
 
   documentSectionTitle.disabled = false;
-  documentEditor.contentEditable = "true";
+  setDocumentEditorEnabled(true);
   documentSectionTitle.value = node.data("label") || "";
   resizeDocumentTitle();
   const isPublication = node.data("type") === "Publication";
@@ -4996,9 +5098,9 @@ function loadActiveDocumentSection() {
   documentUrl.value = isPublication ? node.data("url") || publicationNotes.url || "" : "";
   documentAbstract.value = isPublication ? publicationNotes.abstract : "";
   if (isPublication) {
-    documentEditor.innerHTML = publicationNotes.notesHtml || escapeHtml(publicationNotes.notes || "").replace(/\n/g, "<br>");
+    setDocumentEditorHtml(publicationNotes.notesHtml || escapeHtml(publicationNotes.notes || "").replace(/\n/g, "<br>"));
   } else {
-    documentEditor.innerHTML = node.data("documentHtml") || getDefaultDocumentHtml(node);
+    setDocumentEditorHtml(node.data("documentHtml") || getDefaultDocumentHtml(node));
   }
   clearNodeConnectionContext();
   updateDocumentLinks();
@@ -5017,7 +5119,7 @@ function loadActiveConnectionDocumentSection() {
   }
 
   documentSectionTitle.disabled = true;
-  documentEditor.contentEditable = "true";
+  setDocumentEditorEnabled(true);
   documentSectionTitle.value = getConnectionShortTitle(edge);
   resizeDocumentTitle();
   documentMetadata.hidden = true;
@@ -5029,7 +5131,7 @@ function loadActiveConnectionDocumentSection() {
   documentAbstract.value = "";
   renderActiveConnectionEndpointContext(edge);
   updateDocumentPrimaryTagControl();
-  documentEditor.innerHTML = edge.data("notesHtml") || escapeHtml(edge.data("notes") || "").replace(/\n/g, "<br>");
+  setDocumentEditorHtml(edge.data("notesHtml") || escapeHtml(edge.data("notes") || "").replace(/\n/g, "<br>"));
   updateDocumentLinks();
   updateDocumentImages();
   updatePdfButtons();
@@ -5086,13 +5188,13 @@ function clearDocumentEditor() {
   documentCitation.disabled = true;
   documentUrl.disabled = true;
   documentAbstract.disabled = true;
-  documentEditor.contentEditable = "false";
+  setDocumentEditorEnabled(false);
   documentSectionTitle.value = "";
   resizeDocumentTitle();
   documentCitation.value = "";
   documentUrl.value = "";
   documentAbstract.value = "";
-  documentEditor.textContent = "Select a node from the outline or the map to edit its linked document section.";
+  setDocumentEditorText("Select a node from the outline or the map to edit its linked document section.");
   updatePdfButtons();
 }
 
@@ -5116,17 +5218,20 @@ function resizeDocumentTitle() {
 }
 
 function handleDocumentEditorInput() {
+  if (isLoadingDocumentEditor) return;
   updateDocumentBody();
 }
 
 function updateDocumentBody() {
+  if (isLoadingDocumentEditor) return;
   updateDocumentLinks();
   const cleanHtml = getCleanDocumentEditorHtml();
+  const cleanText = getDocumentEditorText();
 
   if (activeDocumentTarget?.type === "edge") {
     const edge = getActiveDocumentEdge();
     if (!edge) return;
-    edge.data("notes", documentEditor.innerText);
+    edge.data("notes", cleanText);
     edge.data("notesHtml", cleanHtml);
     if (selectedEdge && selectedEdge.id() === edge.id()) {
       edgeNotesText.value = edge.data("notes") || "";
@@ -5141,7 +5246,7 @@ function updateDocumentBody() {
   reconcileDocumentNodeLinkConnections(node, cleanHtml);
   if (node.data("type") === "Publication") {
     const notes = normalizePublicationNotes(node.data("publicationNotes"));
-    notes.notes = documentEditor.innerText;
+    notes.notes = cleanText;
     notes.notesHtml = cleanHtml;
     node.data("publicationNotes", notes);
     if (publicationNotesNode && publicationNotesNode.id() === node.id()) {
@@ -5153,7 +5258,8 @@ function updateDocumentBody() {
 }
 
 function getCleanDocumentEditorHtml() {
-  const clone = documentEditor.cloneNode(true);
+  const source = getDocumentEditorRoot();
+  const clone = source.cloneNode(true);
   clone.querySelectorAll(".selected-doc-image").forEach((image) => {
     image.classList.remove("selected-doc-image");
   });
@@ -5708,8 +5814,15 @@ function handleDocumentEditorKeydown(event) {
     return;
   }
 
+  if ((event.key === "Delete" || event.key === "Backspace") && clearSelectedDocumentTableCellContents()) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
+
   if ((event.key === "Delete" || event.key === "Backspace") && getSelectedDocumentResizableElement()) {
     event.preventDefault();
+    event.stopImmediatePropagation();
     deleteSelectedDocumentResizableElement();
     return;
   }
@@ -5742,6 +5855,59 @@ function handleDocumentEditorKeydown(event) {
 
   updateDocumentBody();
   commitDocumentEdit();
+}
+
+function clearSelectedDocumentTableCellContents() {
+  const cells = getDocumentTableCellsSelectedForDeletion();
+  if (!cells.length) return false;
+
+  beginDocumentEdit();
+  cells.forEach((cell) => {
+    cell.innerHTML = "<br>";
+  });
+  updateDocumentBody();
+  commitDocumentEdit();
+  updateDocumentTableToolsPosition();
+  setStatus(`Cleared ${cells.length} selected table cell${cells.length === 1 ? "" : "s"}.`);
+  return true;
+}
+
+function getDocumentTableCellsSelectedForDeletion() {
+  const activeCells = getActiveTableCellsForFormatting();
+  if (activeCells.length && hasActiveTableCellFormattingTarget()) return activeCells;
+
+  const root = getDocumentEditorRoot();
+  const joditSelectedCells = Array.from(root.querySelectorAll([
+    "td.selected-doc-table-cell",
+    "th.selected-doc-table-cell",
+    "td.jodit-selected-cell",
+    "th.jodit-selected-cell",
+    "td.jodit_selected_cell",
+    "th.jodit_selected_cell",
+    "td[aria-selected='true']",
+    "th[aria-selected='true']"
+  ].join(","))).filter((cell) => isInsideDocumentEditor(cell));
+  if (joditSelectedCells.length) return Array.from(new Set(joditSelectedCells));
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return [];
+  const range = selection.getRangeAt(0);
+  const table = getClosestDocumentElement(range.commonAncestorContainer, "table");
+  if (!table || !isInsideDocumentEditor(table)) return [];
+
+  const intersectingCells = Array.from(table.querySelectorAll("td, th")).filter((cell) => {
+    try {
+      return range.intersectsNode(cell);
+    } catch {
+      return false;
+    }
+  });
+  return intersectingCells.length > 1 ? intersectingCells : [];
+}
+
+function getClosestDocumentElement(node, selector) {
+  let element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+  return element?.closest?.(selector) || null;
 }
 
 function isSelectionInsideDocumentListItem() {
@@ -5868,7 +6034,8 @@ function addDocumentHyperlink() {
 function openDocumentNodeLinkPicker() {
   if (documentEditor.contentEditable !== "true") return;
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || !documentEditor.contains(selection.anchorNode)) return;
+  const root = getDocumentEditorRoot();
+  if (!selection || selection.rangeCount === 0 || !root.contains(selection.anchorNode)) return;
 
   const sourceNode = getActiveDocumentNode();
   documentNodeLinkPicker.dataset.sourceNodeId = sourceNode ? sourceNode.id() : "";
@@ -6009,9 +6176,11 @@ function addDocumentNodeLink(node) {
   const beforeSnapshot = JSON.stringify(getGraphData());
   beginDocumentEdit();
   restoreDocumentSelection();
-  documentEditor.focus();
+  if (joditEditor) joditEditor.s.focus();
+  else documentEditor.focus();
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || !documentEditor.contains(selection.anchorNode)) return;
+  const root = getDocumentEditorRoot();
+  if (!selection || selection.rangeCount === 0 || !root.contains(selection.anchorNode)) return;
 
   const selectedText = selection.toString().trim();
   const link = document.createElement("a");
@@ -6258,7 +6427,9 @@ function getImageFiles(source) {
 }
 
 function focusDocumentEditorAtPoint(clientX, clientY) {
-  documentEditor.focus();
+  const root = getDocumentEditorRoot();
+  if (joditEditor) joditEditor.s.focus();
+  else documentEditor.focus();
   let range = null;
 
   if (document.caretRangeFromPoint) {
@@ -6272,7 +6443,7 @@ function focusDocumentEditorAtPoint(clientX, clientY) {
     }
   }
 
-  if (!range || !documentEditor.contains(range.commonAncestorContainer)) return;
+  if (!range || !root.contains(range.commonAncestorContainer)) return;
 
   const selection = window.getSelection();
   selection.removeAllRanges();
@@ -6333,6 +6504,12 @@ function readFileAsDataUrl(file) {
 }
 
 function insertNodeInDocumentEditor(node) {
+  if (joditEditor) {
+    joditEditor.s.focus();
+    joditEditor.s.insertNode(node);
+    return;
+  }
+
   documentEditor.focus();
   const selection = window.getSelection();
   if (selection && selection.rangeCount > 0 && documentEditor.contains(selection.anchorNode)) {
@@ -6524,7 +6701,8 @@ function saveDocumentSelection() {
   }
   const range = selection.getRangeAt(0);
   const commonAncestor = range.commonAncestorContainer;
-  if (!documentEditor.contains(commonAncestor) && commonAncestor !== documentEditor) {
+  const root = getDocumentEditorRoot();
+  if (!root.contains(commonAncestor) && commonAncestor !== root) {
     savedDocumentRange = null;
     return;
   }
@@ -6533,14 +6711,16 @@ function saveDocumentSelection() {
 
 function restoreDocumentSelection() {
   if (!savedDocumentRange) {
-    documentEditor.focus();
+    if (joditEditor) joditEditor.s.focus();
+    else documentEditor.focus();
     return;
   }
 
   const selection = window.getSelection();
   selection.removeAllRanges();
   selection.addRange(savedDocumentRange);
-  documentEditor.focus();
+  if (joditEditor) joditEditor.s.focus();
+  else documentEditor.focus();
 }
 
 function selectDocumentImage(image) {
@@ -6705,21 +6885,21 @@ function setSelectedDocumentTableCellRange(table, startRowIndex, startColumnInde
 }
 
 function clearSelectedDocumentTableColumn() {
-  documentEditor.querySelectorAll(".selected-doc-table-column").forEach((cell) => {
+  getDocumentEditorRoot().querySelectorAll(".selected-doc-table-column").forEach((cell) => {
     cell.classList.remove("selected-doc-table-column");
   });
   selectedDocumentTableColumn = null;
 }
 
 function clearSelectedDocumentTableRow() {
-  documentEditor.querySelectorAll(".selected-doc-table-row").forEach((cell) => {
+  getDocumentEditorRoot().querySelectorAll(".selected-doc-table-row").forEach((cell) => {
     cell.classList.remove("selected-doc-table-row");
   });
   selectedDocumentTableRow = null;
 }
 
 function clearSelectedDocumentTableCells() {
-  documentEditor.querySelectorAll(".selected-doc-table-cell").forEach((cell) => {
+  getDocumentEditorRoot().querySelectorAll(".selected-doc-table-cell").forEach((cell) => {
     cell.classList.remove("selected-doc-table-cell");
   });
   selectedDocumentTableCells = null;
@@ -6849,16 +7029,16 @@ function getUniqueVisualGridCells(grid, predicate) {
 }
 
 function getSelectedDocumentResizableElement() {
-  if (selectedDocumentImage && documentEditor.contains(selectedDocumentImage)) return selectedDocumentImage;
-  if (selectedDocumentTable && documentEditor.contains(selectedDocumentTable)) return selectedDocumentTable;
-  if (selectedDocumentTableCells?.table && documentEditor.contains(selectedDocumentTableCells.table)) return selectedDocumentTableCells.table;
-  if (selectedDocumentTableColumn?.table && documentEditor.contains(selectedDocumentTableColumn.table)) return selectedDocumentTableColumn.table;
-  if (selectedDocumentTableRow?.row && documentEditor.contains(selectedDocumentTableRow.row)) return selectedDocumentTableRow.row;
+  if (selectedDocumentImage && isInsideDocumentEditor(selectedDocumentImage)) return selectedDocumentImage;
+  if (selectedDocumentTable && isInsideDocumentEditor(selectedDocumentTable)) return selectedDocumentTable;
+  if (selectedDocumentTableCells?.table && isInsideDocumentEditor(selectedDocumentTableCells.table)) return selectedDocumentTableCells.table;
+  if (selectedDocumentTableColumn?.table && isInsideDocumentEditor(selectedDocumentTableColumn.table)) return selectedDocumentTableColumn.table;
+  if (selectedDocumentTableRow?.row && isInsideDocumentEditor(selectedDocumentTableRow.row)) return selectedDocumentTableRow.row;
   return null;
 }
 
 function deleteSelectedDocumentResizableElement() {
-  if (selectedDocumentTableCells?.table && documentEditor.contains(selectedDocumentTableCells.table)) {
+  if (selectedDocumentTableCells?.table && isInsideDocumentEditor(selectedDocumentTableCells.table)) {
     beginDocumentEdit();
     getTableCellRangeCells(
       selectedDocumentTableCells.table,
@@ -6875,7 +7055,7 @@ function deleteSelectedDocumentResizableElement() {
     return;
   }
 
-  if (selectedDocumentTableRow?.row && documentEditor.contains(selectedDocumentTableRow.row)) {
+  if (selectedDocumentTableRow?.row && isInsideDocumentEditor(selectedDocumentTableRow.row)) {
     beginDocumentEdit();
     getTableRowRangeCells(
       selectedDocumentTableRow.table,
@@ -6890,7 +7070,7 @@ function deleteSelectedDocumentResizableElement() {
     return;
   }
 
-  if (selectedDocumentTableColumn?.table && documentEditor.contains(selectedDocumentTableColumn.table)) {
+  if (selectedDocumentTableColumn?.table && isInsideDocumentEditor(selectedDocumentTableColumn.table)) {
     beginDocumentEdit();
     getTableColumnRangeCells(
       selectedDocumentTableColumn.table,
@@ -7483,7 +7663,7 @@ function deleteTableColumn(cell) {
 }
 
 function getActiveTableCellsForFormatting() {
-  if (selectedDocumentTableCells?.table && documentEditor.contains(selectedDocumentTableCells.table)) {
+  if (selectedDocumentTableCells?.table && isInsideDocumentEditor(selectedDocumentTableCells.table)) {
     return getTableCellRangeCells(
       selectedDocumentTableCells.table,
       selectedDocumentTableCells.startRowIndex,
@@ -7492,24 +7672,24 @@ function getActiveTableCellsForFormatting() {
       selectedDocumentTableCells.endColumnIndex
     );
   }
-  if (selectedDocumentTableColumn?.table && documentEditor.contains(selectedDocumentTableColumn.table)) {
+  if (selectedDocumentTableColumn?.table && isInsideDocumentEditor(selectedDocumentTableColumn.table)) {
     return getTableColumnRangeCells(
       selectedDocumentTableColumn.table,
       selectedDocumentTableColumn.columnIndex,
       selectedDocumentTableColumn.endColumnIndex
     );
   }
-  if (selectedDocumentTableRow?.row && documentEditor.contains(selectedDocumentTableRow.row)) {
+  if (selectedDocumentTableRow?.row && isInsideDocumentEditor(selectedDocumentTableRow.row)) {
     return getTableRowRangeCells(
       selectedDocumentTableRow.table,
       selectedDocumentTableRow.rowIndex,
       selectedDocumentTableRow.endRowIndex
     );
   }
-  if (selectedDocumentTable && documentEditor.contains(selectedDocumentTable)) {
+  if (selectedDocumentTable && isInsideDocumentEditor(selectedDocumentTable)) {
     return Array.from(selectedDocumentTable.querySelectorAll("td, th"));
   }
-  if (activeDocumentTableCell && documentEditor.contains(activeDocumentTableCell)) {
+  if (activeDocumentTableCell && isInsideDocumentEditor(activeDocumentTableCell)) {
     return [activeDocumentTableCell];
   }
   return [];
@@ -7789,7 +7969,7 @@ function autoLinkDocumentUrls({ preserveSelection = true } = {}) {
   if (documentEditor.contentEditable !== "true") return false;
   const savedRange = preserveSelection ? saveEditorRange() : null;
   let changed = false;
-  const textNodes = getAutolinkTextNodes(documentEditor);
+  const textNodes = getAutolinkTextNodes(getDocumentEditorRoot());
 
   textNodes.forEach((textNode) => {
     if (linkTextNodeUrls(textNode)) changed = true;
@@ -7855,7 +8035,8 @@ function linkTextNodeUrls(textNode) {
 
 function saveEditorRange() {
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || !documentEditor.contains(selection.anchorNode)) return null;
+  const root = getDocumentEditorRoot();
+  if (!selection || selection.rangeCount === 0 || !root.contains(selection.anchorNode)) return null;
   return selection.getRangeAt(0).cloneRange();
 }
 
@@ -7867,12 +8048,14 @@ function restoreEditorRange(range) {
     selection.removeAllRanges();
     selection.addRange(range);
   } catch (error) {
-    documentEditor.focus();
+    if (joditEditor) joditEditor.s.focus();
+    else documentEditor.focus();
   }
 }
 
 function updateDocumentLinks() {
-  documentEditor.querySelectorAll("a[href]").forEach((link) => {
+  const root = getDocumentEditorRoot();
+  root.querySelectorAll("a[href]").forEach((link) => {
     if (link.dataset.nodeLink) {
       const linkedNode = cy?.getElementById(link.dataset.nodeLink);
       if (linkedNode && linkedNode.length && !linkedNode.removed()) {
@@ -7892,43 +8075,45 @@ function updateDocumentLinks() {
 }
 
 function updateDocumentImages() {
-  documentEditor.querySelectorAll("img[data-unsaved-image]").forEach((image) => {
+  const root = getDocumentEditorRoot();
+  root.querySelectorAll("img[data-unsaved-image]").forEach((image) => {
     const placeholder = document.createElement("span");
     placeholder.className = "unsaved-image-placeholder";
     placeholder.dataset.unsavedImage = "true";
     placeholder.textContent = "Unsaved embedded image. Delete this placeholder and reinsert the image.";
     image.replaceWith(placeholder);
   });
-  documentEditor.querySelectorAll("img").forEach((image) => {
+  root.querySelectorAll("img").forEach((image) => {
     image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
   });
   requestDocumentImageResizeOverlayUpdate();
 }
 
 function handleDocumentEditorClick(event) {
+  const root = getDocumentEditorRoot();
   const placeholder = event.target.closest(".unsaved-image-placeholder");
-  if (placeholder && documentEditor.contains(placeholder)) {
+  if (placeholder && root.contains(placeholder)) {
     selectDocumentImage(placeholder);
     hideDocumentLinkPopover();
     return;
   }
 
   const image = event.target.closest("img");
-  if (image && documentEditor.contains(image)) {
+  if (image && root.contains(image)) {
     selectDocumentImage(image);
     hideDocumentLinkPopover();
     return;
   }
 
   const link = event.target.closest("a[href]");
-  if (link && documentEditor.contains(link)) {
+  if (link && root.contains(link)) {
     event.preventDefault();
     showDocumentLinkPopover(link);
     return;
   }
 
   const table = event.target.closest("table");
-  if (table && documentEditor.contains(table)) return;
+  if (table && root.contains(table)) return;
 
   selectDocumentImage(null);
 }
@@ -7938,7 +8123,8 @@ function getActiveDocumentLink() {
   if (!selection || selection.rangeCount === 0) return null;
 
   let node = selection.anchorNode;
-  if (!node || !documentEditor.contains(node)) return null;
+  const root = getDocumentEditorRoot();
+  if (!node || !root.contains(node)) return null;
   if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
   return node ? node.closest("a[href]") : null;
 }
@@ -8198,7 +8384,7 @@ function updatePublicationNotes() {
   publicationNotesNode.data("publicationNotes", notes);
   if (selectedNode && selectedNode.id() === publicationNotesNode.id()) fields.url.value = notes.url;
   if (activeDocumentNodeId === publicationNotesNode.id()) {
-    documentEditor.innerHTML = notes.notesHtml;
+    setDocumentEditorHtml(notes.notesHtml);
     documentCitation.value = notes.citation;
     documentUrl.value = notes.url;
     documentAbstract.value = notes.abstract;
@@ -8792,12 +8978,14 @@ function setStatus(message) {
 }
 
 function isTypingTarget(target) {
+  if (!target || !target.matches) return false;
+  if (isInsideDocumentEditor(target)) return true;
   return target.matches("input, textarea, select, [contenteditable='true']");
 }
 
 function shouldLetBrowserHandleClipboard(target) {
   if (!target || !target.matches) return false;
-  if (documentEditor.contains(target)) return true;
+  if (isInsideDocumentEditor(target)) return true;
   return target.matches("input[type='text'], input[type='url'], input[type='number'], textarea, [contenteditable='true']");
 }
 
