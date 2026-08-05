@@ -6,8 +6,8 @@ Local browser-based research mapping and literature-review prototype. It combine
 
 | Track | Stage | Intended audience | Stability | Notes |
 | --- | --- | --- | --- | --- |
-| Current | Alpha | Individual research use and active development | Functional | Useful for local work and to share via Tailscale with other individuals. |
-| Next | Beta testing | PhD Candidate Testers | Functional | Test all features, identify new features, and find new failure modes. |
+| Passed | Alpha | Individual research use and active development | Functional | Useful for local work and to share via Tailscale with other individuals. |
+| Current | Beta testing | PhD Candidate Testers | Functional | Test all features, identify new features, and find new failure modes. |
 
 ## Why Use It
 

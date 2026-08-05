@@ -27,7 +27,7 @@
       <a href="#saving">Saving</a>
       <a href="#sharing">Sharing</a>
       <a href="#files">Files</a>
-      <a href="#roadmap">Roadmap</a>
+      <a href="#roadmap">Potential Improvements</a>
     </nav>
 
     <section id="overview">
@@ -82,14 +82,35 @@ macOS/Linux: ~/Zotero</code></pre>
 
     <section id="grobid">
       <h2>GROBID Citation Analysis</h2>
-      <p>GROBID is used to find citation relationships between publications already in the map. Expected local setup:</p>
+      <p>GROBID is used to find citation relationships between publications already in the map. It runs as a separate local service, usually through Docker, and this app calls it at <code>http://127.0.0.1:8070</code>.</p>
+      <h3>Docker Setup</h3>
+      <p>Install Docker Desktop or Docker Engine first, then pull and run the GROBID full image:</p>
+      <pre><code>docker pull grobid/grobid:0.9.0-full
+docker run --name grobid --rm -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+      <p>Keep that terminal running while using citation analysis. If you prefer a detached background container, use:</p>
+      <pre><code>docker run --name grobid -d -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+      <p>When running detached, stop it with:</p>
+      <pre><code>docker stop grobid</code></pre>
+      <h3>Expected Service</h3>
       <pre><code>Docker image: grobid/grobid:0.9.0-full
 Container name: grobid
 Service URL: http://127.0.0.1:8070
 Health endpoint: GET /api/isalive
 Reference endpoint: POST /api/processReferences</code></pre>
-      <p>Workflow: import publications from Zotero, make sure they have local PDF attachments, open GROBID, check the service, analyze all publications, review suggestions, and add selected citation links. The app does not automatically create citation edges without review.</p>
+      <p>You can check the service outside the app with:</p>
+      <pre><code>curl http://127.0.0.1:8070/api/isalive</code></pre>
+      <p>On Windows PowerShell, use:</p>
+      <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8070/api/isalive"</code></pre>
+      <h3>App Workflow</h3>
+      <p>Import publications from Zotero, make sure they have local PDF attachments, open the GROBID panel, click Check GROBID, analyze all publications, review suggestions, and add selected citation links. The app does not automatically create citation edges without review.</p>
       <p>Added citation edges include citation and GROBID tags, connection notes, confidence metadata, and match reasoning. Existing citation connections are filtered out to avoid duplicate edges.</p>
+      <h3>Common Issues</h3>
+      <ul>
+        <li>If Check GROBID fails, confirm Docker is running and port <code>8070</code> is not blocked or already used by another service.</li>
+        <li>The first GROBID startup can take time because the full service loads models before it is ready.</li>
+        <li>Citation suggestions depend on PDF quality. Scanned PDFs or malformed references may produce few or no matches.</li>
+        <li>GROBID analysis runs on the machine hosting FastAPI. A remote browser user does not run GROBID on their own computer.</li>
+      </ul>
     </section>
 
     <section id="pdfs">
@@ -119,12 +140,32 @@ Reference endpoint: POST /api/processReferences</code></pre>
     <section id="sharing">
       <h2>Private Sharing And Presence</h2>
       <p>The app can be shared privately across trusted devices through Tailscale. Tailscale is not configured inside the repo and no secrets should be committed.</p>
-      <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8000
-tailscale serve http://127.0.0.1:8000</code></pre>
+      <h3>Recommended Tailscale Flow</h3>
+      <ol>
+        <li>Install Tailscale on the host machine and sign in.</li>
+        <li>Start this app's FastAPI backend from the project folder on the host machine:
+          <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8000</code></pre>
+          The host machine is the computer that runs <code>server.py</code> and stores the local project files, Zotero/PDF/GROBID access, image saves, autosaves, and presence state.
+        </li>
+        <li>Expose that local FastAPI app through Tailscale Serve:
+          <pre><code>tailscale serve http://127.0.0.1:8000</code></pre>
+        </li>
+        <li>Open the private HTTPS URL that Tailscale prints from another trusted device in the same Tailnet or an explicitly shared device/user:
+          <pre><code>https://your-device.your-tailnet.ts.net/</code></pre>
+        </li>
+      </ol>
+      <p>Keep Uvicorn bound to <code>127.0.0.1</code>. Tailscale Serve can safely forward the private HTTPS endpoint to that local-only backend without making FastAPI listen on the public network.</p>
+      <h3>Access-Control Guidance</h3>
+      <p>If you share the host machine with an external collaborator, restrict their Tailscale access to the app endpoint instead of granting broad access to the whole machine. Tailscale Serve exposes HTTPS on TCP <code>443</code>, then forwards internally to <code>127.0.0.1:8000</code>.</p>
+      <pre><code>{
+  "src": ["autogroup:shared"],
+  "dst": ["YOUR_DEVICE_TAILSCALE_IP_OR_DEVICE_SELECTOR"],
+  "ip": ["tcp:443"]
+}</code></pre>
+      <p>Use your host device's Tailscale IP or the device selector accepted by the Tailscale policy editor. You can find the host Tailscale IPv4 address with:</p>
+      <pre><code>tailscale ip -4</code></pre>
+      <p>Avoid granting shared users access to all ports and protocols unless you intentionally want them to reach other services on the host machine.</p>
       <p>The toolbar presence indicator shows how many browser sessions have the same project open. Each tab gets a temporary client ID in sessionStorage and sends a heartbeat about every 15 seconds. The backend keeps recent viewers for about 45 seconds, and the browser also sends a best-effort leave signal when a tab closes.</p>
-      <h3>Presence Troubleshooting</h3>
-      <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence" | ConvertTo-Json -Depth 5
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence/debug" | ConvertTo-Json -Depth 5</code></pre>
       <h3>Security Notes</h3>
       <ul>
         <li>Tailscale is private networking, not app-level authentication.</li>
@@ -150,7 +191,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/presence/debug" | ConvertTo-Js
     </section>
 
     <section id="roadmap">
-      <h2>Offline Note And Roadmap</h2>
+      <h2>Potential Improvements</h2>
       <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Zotero and GROBID integrations are local-first, but Cytoscape can later be vendored locally for fully offline use.</p>
       <ul>
         <li>Add WebSocket update notifications for trusted shared sessions.</li>
