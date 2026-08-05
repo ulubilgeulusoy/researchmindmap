@@ -31,25 +31,32 @@ Requirements:
 
 - Python 3 with `venv`
 - A modern web browser
+- Zotero Desktop installed and running for Zotero import/PDF workflows
+- Docker Desktop is recommended for GROBID citation analysis
 
-Clone the repository and create a virtual environment:
+Clone the repository:
 
 ```sh
 git clone https://github.com/ulubilgeulusoy/researchmindmap.git
 cd researchmindmap
-python -m venv .venv
 ```
 
-Activate the virtual environment:
+If you already have a Python environment you want to use, activate it before installing dependencies. If you need a new environment, create one with a project-specific name:
+
+```sh
+python -m venv mindmapenv
+```
+
+Activate the environment:
 
 ```powershell
 # Windows PowerShell
-.venv\Scripts\Activate.ps1
+mindmapenv\Scripts\Activate.ps1
 ```
 
 ```sh
 # macOS/Linux
-source .venv/bin/activate
+source mindmapenv/bin/activate
 ```
 
 Install dependencies and start the local backend:
@@ -66,6 +73,33 @@ http://127.0.0.1:8000
 ```
 
 If `python` is not the command for your environment, activate your preferred Python environment first. Restart Uvicorn after changing `server.py`. A hard refresh can help after frontend changes because browser assets are cache-versioned in `index.html`.
+
+For the full publication workflow:
+
+- Zotero requires Zotero Desktop installed and running locally. Zotero Connector in the browser is recommended for saving papers found through OpenAlex, DOI, or publisher pages into Zotero before importing them as nodes.
+- OpenAlex discovery does not require an API key or local install, but the FastAPI host must have internet access.
+- GROBID requires a separate local service. Docker Desktop is recommended. With Docker running, use:
+
+```sh
+docker pull grobid/grobid:0.9.0-full
+docker run --name grobid --rm -p 8070:8070 grobid/grobid:0.9.0-full
+```
+
+The app expects GROBID at:
+
+```text
+http://127.0.0.1:8070
+```
+
+Expected GROBID service details:
+
+```text
+Docker image: grobid/grobid:0.9.0-full
+Container name: grobid
+Service URL: http://127.0.0.1:8070
+Health endpoint: GET /api/isalive
+Reference endpoint: POST /api/processReferences
+```
 
 ## Core Features
 
