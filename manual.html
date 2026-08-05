@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -20,7 +20,7 @@
       <a href="#views">Views</a>
       <a href="#clustering">Clustering</a>
       <a href="#details">Details Panel</a>
-      <a href="#document-editor">Document Editor</a>
+      <a href="#document-editor">Jodit</a>
       <a href="#zotero">Zotero</a>
       <a href="#grobid">GROBID</a>
       <a href="#pdfs">PDFs</a>
@@ -84,9 +84,10 @@
     </section>
 
     <section id="document-editor">
-      <h2>Document Editor</h2>
-      <p>The document editor is a prototype word-processor-style interface linked to map nodes and connections. It supports font family, font size, paragraph style, bold, italic, underline, format painter, text color, highlight color, lists, alignment, hyperlinks, node links, images, tables, and URL auto-linking.</p>
+      <h2>Jodit</h2>
+      <p>The document workspace uses the vendored Jodit rich-text editor as its main editing surface. It supports font family, font size, paragraph style, bold, italic, underline, strikethrough, text color, lists, alignment, hyperlinks, node links, images, tables, undo/redo, and URL auto-linking.</p>
       <p>Publication pages include notes plus citation and URL metadata. Idea pages are plain note pages. Connection pages show compact From and To metadata above the editable connection note. Node links are grouped by tag in the node-link picker and can be filtered by search and node type.</p>
+      <p>Jodit assets are stored locally under <code>vendor/jodit-4.2.47/</code>, so the editor does not depend on a Jodit CDN at runtime.</p>
     </section>
 
     <section id="zotero">
@@ -217,13 +218,14 @@ Reference endpoint: POST /api/processReferences</code></pre>
         <li><code>server.py</code> - FastAPI backend for serving the app, Zotero, PDFs, images, autosaves, snapshots, and GROBID analysis.</li>
         <li><code>requirements.txt</code> - backend Python dependencies.</li>
         <li><code>autosaves/</code> - project folders with latest autosaves, snapshots, copied PDFs, note images, and deleted-image archives.</li>
+        <li><code>vendor/jodit-4.2.47/</code> - local Jodit rich-text editor assets used by the document workspace.</li>
       </ul>
       <p>The repo keeps folder placeholders and the committed Demo starter save, but ignores private project autosaves, snapshots, copied PDFs, note images, exported JSON files, logs, and local environment files.</p>
     </section>
 
     <section id="roadmap">
       <h2>Potential Improvements</h2>
-      <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Zotero and GROBID integrations are local-first, but Cytoscape can later be vendored locally for fully offline use.</p>
+      <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Jodit editor assets are already vendored locally under <code>vendor/jodit-4.2.47/</code>. Zotero and GROBID integrations are local-first, but Cytoscape can later be vendored locally for fully offline use.</p>
       <ul>
         <li>Add WebSocket update notifications for trusted shared sessions.</li>
         <li>Add optional edit locks or read-only viewer mode.</li>

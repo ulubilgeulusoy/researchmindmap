@@ -1,6 +1,6 @@
 ﻿# Research Mind Map Prototype
 
-Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, linked writing notes, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
+Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, Jodit-powered writing notes, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
 
 ## Project Status
 
@@ -71,7 +71,7 @@ If `python` is not the command for your environment, activate your preferred Pyt
 
 - Visual research mind map with typed, colored nodes and directed connections.
 - Map, document, and split multi-view workspaces.
-- Publication, idea, and connection notes with document-style formatting.
+- Publication, idea, and connection notes with Jodit-powered rich-text editing.
 - Zotero Desktop import and local PDF workflows.
 - PDF annotation extraction through PyMuPDF.
 - GROBID-based citation relationship suggestions.
@@ -98,6 +98,7 @@ You can also open it from the `?` documentation button in the top toolbar.
 - `server.py` - FastAPI backend for local files, Zotero, PDFs, GROBID, autosaves
 - `requirements.txt` - Python backend dependencies
 - `autosaves/` - project workspaces and generated local data
+- `vendor/jodit-4.2.47/` - vendored Jodit rich-text editor assets
 
 ## License
 
