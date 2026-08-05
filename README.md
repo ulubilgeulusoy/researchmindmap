@@ -2,12 +2,15 @@
 
 Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, linked writing notes, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
 
-## Version Status
+## Project Status
 
-| Track | Stage | Intended audience | Stability | Notes |
-| --- | --- | --- | --- | --- |
-| Passed | Alpha | Individual Researchers | Functional | Useful for local work and to share via Tailscale with other individuals. |
-| Current | Beta Testing | PhD Candidate Testers | Functional | Test all features, identify new features, and find new failure modes. |
+**Current stage: Beta testing**
+
+The application is functional for individual local research workflows and
+trusted Tailscale sharing. It is currently being tested with PhD researchers
+to identify usability issues, missing features, and failure cases.
+
+The data format, interface, and backend APIs may still change.
 
 ## Why Use It
 
@@ -24,15 +27,35 @@ The app opens as a visual map with:
 
 ## Quick Start
 
-Install backend dependencies:
+Requirements:
+
+- Python 3 with `venv`
+- A modern web browser
+
+Clone the repository and create a virtual environment:
+
+```sh
+git clone https://github.com/ulubilgeulusoy/ulumindmap.git
+cd ulumindmap
+python -m venv .venv
+```
+
+Activate the virtual environment:
+
+```powershell
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+```
+
+```sh
+# macOS/Linux
+source .venv/bin/activate
+```
+
+Install dependencies and start the local backend:
 
 ```sh
 python -m pip install -r requirements.txt
-```
-
-Start the local backend:
-
-```sh
 python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
@@ -55,12 +78,14 @@ If `python` is not the command for your environment, activate your preferred Pyt
 - Project-scoped autosaves, snapshots, note images, copied PDFs, JSON import/export.
 - Lightweight online-session indicator for trusted private sharing.
 
+Zotero Desktop and GROBID are optional integrations. The core mapping, note-taking, project, autosave, and JSON import/export features work without them.
+
 ## Full Documentation
 
 The detailed user guide, integration notes, storage model, Tailscale sharing notes, troubleshooting commands, security limitations, file layout, maturity notes, and roadmap have moved into the in-app documentation page:
 
 ```text
-http://127.0.0.1:8000/about.html
+http://127.0.0.1:8000/manual.html
 ```
 
 You can also open it from the `?` documentation button in the top toolbar.
