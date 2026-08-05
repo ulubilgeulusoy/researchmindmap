@@ -1,6 +1,6 @@
 ﻿# Research Mind Map Prototype
 
-Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, Jodit-powered writing notes, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
+Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, Jodit-powered writing notes, OpenAlex paper discovery, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
 
 ## Project Status
 
@@ -72,13 +72,14 @@ If `python` is not the command for your environment, activate your preferred Pyt
 - Visual research mind map with typed, colored nodes and directed connections.
 - Map, document, and split multi-view workspaces.
 - Publication, idea, and connection notes with Jodit-powered rich-text editing.
+- OpenAlex discovery for related papers, papers that cite selected map publications, and papers cited by selected map publications.
 - Zotero Desktop import and local PDF workflows.
 - PDF annotation extraction through PyMuPDF.
 - GROBID-based citation relationship suggestions.
 - Project-scoped autosaves, snapshots, note images, copied PDFs, JSON import/export.
 - Lightweight online-session indicator for trusted private sharing.
 
-Zotero Desktop and GROBID are optional integrations. The core mapping, note-taking, project, autosave, and JSON import/export features work without them.
+OpenAlex, Zotero Desktop, and GROBID are optional integrations. The core mapping, note-taking, project, autosave, and JSON import/export features work without them. A common literature-discovery workflow is to use OpenAlex to find candidate papers, open their DOI/source links, save the useful papers into Zotero with Zotero Connector, then import those Zotero items as publication nodes.
 
 ## Full Documentation
 
@@ -95,7 +96,7 @@ You can also open it from the `?` documentation button in the top toolbar.
 - `index.html` - application structure and UI panels
 - `style.css` - layout and visual styling
 - `app.js` - graph UI, document editor, autosave, import/export, integrations
-- `server.py` - FastAPI backend for local files, Zotero, PDFs, GROBID, autosaves
+- `server.py` - FastAPI backend for local files, OpenAlex, Zotero, PDFs, GROBID, autosaves
 - `requirements.txt` - Python backend dependencies
 - `autosaves/` - project workspaces and generated local data
 - `vendor/jodit-4.2.47/` - vendored Jodit rich-text editor assets

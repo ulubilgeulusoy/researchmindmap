@@ -76,6 +76,7 @@
         <summary>Sources</summary>
         <div class="toolbar-menu-panel">
           <button type="button" id="zoteroButton">Zotero</button>
+          <button type="button" id="openAlexButton">OpenAlex</button>
           <button type="button" id="grobidButton">GROBID</button>
         </div>
       </details>
@@ -657,6 +658,59 @@
       <div id="zoteroItemsList" class="zotero-items-list"></div>
     </section>
 
+    <section id="openAlexPanel" class="zotero-panel" hidden>
+      <div class="zotero-panel-header">
+        <div>
+          <h2>OpenAlex Discovery</h2>
+          <p id="openAlexStatusText">Find papers, then add them to Zotero before importing nodes.</p>
+        </div>
+        <button type="button" id="closeOpenAlexPanel">Close</button>
+      </div>
+
+      <div class="openalex-search-controls">
+        <input id="openAlexSearchInput" type="search" placeholder="Search OpenAlex works..." autocomplete="off">
+        <button type="button" id="searchOpenAlexButton">Search OpenAlex</button>
+        <button type="button" id="clearOpenAlexSearchButton" aria-label="Clear OpenAlex search">Clear</button>
+      </div>
+
+      <div class="openalex-discovery-layout">
+        <div class="openalex-publication-picker">
+          <div class="openalex-pane-header">
+            <div>
+              <strong>Seed Publications</strong>
+              <span id="openAlexPublicationCount">0 selected</span>
+            </div>
+            <button type="button" id="findSimilarOpenAlexButton">Find Similar</button>
+          </div>
+          <div class="openalex-mode-options" aria-label="OpenAlex discovery modes">
+            <label><input type="checkbox" id="openAlexModeRelated" checked> Related papers</label>
+            <label><input type="checkbox" id="openAlexModeCites"> Papers that cite selected</label>
+            <label><input type="checkbox" id="openAlexModeCitedBy"> Papers cited by selected</label>
+          </div>
+          <div class="zotero-search-row openalex-picker-search-row">
+            <input id="openAlexPublicationFilterInput" type="search" placeholder="Filter map publication nodes..." autocomplete="off">
+            <button type="button" id="clearOpenAlexPublicationFilterButton" aria-label="Clear publication filter">Clear</button>
+          </div>
+          <div class="list-actions openalex-picker-actions">
+            <span>Map publication nodes</span>
+            <button type="button" id="selectAllOpenAlexPublicationsButton">Select All</button>
+            <button type="button" id="deselectAllOpenAlexPublicationsButton">Deselect All</button>
+          </div>
+          <div id="openAlexPublicationList" class="openalex-publication-list"></div>
+        </div>
+
+        <div class="openalex-results-pane">
+          <div class="openalex-pane-header">
+            <div>
+              <strong>OpenAlex Results</strong>
+              <span id="openAlexResultsCount">No results loaded</span>
+            </div>
+          </div>
+          <div id="openAlexResultsList" class="zotero-items-list openalex-results-list"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="grobidPanel" class="zotero-panel" hidden>
       <div class="zotero-panel-header">
         <div>
@@ -690,6 +744,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260804-online-refresh-button"></script>
+  <script src="app.js?v=20260805-openalex-discovery-modes"></script>
 </body>
 </html>

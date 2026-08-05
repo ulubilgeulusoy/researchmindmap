@@ -128,8 +128,11 @@ let activeDocumentTarget = null;
 let documentEditSnapshot = null;
 let currentView = "map";
 let notesPanelDrag = null;
+let openAlexPanelDrag = null;
 let zoteroItemsCache = [];
 let zoteroSearchTimer = null;
+let openAlexResultsCache = [];
+let openAlexSearchTimer = null;
 let grobidSuggestionsCache = [];
 let grobidAnalyzedCache = [];
 let pdfHighlightsCache = [];
@@ -351,6 +354,20 @@ const zoteroItemsList = document.getElementById("zoteroItemsList");
 const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
 const clearZoteroSearchButton = document.getElementById("clearZoteroSearchButton");
+const openAlexPanel = document.getElementById("openAlexPanel");
+const openAlexPanelHeader = openAlexPanel.querySelector(".zotero-panel-header");
+const openAlexStatusText = document.getElementById("openAlexStatusText");
+const openAlexSearchInput = document.getElementById("openAlexSearchInput");
+const openAlexResultsList = document.getElementById("openAlexResultsList");
+const openAlexResultsCount = document.getElementById("openAlexResultsCount");
+const clearOpenAlexSearchButton = document.getElementById("clearOpenAlexSearchButton");
+const openAlexPublicationFilterInput = document.getElementById("openAlexPublicationFilterInput");
+const openAlexPublicationList = document.getElementById("openAlexPublicationList");
+const openAlexPublicationCount = document.getElementById("openAlexPublicationCount");
+const clearOpenAlexPublicationFilterButton = document.getElementById("clearOpenAlexPublicationFilterButton");
+const openAlexModeRelated = document.getElementById("openAlexModeRelated");
+const openAlexModeCites = document.getElementById("openAlexModeCites");
+const openAlexModeCitedBy = document.getElementById("openAlexModeCitedBy");
 const grobidPanel = document.getElementById("grobidPanel");
 const grobidStatusText = document.getElementById("grobidStatusText");
 const grobidSuggestionsList = document.getElementById("grobidSuggestionsList");
@@ -736,6 +753,7 @@ document.getElementById("importButton").addEventListener("click", () => importFi
 document.getElementById("resetViewButton").addEventListener("click", resetView);
 if (presenceIndicator) presenceIndicator.addEventListener("click", refreshPresence);
 document.getElementById("zoteroButton").addEventListener("click", openZoteroPanel);
+document.getElementById("openAlexButton").addEventListener("click", openOpenAlexPanel);
 document.getElementById("grobidButton").addEventListener("click", openGrobidPanel);
 document.getElementById("closeZoteroPanel").addEventListener("click", closeZoteroPanel);
 document.getElementById("checkZoteroButton").addEventListener("click", checkZotero);
@@ -758,6 +776,38 @@ zoteroSearchInput.addEventListener("input", () => {
 clearZoteroSearchButton.addEventListener("click", () => {
   zoteroSearchInput.value = "";
   loadZoteroItems();
+});
+document.getElementById("closeOpenAlexPanel").addEventListener("click", closeOpenAlexPanel);
+document.getElementById("findSimilarOpenAlexButton").addEventListener("click", findSimilarOpenAlexWorks);
+document.getElementById("searchOpenAlexButton").addEventListener("click", searchOpenAlexWorks);
+document.getElementById("selectAllOpenAlexPublicationsButton").addEventListener("click", () => {
+  setPanelCheckboxes(openAlexPublicationList, true);
+  updateOpenAlexPublicationCount();
+});
+document.getElementById("deselectAllOpenAlexPublicationsButton").addEventListener("click", () => {
+  setPanelCheckboxes(openAlexPublicationList, false);
+  updateOpenAlexPublicationCount();
+});
+openAlexPublicationList.addEventListener("change", updateOpenAlexPublicationCount);
+openAlexPublicationFilterInput.addEventListener("input", renderOpenAlexPublicationList);
+clearOpenAlexPublicationFilterButton.addEventListener("click", () => {
+  openAlexPublicationFilterInput.value = "";
+  renderOpenAlexPublicationList();
+});
+openAlexSearchInput.addEventListener("input", () => {
+  window.clearTimeout(openAlexSearchTimer);
+  openAlexSearchTimer = window.setTimeout(() => {
+    if (!openAlexPanel.hidden && openAlexSearchInput.value.trim()) searchOpenAlexWorks();
+  }, 450);
+});
+openAlexSearchInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") searchOpenAlexWorks();
+});
+clearOpenAlexSearchButton.addEventListener("click", () => {
+  openAlexSearchInput.value = "";
+  openAlexResultsCache = [];
+  renderOpenAlexResults();
+  openAlexStatusText.textContent = "Find papers, then add them to Zotero before importing nodes.";
 });
 document.getElementById("closeGrobidPanel").addEventListener("click", closeGrobidPanel);
 document.getElementById("checkGrobidButton").addEventListener("click", checkGrobid);
@@ -892,8 +942,11 @@ pdfHighlightsModal.addEventListener("click", (event) => {
   if (event.target === pdfHighlightsModal) closePdfHighlightsModal();
 });
 publicationNotesDragHandle.addEventListener("pointerdown", startNotesPanelDrag);
+openAlexPanelHeader.addEventListener("pointerdown", startOpenAlexPanelDrag);
 window.addEventListener("pointermove", continueNotesPanelDrag);
+window.addEventListener("pointermove", continueOpenAlexPanelDrag);
 window.addEventListener("pointerup", finishNotesPanelDrag);
+window.addEventListener("pointerup", finishOpenAlexPanelDrag);
 Object.values(publicationNoteFields).forEach((field) => {
   field.addEventListener("input", updatePublicationNotes);
 });
@@ -2581,6 +2634,230 @@ function importSelectedZoteroItems() {
   cy.fit(undefined, 70);
   scheduleAutosave("Autosaved Zotero imports.");
   zoteroStatusText.textContent = `Imported ${selectedIndexes.length} publication nodes.`;
+}
+
+function openOpenAlexPanel() {
+  openAlexPanel.hidden = false;
+  renderOpenAlexPublicationList();
+  renderOpenAlexResults();
+}
+
+function closeOpenAlexPanel() {
+  openAlexPanel.hidden = true;
+}
+
+function selectedOpenAlexSeedPublications() {
+  const checkedIds = Array.from(openAlexPublicationList.querySelectorAll("input:checked")).map((input) => input.value);
+  return checkedIds.map((id) => cy.getElementById(id)).filter((node) => node.length && node.data("type") === "Publication").map(openAlexPublicationFromNode);
+}
+
+function openAlexPublicationFromNode(node) {
+    const zotero = node.data("zotero") || {};
+    const notes = normalizePublicationNotes(node.data("publicationNotes"));
+    return {
+      id: node.id(),
+      title: node.data("label") || "",
+      doi: zotero.doi || "",
+      year: zotero.year || "",
+      authors: zotero.authors || [],
+      zoteroKey: zotero.itemKey || "",
+      citation: notes.citation || ""
+    };
+}
+
+function getOpenAlexPublicationNodes() {
+  const filter = openAlexPublicationFilterInput.value.trim().toLowerCase();
+  return cy.nodes().filter((node) => {
+    if (node.data("type") !== "Publication") return false;
+    if (!filter) return true;
+    const publication = openAlexPublicationFromNode(node);
+    const text = [
+      publication.title,
+      publication.doi,
+      publication.year,
+      publication.authors.join(" "),
+      publication.citation
+    ].join(" ").toLowerCase();
+    return text.includes(filter);
+  }).sort((a, b) => (a.data("label") || "").localeCompare(b.data("label") || ""));
+}
+
+function renderOpenAlexPublicationList() {
+  const checked = new Set(Array.from(openAlexPublicationList.querySelectorAll("input:checked")).map((input) => input.value));
+  const selected = new Set(cy.$("node:selected").filter((node) => node.data("type") === "Publication").map((node) => node.id()));
+  const publications = getOpenAlexPublicationNodes();
+  openAlexPublicationList.innerHTML = "";
+
+  if (!publications.length) {
+    openAlexPublicationList.textContent = "No matching publication nodes.";
+    return;
+  }
+
+  publications.forEach((node) => {
+    const publication = openAlexPublicationFromNode(node);
+    const row = document.createElement("label");
+    row.className = "openalex-publication-row";
+    row.innerHTML = `
+      <input type="checkbox" value="${escapeHtml(publication.id)}">
+      <span>
+        <strong>${escapeHtml(publication.title || "Untitled publication")}</strong>
+        <span>${escapeHtml([publication.authors.slice(0, 4).join(", "), publication.year, publication.doi].filter(Boolean).join(" - "))}</span>
+      </span>
+    `;
+    const checkbox = row.querySelector("input");
+    checkbox.checked = checked.has(publication.id) || (!checked.size && selected.has(publication.id));
+    openAlexPublicationList.appendChild(row);
+  });
+  updateOpenAlexPublicationCount();
+}
+
+function updateOpenAlexPublicationCount() {
+  const total = openAlexPublicationList.querySelectorAll('input[type="checkbox"]').length;
+  const selectedCount = openAlexPublicationList.querySelectorAll("input:checked").length;
+  openAlexPublicationCount.textContent = `${selectedCount} selected of ${total}`;
+}
+
+function selectedOpenAlexModes() {
+  const modes = [];
+  if (openAlexModeRelated.checked) modes.push("related");
+  if (openAlexModeCites.checked) modes.push("cites");
+  if (openAlexModeCitedBy.checked) modes.push("cited_by");
+  return modes;
+}
+
+async function searchOpenAlexWorks() {
+  const query = openAlexSearchInput.value.trim();
+  if (!query) {
+    openAlexStatusText.textContent = "Enter a search term or select publication nodes and find similar papers.";
+    return;
+  }
+  openAlexStatusText.textContent = "Searching OpenAlex...";
+  openAlexResultsList.textContent = "";
+  openAlexResultsCount.textContent = "Searching...";
+
+  try {
+    const params = new URLSearchParams({ q: query, limit: "25", _: Date.now().toString() });
+    const data = await fetchJson(`/api/openalex/search?${params.toString()}`);
+    openAlexResultsCache = data.items || [];
+    renderOpenAlexResults();
+    openAlexStatusText.textContent = `Found ${openAlexResultsCache.length} OpenAlex result(s) for "${query}".`;
+  } catch (error) {
+    openAlexStatusText.textContent = error.message;
+  }
+}
+
+async function findSimilarOpenAlexWorks() {
+  const publications = selectedOpenAlexSeedPublications();
+  if (!publications.length) {
+    openAlexStatusText.textContent = "Select one or more publication nodes first.";
+    return;
+  }
+  const modes = selectedOpenAlexModes();
+  if (!modes.length) {
+    openAlexStatusText.textContent = "Select at least one OpenAlex discovery mode.";
+    return;
+  }
+  openAlexStatusText.textContent = `Finding papers for ${publications.length} selected publication(s)...`;
+  openAlexResultsList.textContent = "";
+  openAlexResultsCount.textContent = "Searching...";
+
+  try {
+    const data = await postJson("/api/openalex/similar", { publications, modes, limit: 30 });
+    openAlexResultsCache = data.items || [];
+    renderOpenAlexResults();
+    const resolvedCount = (data.resolved || []).length;
+    openAlexStatusText.textContent = `Found ${openAlexResultsCache.length} paper(s) from ${resolvedCount} OpenAlex match(es).`;
+  } catch (error) {
+    openAlexStatusText.textContent = error.message;
+  }
+}
+
+function renderOpenAlexResults() {
+  openAlexResultsList.innerHTML = "";
+  if (!openAlexResultsCache.length) {
+    openAlexResultsCount.textContent = "No results loaded";
+    const empty = document.createElement("div");
+    empty.className = "openalex-empty-state";
+    empty.innerHTML = `
+      <strong>No discovery results yet</strong>
+      <span>Search OpenAlex directly, or choose seed publications and one or more discovery modes.</span>
+    `;
+    openAlexResultsList.appendChild(empty);
+    return;
+  }
+
+  openAlexResultsCount.textContent = `${openAlexResultsCache.length} result${openAlexResultsCache.length === 1 ? "" : "s"}`;
+  openAlexResultsCache.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "zotero-item-row openalex-result-row";
+    const meta = [item.authors?.slice(0, 4).join(", "), item.year, item.source, item.type].filter(Boolean).join(" - ");
+    row.innerHTML = `
+      <div class="openalex-result-index">${index + 1}</div>
+      <span>
+        <strong>${escapeHtml(item.title || "Untitled")}</strong>
+        <span>${escapeHtml(meta)}</span>
+        <span>${escapeHtml(openAlexResultDetails(item))}</span>
+        <span class="openalex-result-actions"></span>
+        <span class="openalex-relationship-list"></span>
+      </span>
+    `;
+    const actions = row.querySelector(".openalex-result-actions");
+    appendOpenAlexAction(actions, "DOI", item.doi || item.url);
+    appendOpenAlexAction(actions, "OpenAlex", item.openalexUrl);
+    appendOpenAlexAction(actions, "Source", item.landingPageUrl);
+    appendOpenAlexAction(actions, "PDF", item.pdfUrl);
+    appendOpenAlexCopyAction(actions, item.doi || item.title || "");
+    renderOpenAlexRelationships(row.querySelector(".openalex-relationship-list"), item.relationships || []);
+    openAlexResultsList.appendChild(row);
+  });
+}
+
+function renderOpenAlexRelationships(container, relationships) {
+  if (!container || !relationships.length) return;
+  const title = document.createElement("strong");
+  title.textContent = "Relationship to selected papers";
+  container.appendChild(title);
+  relationships.forEach((relationship) => {
+    const row = document.createElement("span");
+    row.className = `openalex-relationship-row relation-${relationship.relation || "none"}`;
+    row.innerHTML = `
+      <span>${escapeHtml(relationship.seedTitle || "Selected publication")}</span>
+      <span>${escapeHtml(relationship.label || "No citation relationship found.")}</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function openAlexResultDetails(item) {
+  const parts = [];
+  if (item.doi) parts.push(item.doi.replace(/^https?:\/\/(dx\.)?doi\.org\//i, "doi:"));
+  if (Number.isFinite(item.citedByCount)) parts.push(`${item.citedByCount} citation${item.citedByCount === 1 ? "" : "s"}`);
+  return parts.join(" - ");
+}
+
+function appendOpenAlexAction(container, label, url) {
+  if (!container || !url) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.addEventListener("click", () => window.open(url, "_blank", "noopener"));
+  container.appendChild(button);
+}
+
+function appendOpenAlexCopyAction(container, value) {
+  if (!container || !value) return;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Copy DOI";
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      openAlexStatusText.textContent = "Copied DOI/search text.";
+    } catch (error) {
+      openAlexStatusText.textContent = "Could not copy to clipboard.";
+    }
+  });
+  container.appendChild(button);
 }
 
 function openGrobidPanel() {
@@ -8367,6 +8644,44 @@ function finishNotesPanelDrag() {
     publicationNotesDragHandle.releasePointerCapture(notesPanelDrag.pointerId);
   }
   notesPanelDrag = null;
+}
+
+function startOpenAlexPanelDrag(event) {
+  if (event.button !== 0 || event.target.closest("button")) return;
+
+  event.preventDefault();
+  const rect = openAlexPanel.getBoundingClientRect();
+  openAlexPanelDrag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  openAlexPanel.style.left = `${rect.left}px`;
+  openAlexPanel.style.top = `${rect.top}px`;
+  openAlexPanel.style.right = "auto";
+  openAlexPanelHeader.setPointerCapture(event.pointerId);
+}
+
+function continueOpenAlexPanelDrag(event) {
+  if (!openAlexPanelDrag) return;
+
+  event.preventDefault();
+  const panelRect = openAlexPanel.getBoundingClientRect();
+  const maxLeft = Math.max(8, window.innerWidth - panelRect.width - 8);
+  const maxTop = Math.max(8, window.innerHeight - Math.min(panelRect.height, window.innerHeight - 16) - 8);
+  const nextLeft = clamp(event.clientX - openAlexPanelDrag.offsetX, 8, maxLeft);
+  const nextTop = clamp(event.clientY - openAlexPanelDrag.offsetY, 8, maxTop);
+  openAlexPanel.style.left = `${nextLeft}px`;
+  openAlexPanel.style.top = `${nextTop}px`;
+}
+
+function finishOpenAlexPanelDrag() {
+  if (!openAlexPanelDrag) return;
+
+  if (openAlexPanelHeader.hasPointerCapture(openAlexPanelDrag.pointerId)) {
+    openAlexPanelHeader.releasePointerCapture(openAlexPanelDrag.pointerId);
+  }
+  openAlexPanelDrag = null;
 }
 
 function updatePublicationNotes() {

@@ -72,6 +72,12 @@ class AnalyzeMapRequest(BaseModel):
     publications: list[MapPublication]
 
 
+class OpenAlexSimilarRequest(BaseModel):
+    publications: list[MapPublication]
+    modes: list[str] = ["related"]
+    limit: int = 25
+
+
 class PdfPrepareRequest(BaseModel):
     zoteroKey: str
     title: str = ""
@@ -1064,6 +1070,161 @@ def grobid_get(path: str) -> str:
         raise HTTPException(status_code=503, detail="Could not reach local GROBID at http://127.0.0.1:8070.") from exc
 
 
+OPENALEX_API = "https://api.openalex.org"
+OPENALEX_USER_AGENT = "ResearchMindMap/1.0 (https://github.com/ulubilgeulusoy/researchmindmap)"
+
+
+def openalex_get(path: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    query_params = dict(params or {})
+    mailto = os.environ.get("OPENALEX_MAILTO", "").strip()
+    if mailto:
+        query_params["mailto"] = mailto
+    query = f"?{urlencode(query_params)}" if query_params else ""
+    request = Request(f"{OPENALEX_API}{path}{query}", headers={"User-Agent": OPENALEX_USER_AGENT})
+    try:
+        with urlopen(request, timeout=12) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise HTTPException(status_code=exc.code, detail=f"OpenAlex request failed: {detail}") from exc
+    except URLError as exc:
+        raise HTTPException(status_code=503, detail="Could not reach OpenAlex.") from exc
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail="OpenAlex returned invalid JSON.") from exc
+
+
+def openalex_short_id(value: str) -> str:
+    return (value or "").rstrip("/").split("/")[-1]
+
+
+def abstract_from_inverted_index(index: Any) -> str:
+    if not isinstance(index, dict):
+        return ""
+    positions: list[tuple[int, str]] = []
+    for word, word_positions in index.items():
+        if not isinstance(word_positions, list):
+            continue
+        for position in word_positions:
+            if isinstance(position, int):
+                positions.append((position, word))
+    return " ".join(word for _, word in sorted(positions))
+
+
+def openalex_authors(work: dict[str, Any]) -> list[str]:
+    authors = []
+    for authorship in work.get("authorships") or []:
+        author = authorship.get("author") or {}
+        name = author.get("display_name")
+        if name:
+            authors.append(name)
+    return authors
+
+
+def openalex_best_url(work: dict[str, Any]) -> str:
+    doi = work.get("doi") or ""
+    if doi:
+        return doi
+    primary = work.get("primary_location") or {}
+    landing = primary.get("landing_page_url") or ""
+    if landing:
+        return landing
+    return work.get("id") or ""
+
+
+def openalex_result(work: dict[str, Any], relationships: Optional[list[dict[str, str]]] = None) -> dict[str, Any]:
+    primary = work.get("primary_location") or {}
+    source = primary.get("source") or {}
+    open_access = work.get("open_access") or {}
+    doi = work.get("doi") or ""
+    return {
+        "id": work.get("id") or "",
+        "openalexId": openalex_short_id(work.get("id") or ""),
+        "title": work.get("display_name") or "Untitled OpenAlex work",
+        "authors": openalex_authors(work),
+        "year": str(work.get("publication_year") or ""),
+        "doi": doi,
+        "url": openalex_best_url(work),
+        "openalexUrl": work.get("id") or "",
+        "landingPageUrl": primary.get("landing_page_url") or "",
+        "pdfUrl": (primary.get("pdf_url") or open_access.get("oa_url") or ""),
+        "source": source.get("display_name") or "",
+        "type": work.get("type") or "",
+        "citedByCount": work.get("cited_by_count") or 0,
+        "abstract": abstract_from_inverted_index(work.get("abstract_inverted_index")),
+        "relationships": relationships or [],
+    }
+
+
+def openalex_resolve_work(publication: MapPublication) -> Optional[str]:
+    doi = normalize_doi(publication.doi)
+    if doi:
+        try:
+            work = openalex_get(f"/works/{quote(f'https://doi.org/{doi}', safe=':/')}")
+            return openalex_short_id(work.get("id") or "")
+        except HTTPException:
+            pass
+
+    if publication.title.strip():
+        data = openalex_get(
+            "/works",
+            {"search": publication.title.strip(), "per-page": 1, "select": "id,display_name"},
+        )
+        results = data.get("results") or []
+        if results:
+            return openalex_short_id(results[0].get("id") or "")
+    return None
+
+
+def openalex_work_reference_ids(work: dict[str, Any]) -> set[str]:
+    return {openalex_short_id(value) for value in work.get("referenced_works") or [] if value}
+
+
+def openalex_relationships_for_result(
+    result_work: dict[str, Any],
+    resolved_publications: list[dict[str, Any]],
+    known_relationships: Optional[dict[str, str]] = None,
+) -> list[dict[str, str]]:
+    result_id = openalex_short_id(result_work.get("id") or "")
+    result_references = openalex_work_reference_ids(result_work)
+    known_relationships = known_relationships or {}
+    relationships = []
+    for seed in resolved_publications:
+        seed_id = seed.get("openalexId", "")
+        seed_references = seed.get("referencedWorkIds", set())
+        if known_relationships.get(seed_id) == "result-cites-seed":
+            relation = "result-cites-seed"
+            label = "This found paper cites the selected paper."
+        elif known_relationships.get(seed_id) == "seed-cites-result":
+            relation = "seed-cites-result"
+            label = "The selected paper cites this found paper."
+        elif seed_id and seed_id in result_references:
+            relation = "result-cites-seed"
+            label = "This found paper cites the selected paper."
+        elif result_id and result_id in seed_references:
+            relation = "seed-cites-result"
+            label = "The selected paper cites this found paper."
+        else:
+            relation = "none"
+            label = "No citation relationship found."
+        relationships.append({
+            "seedTitle": seed.get("title") or "Selected publication",
+            "seedOpenAlexId": seed_id,
+            "relation": relation,
+            "label": label,
+        })
+    return relationships
+
+
+def openalex_mode_filter(mode: str, work_id: str) -> Optional[str]:
+    if mode == "related":
+        return f"related_to:{work_id}"
+    if mode == "cites":
+        return f"cites:{work_id}"
+    if mode == "cited_by":
+        return f"cited_by:{work_id}"
+    return None
+
+
 def grobid_process_references(pdf_path: Path) -> str:
     boundary = f"----researchmindmap-{uuid.uuid4().hex}"
     pdf_bytes = pdf_path.read_bytes()
@@ -1282,6 +1443,99 @@ def grobid_status() -> dict[str, Any]:
     except HTTPException as exc:
         return {"ok": False, "message": exc.detail}
     return {"ok": True, "message": f"GROBID is reachable: {alive}", "version": version}
+
+
+@app.get("/api/openalex/search")
+def openalex_search(
+    response: Response,
+    q: str = "",
+    limit: int = Query(default=25, ge=1, le=50),
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    query = q.strip()
+    if not query:
+        return {"items": []}
+    data = openalex_get(
+        "/works",
+        {
+            "search": query,
+            "per-page": limit,
+            "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index",
+        },
+    )
+    return {"items": [openalex_result(work) for work in data.get("results") or []]}
+
+
+@app.post("/api/openalex/similar")
+def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    limit = max(1, min(payload.limit, 50))
+    modes = [mode for mode in payload.modes if mode in {"related", "cites", "cited_by"}]
+    if not modes:
+        modes = ["related"]
+    seen: set[str] = set()
+    items: list[dict[str, Any]] = []
+    item_by_key: dict[str, dict[str, Any]] = {}
+    relationship_by_key: dict[str, dict[str, str]] = {}
+    resolved: list[dict[str, Any]] = []
+
+    for publication in payload.publications[:8]:
+        work_id = openalex_resolve_work(publication)
+        if not work_id:
+            continue
+        seed_work = openalex_get(
+            f"/works/{quote(work_id)}",
+            {"select": "id,display_name,referenced_works"},
+        )
+        resolved.append({
+            "title": publication.title or seed_work.get("display_name") or "Selected publication",
+            "openalexId": work_id,
+            "referencedWorkIds": openalex_work_reference_ids(seed_work),
+        })
+
+    for seed in resolved:
+        work_id = seed.get("openalexId", "")
+        for mode in modes:
+            filter_value = openalex_mode_filter(mode, work_id)
+            if not filter_value:
+                continue
+            data = openalex_get(
+                "/works",
+                {
+                    "filter": filter_value,
+                    "per-page": limit,
+                    "sort": "cited_by_count:desc",
+                    "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index,referenced_works",
+                },
+            )
+            for work in data.get("results") or []:
+                key = openalex_short_id(work.get("id") or "") or work.get("doi") or work.get("display_name")
+                if not key:
+                    continue
+                known = relationship_by_key.setdefault(key, {})
+                if mode == "cites":
+                    known[work_id] = "result-cites-seed"
+                elif mode == "cited_by":
+                    known[work_id] = "seed-cites-result"
+
+                if key in item_by_key:
+                    item_by_key[key]["relationships"] = openalex_relationships_for_result(work, resolved, known)
+                    continue
+
+                item = openalex_result(work, openalex_relationships_for_result(work, resolved, known))
+                seen.add(key)
+                item_by_key[key] = item
+                items.append(item)
+                if len(items) >= limit:
+                    return {"items": items, "resolved": [
+                        {"title": seed.get("title", ""), "openalexId": seed.get("openalexId", "")}
+                        for seed in resolved
+                    ], "modes": modes}
+
+    return {"items": items, "resolved": [
+        {"title": seed.get("title", ""), "openalexId": seed.get("openalexId", "")}
+        for seed in resolved
+    ], "modes": modes}
 
 
 @app.post("/api/pdf/prepare")

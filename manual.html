@@ -21,6 +21,7 @@
       <a href="#clustering">Clustering</a>
       <a href="#details">Details Panel</a>
       <a href="#document-editor">Jodit</a>
+      <a href="#openalex">OpenAlex</a>
       <a href="#zotero">Zotero</a>
       <a href="#grobid">GROBID</a>
       <a href="#pdfs">PDFs</a>
@@ -34,7 +35,7 @@
 
     <section id="overview">
       <h2>Overview</h2>
-      <p>The app is a local browser-based research mapping and literature-review prototype. The frontend is plain HTML, CSS, and JavaScript. The backend is FastAPI and enables local-only features such as Zotero, PDF opening and annotation extraction, image saving, GROBID analysis, file autosaves, snapshots, and project workspaces.</p>
+      <p>The app is a local browser-based research mapping and literature-review prototype. The frontend is plain HTML, CSS, and JavaScript. The backend is FastAPI and enables local-only features such as OpenAlex discovery, Zotero, PDF opening and annotation extraction, image saving, GROBID analysis, file autosaves, snapshots, and project workspaces.</p>
       <h3>Current Feature Summary</h3>
       <ul>
         <li>Visual mind map with typed nodes and directed connections.</li>
@@ -44,6 +45,7 @@
         <li>Undo for graph edits with Ctrl+Z or Command+Z.</li>
         <li>Application-wide search for nodes, connections, notes, citations, URLs, tags, and metadata.</li>
         <li>Project workspaces with server autosaves, snapshots, and JSON backup/import.</li>
+        <li>OpenAlex discovery for related papers and citation-direction searches.</li>
         <li>Local integrations for Zotero, PDFs, note images, and GROBID.</li>
       </ul>
     </section>
@@ -55,12 +57,13 @@
         <li>Create a new project or select an existing project from the Project control.</li>
         <li>Add an Idea node manually to capture a concept, question, theme, or hypothesis.</li>
         <li>Add a Publication node manually, or import publications from Zotero if Zotero Desktop is available.</li>
+        <li>Use OpenAlex discovery to find related papers, papers that cite selected publications, or papers cited by selected publications.</li>
         <li>Connect related ideas and publications on the map.</li>
         <li>Open Document or Multi View to write notes linked to the selected node or connection.</li>
         <li>Click Save when you want to create a timestamped recovery snapshot.</li>
         <li>Use Export periodically to download a separate JSON backup.</li>
       </ol>
-      <p>Zotero and GROBID can make publication workflows richer, but they are optional. The core mapping, note-taking, project, autosave, and JSON import/export features work without them.</p>
+      <p>OpenAlex, Zotero, and GROBID can make publication workflows richer, but they are optional. The core mapping, note-taking, project, autosave, and JSON import/export features work without them.</p>
     </section>
 
     <section id="views">
@@ -88,6 +91,31 @@
       <p>The document workspace uses the vendored Jodit rich-text editor as its main editing surface. It supports font family, font size, paragraph style, bold, italic, underline, strikethrough, text color, lists, alignment, hyperlinks, node links, images, tables, undo/redo, and URL auto-linking.</p>
       <p>Publication pages include notes plus citation and URL metadata. Idea pages are plain note pages. Connection pages show compact From and To metadata above the editable connection note. Node links are grouped by tag in the node-link picker and can be filtered by search and node type.</p>
       <p>Jodit assets are stored locally under <code>vendor/jodit-4.2.47/</code>, so the editor does not depend on a Jodit CDN at runtime.</p>
+    </section>
+
+    <section id="openalex">
+      <h2>OpenAlex Discovery</h2>
+      <p>OpenAlex is used as a discovery tool, not as the canonical publication library. The app can search OpenAlex works directly, or use selected publication nodes as seed papers to find related literature. OpenAlex results are shown with DOI, OpenAlex, source, PDF, and copy actions when those links are available.</p>
+      <p>The intended workflow is to discover papers with OpenAlex, open the DOI or source link, save useful papers into Zotero with Zotero Connector, then import those Zotero items into this app as publication nodes. This keeps Zotero as the source of truth for item metadata, local PDFs, and later PDF/GROBID workflows.</p>
+      <h3>Finding Papers From Seed Publications</h3>
+      <ol>
+        <li>Import or create publication nodes on the map.</li>
+        <li>Open Sources, then OpenAlex.</li>
+        <li>Use the Seed Publications list to check one or more map publication nodes. The filter box can narrow long publication lists.</li>
+        <li>Choose one or more discovery modes: Related papers, Papers that cite selected, or Papers cited by selected.</li>
+        <li>Click Find Similar and review the OpenAlex Results pane.</li>
+        <li>Open DOI, Source, OpenAlex, or PDF links for promising papers.</li>
+        <li>Use Zotero Connector in the browser to save the paper into Zotero.</li>
+        <li>Return to this app, open Sources, then Zotero, and import the newly saved Zotero items as publication nodes.</li>
+      </ol>
+      <h3>Discovery Modes</h3>
+      <ul>
+        <li><strong>Related papers</strong> uses OpenAlex's broader related-work relationship. These results may be topically relevant without a direct citation relationship.</li>
+        <li><strong>Papers that cite selected</strong> finds downstream papers whose references include the selected seed paper.</li>
+        <li><strong>Papers cited by selected</strong> finds papers listed in the selected seed paper's references.</li>
+      </ul>
+      <p>For seed-based discovery, each result includes a relationship section comparing the found paper against each selected seed paper. It can say that the found paper cites the selected paper, that the selected paper cites the found paper, or that no direct citation relationship was found. OpenAlex reference coverage can be incomplete, so citation labels should be treated as metadata guidance rather than a final bibliographic audit.</p>
+      <p>You can also use the top OpenAlex search box for direct keyword search. Direct search results are discovery-only and are not automatically tied to selected seed papers.</p>
     </section>
 
     <section id="zotero">
@@ -177,7 +205,7 @@ Reference endpoint: POST /api/processReferences</code></pre>
         <li>Install Tailscale on the host machine and sign in.</li>
         <li>Start this app's FastAPI backend from the project folder on the host machine:
           <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8000</code></pre>
-          The host machine is the computer that runs <code>server.py</code> and stores the local project files, Zotero/PDF/GROBID access, image saves, autosaves, and presence state.
+          The host machine is the computer that runs <code>server.py</code> and stores the local project files, OpenAlex/Zotero/PDF/GROBID access, image saves, autosaves, and presence state.
         </li>
         <li>Expose that local FastAPI app through Tailscale Serve:
           <pre><code>tailscale serve http://127.0.0.1:8000</code></pre>
@@ -203,7 +231,7 @@ Reference endpoint: POST /api/processReferences</code></pre>
         <li>Tailscale is private networking, not app-level authentication.</li>
         <li>The prototype has no login, roles, read-only mode, edit locks, or conflict resolution.</li>
         <li>A trusted collaborator can edit and delete project data reachable through the app.</li>
-        <li>Zotero, GROBID, and PDF actions run on the host machine where FastAPI is running.</li>
+        <li>OpenAlex, Zotero, GROBID, and PDF actions run on the host machine where FastAPI is running.</li>
         <li>Simultaneous editing is last-save-wins. Create a snapshot before a shared session.</li>
         <li>Keep Uvicorn bound to <code>127.0.0.1:8000</code> unless you intentionally choose a broader network setup.</li>
       </ul>
@@ -215,7 +243,7 @@ Reference endpoint: POST /api/processReferences</code></pre>
         <li><code>index.html</code> - page structure, toolbar, panels, document workspace, and modals.</li>
         <li><code>style.css</code> - layout and visual styling.</li>
         <li><code>app.js</code> - graph behavior, document editor, autosave, import/export, and frontend integration logic.</li>
-        <li><code>server.py</code> - FastAPI backend for serving the app, Zotero, PDFs, images, autosaves, snapshots, and GROBID analysis.</li>
+        <li><code>server.py</code> - FastAPI backend for serving the app, OpenAlex, Zotero, PDFs, images, autosaves, snapshots, and GROBID analysis.</li>
         <li><code>requirements.txt</code> - backend Python dependencies.</li>
         <li><code>autosaves/</code> - project folders with latest autosaves, snapshots, copied PDFs, note images, and deleted-image archives.</li>
         <li><code>vendor/jodit-4.2.47/</code> - local Jodit rich-text editor assets used by the document workspace.</li>
@@ -225,14 +253,14 @@ Reference endpoint: POST /api/processReferences</code></pre>
 
     <section id="roadmap">
       <h2>Potential Improvements</h2>
-      <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Jodit editor assets are already vendored locally under <code>vendor/jodit-4.2.47/</code>. Zotero and GROBID integrations are local-first, but Cytoscape can later be vendored locally for fully offline use.</p>
+      <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Jodit editor assets are already vendored locally under <code>vendor/jodit-4.2.47/</code>. Zotero and GROBID integrations are local-first, OpenAlex requires internet access from the FastAPI host, and Cytoscape can later be vendored locally for more offline use.</p>
       <ul>
         <li>Add WebSocket update notifications for trusted shared sessions.</li>
         <li>Add optional edit locks or read-only viewer mode.</li>
         <li>Add local LLM support through Ollama or LM Studio for summaries, tag suggestions, and drafted connection notes.</li>
         <li>Add safer collaboration conflict handling and per-user edit history.</li>
         <li>Add optional browser-based PDF viewing/download for remote Tailscale users.</li>
-        <li>Explore Local Citation Network-style publication finding with keyword and citation filters.</li>
+        <li>Expand OpenAlex discovery with additional filters, paging, and local citation-network-style exploration.</li>
       </ul>
     </section>
   </main>
