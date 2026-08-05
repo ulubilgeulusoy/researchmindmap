@@ -4,20 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260729-table-copy-format-painter">
+  <link rel="stylesheet" href="style.css?v=20260804-slim-toolbar">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
     <header class="toolbar" aria-label="Research map controls">
       <div class="toolbar-main">
-        <div class="toolbar-row">
       <div class="toolbar-group toolbar-cluster view-tabs" aria-label="Workspace views">
         <span class="toolbar-label">View</span>
         <div class="toolbar-buttons">
           <button type="button" id="mapViewButton" class="active-view">Map</button>
           <button type="button" id="documentViewButton">Document</button>
           <button type="button" id="multiViewButton">Multi View</button>
+          <button type="button" id="searchButton" class="icon-toolbar-button search-toolbar-button" title="Search" aria-label="Search">&#128269;</button>
+          <button type="button" id="resetViewButton" class="icon-toolbar-button reset-view-toolbar-button" title="Reset view" aria-label="Reset view">&#8634;</button>
         </div>
       </div>
 
@@ -27,16 +28,6 @@
           <button type="button" data-add-type="Idea">Node</button>
           <button type="button" id="connectionButton">Connection</button>
           <button type="button" id="nodeSettingsButton" class="icon-toolbar-button" title="Node type settings" aria-label="Node type settings">⚙</button>
-        </div>
-      </div>
-
-      <div class="toolbar-group toolbar-cluster">
-        <span class="toolbar-label">File</span>
-        <div class="toolbar-buttons">
-          <button type="button" id="saveButton">Save</button>
-          <button type="button" id="exportButton">Export</button>
-          <button type="button" id="importButton">Import</button>
-          <input id="importFile" type="file" accept="application/json,.json" hidden>
         </div>
       </div>
 
@@ -52,20 +43,11 @@
         </div>
       </div>
 
-        </div>
+      <span class="toolbar-row-break" aria-hidden="true"></span>
 
-        <div class="toolbar-row">
-      <div class="toolbar-group toolbar-cluster">
-        <span class="toolbar-label">Sources</span>
-        <div class="toolbar-buttons">
-          <button type="button" id="zoteroButton">Zotero</button>
-          <button type="button" id="grobidButton">GROBID</button>
-        </div>
-      </div>
-
-      <div class="toolbar-group toolbar-cluster utility-cluster">
-        <span class="toolbar-label">View Tools</span>
-        <div class="toolbar-buttons">
+      <details class="toolbar-menu">
+        <summary>Cluster</summary>
+        <div class="toolbar-menu-panel toolbar-menu-panel-wide">
           <label class="toolbar-select-label">
             <span>Cluster</span>
             <select id="clusterModeSelect" aria-label="Cluster map nodes">
@@ -80,23 +62,36 @@
             <input id="clusterSpacingSlider" type="range" min="0.8" max="3" step="0.05" value="1" aria-label="Cluster spacing">
             <output id="clusterSpacingValue" for="clusterSpacingSlider">1.0x</output>
           </label>
-          <button type="button" id="clusterSettingsButton" class="icon-toolbar-button" title="Cluster background settings" aria-label="Cluster background settings">⚙</button>
-          <button type="button" id="searchButton" class="icon-toolbar-button search-toolbar-button" title="Search" aria-label="Search">&#128269;</button>
-          <button type="button" id="resetViewButton">Reset View</button>
+          <button type="button" id="clusterSettingsButton" title="Cluster background settings" aria-label="Cluster background settings">Cluster Settings</button>
         </div>
-      </div>
+      </details>
 
-      <div class="toolbar-group toolbar-cluster presence-cluster">
-        <span class="toolbar-label">Presence</span>
+      <details class="toolbar-menu">
+        <summary>Sources</summary>
+        <div class="toolbar-menu-panel">
+          <button type="button" id="zoteroButton">Zotero</button>
+          <button type="button" id="grobidButton">GROBID</button>
+        </div>
+      </details>
+
+      <details class="toolbar-menu">
+        <summary>File</summary>
+        <div class="toolbar-menu-panel">
+          <button type="button" id="saveButton">Save</button>
+          <button type="button" id="exportButton">Export</button>
+          <button type="button" id="importButton">Import</button>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+      </details>
+
+      <div class="toolbar-group presence-inline">
         <div class="toolbar-buttons">
-          <span id="presenceIndicator" class="presence-indicator" title="Online viewers for this project">
+          <button type="button" id="presenceIndicator" class="presence-indicator" title="Refresh online viewers" aria-label="Refresh online viewers">
             <span class="presence-dot"></span>
             <span id="presenceText">Online: 1</span>
-          </span>
-          <button type="button" id="refreshPresenceButton" class="icon-toolbar-button refresh-presence-button" title="Refresh presence" aria-label="Refresh presence">&#8635;</button>
+          </button>
         </div>
       </div>
-        </div>
       </div>
       <div class="toolbar-status">
         <p id="statusMessage" class="status-message" role="status">Ready.</p>
@@ -690,6 +685,6 @@
 
   </div>
 
-  <script src="app.js?v=20260804-presence-leave"></script>
+  <script src="app.js?v=20260804-online-refresh-button"></script>
 </body>
 </html>

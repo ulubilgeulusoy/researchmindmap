@@ -256,7 +256,6 @@ const searchResultsList = document.getElementById("searchResultsList");
 const searchPanelStatus = document.getElementById("searchPanelStatus");
 const presenceIndicator = document.getElementById("presenceIndicator");
 const presenceText = document.getElementById("presenceText");
-const refreshPresenceButton = document.getElementById("refreshPresenceButton");
 const mapWorkspace = document.getElementById("mapWorkspace");
 const documentWorkspace = document.getElementById("documentWorkspace");
 const mapViewButton = document.getElementById("mapViewButton");
@@ -624,6 +623,25 @@ function installMapContextMenuBlockers() {
 document.querySelectorAll("[data-add-type]").forEach((button) => {
   button.addEventListener("click", () => addNode(getDefaultNodeTypeName()));
 });
+document.querySelectorAll(".toolbar-menu").forEach((menu) => {
+  menu.addEventListener("toggle", () => {
+    if (!menu.open) return;
+    document.querySelectorAll(".toolbar-menu[open]").forEach((openMenu) => {
+      if (openMenu !== menu) openMenu.open = false;
+    });
+  });
+  menu.addEventListener("click", (event) => {
+    if (event.target.closest("summary")) return;
+    if (event.target.closest("button")) menu.open = false;
+  });
+});
+document.addEventListener("pointerdown", (event) => {
+  if (event.target.closest(".toolbar-menu")) return;
+  closeToolbarMenus();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeToolbarMenus();
+});
 
 document.getElementById("connectionButton").addEventListener("click", startConnectionMode);
 projectSelect.addEventListener("change", () => switchProject(projectSelect.value));
@@ -714,7 +732,7 @@ document.getElementById("saveButton").addEventListener("click", saveGraph);
 document.getElementById("exportButton").addEventListener("click", exportJson);
 document.getElementById("importButton").addEventListener("click", () => importFile.click());
 document.getElementById("resetViewButton").addEventListener("click", resetView);
-if (refreshPresenceButton) refreshPresenceButton.addEventListener("click", refreshPresence);
+if (presenceIndicator) presenceIndicator.addEventListener("click", refreshPresence);
 document.getElementById("zoteroButton").addEventListener("click", openZoteroPanel);
 document.getElementById("grobidButton").addEventListener("click", openGrobidPanel);
 document.getElementById("closeZoteroPanel").addEventListener("click", closeZoteroPanel);
@@ -1223,7 +1241,7 @@ async function sendPresenceHeartbeat() {
 }
 
 async function refreshPresence() {
-  if (refreshPresenceButton) refreshPresenceButton.disabled = true;
+  if (presenceIndicator) presenceIndicator.disabled = true;
   setStatus("Checking online viewers...");
   try {
     const data = await fetchJson(`/api/presence?project=${encodeURIComponent(activeProject)}&_=${Date.now()}`, { timeoutMs: 5000 });
@@ -1235,7 +1253,7 @@ async function refreshPresence() {
     updatePresenceIndicator([], true);
     setStatus(`Presence refresh failed: ${error.message}`);
   } finally {
-    if (refreshPresenceButton) refreshPresenceButton.disabled = false;
+    if (presenceIndicator) presenceIndicator.disabled = false;
   }
 }
 
@@ -4627,6 +4645,7 @@ function renderDocumentOutline() {
 }
 
 function openSearchPanel() {
+  closeToolbarMenus();
   renderSearchResults();
   searchPanel.hidden = false;
   window.setTimeout(() => {
@@ -4637,6 +4656,12 @@ function openSearchPanel() {
 
 function closeSearchPanelView() {
   searchPanel.hidden = true;
+}
+
+function closeToolbarMenus() {
+  document.querySelectorAll(".toolbar-menu[open]").forEach((menu) => {
+    menu.open = false;
+  });
 }
 
 function renderSearchResults() {
