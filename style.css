@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #f5f7fb;
   --panel: #ffffff;
   --text: #202632;
@@ -359,7 +359,7 @@ button:disabled {
 }
 
 .toolbar-menu summary::after {
-  content: "▾";
+  content: "â–¾";
   margin-left: 8px;
   color: var(--muted);
   font-size: 12px;
@@ -887,15 +887,20 @@ button:disabled {
 
 .document-page .jodit-container {
   width: 100% !important;
+  height: auto !important;
   min-height: 520px;
   border: 0;
   background: transparent;
+  overflow: visible !important;
 }
 
 .document-page .jodit-workplace,
 .document-page .jodit-wysiwyg {
+  height: auto !important;
   min-height: 460px !important;
+  max-height: none !important;
   background: #ffffff;
+  overflow: visible !important;
 }
 
 .document-page .jodit-wysiwyg {

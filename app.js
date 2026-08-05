@@ -1,4 +1,4 @@
-const STORAGE_KEY = "researchMindMapPrototype";
+﻿const STORAGE_KEY = "researchMindMapPrototype";
 const AUTOSAVE_HISTORY_KEY = "researchMindMapPrototypeAutosaveHistory";
 const EDGE_STYLE_KEY = "researchMindMapPrototypeEdgeStyle";
 const NODE_TYPES_KEY = "researchMindMapPrototypeNodeTypes";
@@ -1123,7 +1123,6 @@ function initializeJoditEditor() {
   if (joditEditor || !window.Jodit || !documentEditor) return;
   joditEditor = window.Jodit.make(documentEditor, {
     readonly: true,
-    height: 520,
     minHeight: 460,
     toolbarAdaptive: false,
     toolbarSticky: false,
@@ -4813,7 +4812,7 @@ function buildSearchIndex() {
       kind: "node",
       id: node.id(),
       title,
-      meta: `${type}${tags ? ` · ${tags}` : ""}`,
+      meta: `${type}${tags ? ` Â· ${tags}` : ""}`,
       color: getNodeColorForType(type),
       searchText: fields.filter(Boolean).join("\n")
     };
@@ -4829,7 +4828,7 @@ function buildSearchIndex() {
       kind: "edge",
       id: edge.id(),
       title,
-      meta: `Connection${tags ? ` · ${tags}` : ""}`,
+      meta: `Connection${tags ? ` Â· ${tags}` : ""}`,
       color: edge.data("lineColor") || "#7c3aed",
       searchText: [title, "Connection", tags, notesText, from, to].filter(Boolean).join("\n")
     };
