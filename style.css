@@ -280,6 +280,10 @@ button:disabled {
   font-weight: 700;
 }
 
+.search-toolbar-button {
+  font-size: 15px;
+}
+
 .toolbar-buttons button:hover:not(:disabled),
 .toolbar-buttons button:active,
 .toolbar-buttons button:focus {
