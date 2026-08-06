@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260804-manual-button-row-card">
+  <link rel="stylesheet" href="style.css?v=20260806-zotero-controls-grouped">
   <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
@@ -657,8 +657,14 @@
 
       <div class="zotero-controls">
         <button type="button" id="checkZoteroButton">Check Zotero</button>
+        <select id="zoteroLibrarySelect">
+          <option value="user:0">My Library</option>
+        </select>
         <select id="zoteroCollectionSelect">
-          <option value="">All top-level items</option>
+          <option value="">All main folders</option>
+        </select>
+        <select id="zoteroSubcollectionSelect" disabled>
+          <option value="">All subfolders</option>
         </select>
         <button type="button" id="loadZoteroItemsButton">Load Items</button>
       </div>
@@ -764,6 +770,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260805-node-settings-scroll"></script>
+  <script src="app.js?v=20260806-zotero-loading-states"></script>
 </body>
 </html>

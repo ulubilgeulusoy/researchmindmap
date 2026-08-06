@@ -36,6 +36,7 @@ ZOTERO_CONNECTOR_PING = "http://localhost:23119/connector/ping"
 ZOTERO_HEADERS = {"Zotero-API-Version": "3"}
 GROBID_URL = "http://127.0.0.1:8070"
 DEFAULT_PROJECT_NAME = "MMEA"
+ZOTERO_PAGE_SIZE = 100
 
 app = FastAPI(title="Research Mind Map Local Backend")
 AUTOSAVES_DIR.mkdir(parents=True, exist_ok=True)
@@ -250,6 +251,23 @@ def zotero_get(path: str, params: Optional[dict[str, Any]] = None) -> Any:
         return body
 
 
+def zotero_get_all(path: str, params: Optional[dict[str, Any]] = None, max_items: int = 1000) -> list[Any]:
+    collected: list[Any] = []
+    start = 0
+    page_size = min(ZOTERO_PAGE_SIZE, max_items)
+    base_params = dict(params or {})
+    while len(collected) < max_items:
+        page_params = {**base_params, "limit": page_size, "start": start}
+        page = zotero_get(path, page_params)
+        if not isinstance(page, list):
+            break
+        collected.extend(page)
+        if len(page) < page_size:
+            break
+        start += page_size
+    return collected[:max_items]
+
+
 def strip_html(value: str) -> str:
     text = value.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n")
     in_tag = False
@@ -439,8 +457,9 @@ def db_collections() -> list[dict[str, Any]]:
     try:
         rows = connection.execute(
             """
-            SELECT collections.key, collections.collectionName
+            SELECT collections.key, collections.collectionName, parent.key AS parentKey
             FROM collections
+            LEFT JOIN collections parent ON parent.collectionID = collections.parentCollectionID
             JOIN libraries ON libraries.libraryID = collections.libraryID
             LEFT JOIN deletedCollections ON deletedCollections.collectionID = collections.collectionID
             WHERE deletedCollections.collectionID IS NULL
@@ -448,12 +467,33 @@ def db_collections() -> list[dict[str, Any]]:
             ORDER BY collections.collectionName
             """
         ).fetchall()
-        return [{"key": row["key"], "name": row["collectionName"]} for row in rows]
+        return [
+            {"key": row["key"], "name": row["collectionName"], "parentKey": row["parentKey"] or ""}
+            for row in rows
+        ]
     finally:
         connection.close()
 
 
-def db_items(collection: Optional[str], limit: int, query: str = "") -> list[dict[str, Any]]:
+def collection_descendant_keys(collections: list[dict[str, Any]], parent_key: str) -> list[str]:
+    children_by_parent: dict[str, list[str]] = {}
+    for collection in collections:
+        children_by_parent.setdefault(collection.get("parentKey") or "", []).append(collection.get("key") or "")
+
+    keys = []
+    stack = [parent_key]
+    seen: set[str] = set()
+    while stack:
+        key = stack.pop()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        keys.append(key)
+        stack.extend(children_by_parent.get(key, []))
+    return keys
+
+
+def db_items(collection: Optional[str], limit: int, query: str = "", include_subcollections: bool = False) -> list[dict[str, Any]]:
     connection = with_zotero_db()
     try:
         params: list[Any] = []
@@ -461,6 +501,11 @@ def db_items(collection: Optional[str], limit: int, query: str = "") -> list[dic
         joins = ["JOIN itemTypes ON itemTypes.itemTypeID = items.itemTypeID"]
 
         if collection:
+            collection_keys = (
+                collection_descendant_keys(db_collections(), collection)
+                if include_subcollections
+                else [collection]
+            )
             joins.extend(
                 [
                     "JOIN collectionItems ON collectionItems.itemID = items.itemID",
@@ -469,10 +514,11 @@ def db_items(collection: Optional[str], limit: int, query: str = "") -> list[dic
                     "LEFT JOIN deletedCollections ON deletedCollections.collectionID = collections.collectionID",
                 ]
             )
-            where.append("collections.key = ?")
+            placeholders = ",".join("?" for _ in collection_keys)
+            where.append(f"collections.key IN ({placeholders})")
             where.append("deletedCollections.collectionID IS NULL")
             where.append("COALESCE(libraries.archived, 0) = 0")
-            params.append(collection)
+            params.extend(collection_keys)
 
         sqlite_limit = max(limit, 600) if query else limit
         params.append(sqlite_limit)
@@ -489,6 +535,7 @@ def db_items(collection: Optional[str], limit: int, query: str = "") -> list[dic
         ).fetchall()
         publications = [publication_from_db_row(connection, row) for row in rows]
         publications = [publication for publication in publications if publication]
+        publications = unique_publications(publications)
         if query:
             terms = [term.lower() for term in re.split(r"\s+", query.strip()) if term.strip()]
             publications = [
@@ -498,6 +545,33 @@ def db_items(collection: Optional[str], limit: int, query: str = "") -> list[dic
         return publications[:limit]
     finally:
         connection.close()
+
+
+def unique_publications(publications: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen = set()
+    unique = []
+    for publication in publications:
+        key = publication.get("zoteroKey") or publication.get("title")
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(publication)
+    return unique
+
+
+def parse_zotero_library(value: str = "user:0") -> dict[str, Any]:
+    if value.startswith("group:"):
+        group_id = value.split(":", 1)[1]
+        if not group_id.isdigit():
+            raise HTTPException(status_code=400, detail="Invalid Zotero group library.")
+        return {
+            "key": f"group:{group_id}",
+            "type": "group",
+            "id": int(group_id),
+            "name": "",
+            "path": f"/groups/{group_id}",
+        }
+    return {"key": "user:0", "type": "user", "id": 0, "name": "My Library", "path": "/users/0"}
 
 
 def zotero_publication_matches_query(publication: dict[str, Any], terms: list[str]) -> bool:
@@ -1343,6 +1417,7 @@ def match_reference(reference: dict[str, Any], candidates: list[MapPublication],
 
 def publication_from_item(item: dict[str, Any]) -> Optional[dict[str, Any]]:
     data = item.get("data", {})
+    library = item.get("library", {})
     item_type = data.get("itemType", "")
     if item_type in {"attachment", "note", "annotation"}:
         return None
@@ -1357,6 +1432,9 @@ def publication_from_item(item: dict[str, Any]) -> Optional[dict[str, Any]]:
 
     return {
         "zoteroKey": item.get("key"),
+        "libraryType": library.get("type", "user"),
+        "libraryId": library.get("id", 0),
+        "libraryName": library.get("name", "My Library"),
         "itemType": item_type,
         "title": title,
         "authors": creators,
@@ -1367,6 +1445,81 @@ def publication_from_item(item: dict[str, Any]) -> Optional[dict[str, Any]]:
         "citation": strip_html(citation),
         "tags": [tag.get("tag") for tag in data.get("tags", []) if tag.get("tag")],
     }
+
+
+def collection_from_api_item(collection: dict[str, Any]) -> Optional[dict[str, Any]]:
+    data = collection.get("data", {})
+    library = collection.get("library", {})
+    key = collection.get("key")
+    if not key or data.get("deleted") or data.get("trashed"):
+        return None
+    parent = data.get("parentCollection") or ""
+    return {
+        "key": key,
+        "name": data.get("name", "Untitled Collection"),
+        "parentKey": parent if isinstance(parent, str) else "",
+        "libraryType": library.get("type", "user"),
+        "libraryId": library.get("id", 0),
+        "libraryName": library.get("name", "My Library"),
+    }
+
+
+def zotero_api_libraries() -> list[dict[str, Any]]:
+    libraries = [{"key": "user:0", "type": "user", "id": 0, "name": "My Library"}]
+    groups = zotero_get_all("/users/0/groups", max_items=1000)
+    for group in groups:
+        data = group.get("data", {})
+        group_id = data.get("id") or group.get("id")
+        if not group_id:
+            continue
+        libraries.append({
+            "key": f"group:{group_id}",
+            "type": "group",
+            "id": group_id,
+            "name": data.get("name") or f"Group {group_id}",
+        })
+    return libraries
+
+
+def zotero_api_collections(library_value: str = "user:0", top_only: bool = False) -> list[dict[str, Any]]:
+    library = parse_zotero_library(library_value)
+    endpoint = "collections/top" if top_only else "collections"
+    collections = zotero_get_all(f"{library['path']}/{endpoint}", max_items=5000)
+    return [
+        parsed for parsed in
+        (collection_from_api_item(collection) for collection in collections)
+        if parsed
+    ]
+
+
+def zotero_api_items(
+    library_value: str,
+    collection: Optional[str],
+    limit: int,
+    query: str,
+    style: str,
+    include_subcollections: bool = False,
+) -> list[dict[str, Any]]:
+    library = parse_zotero_library(library_value)
+    collection_keys = [collection] if collection else [""]
+    if collection and include_subcollections:
+        collection_keys = collection_descendant_keys(zotero_api_collections(library_value), collection)
+
+    publications = []
+    for collection_key in collection_keys:
+        path = (
+            f"{library['path']}/collections/{quote(collection_key)}/items/top"
+            if collection_key
+            else f"{library['path']}/items/top"
+        )
+        params = {"limit": limit, "format": "json", "include": "data,bib,citation", "style": style}
+        if query:
+            params["q"] = query
+            params["qmode"] = "titleCreatorYear"
+        items = zotero_get_all(path, params, max_items=limit)
+        publications.extend(publication for publication in (publication_from_item(item) for item in items) if publication)
+
+    return unique_publications(publications)[:limit]
 
 
 @app.get("/api/zotero/status")
@@ -1380,7 +1533,10 @@ def zotero_status(response: Response) -> dict[str, Any]:
         if database:
             return {
                 "ok": True,
-                "message": "Zotero Desktop is running; using read-only local database fallback.",
+                "message": (
+                    "Zotero live local API is not reachable; using read-only local database fallback. "
+                    "Recent Zotero edits may not appear immediately."
+                ),
                 "mode": "sqlite",
                 "database": str(database),
             }
@@ -1393,46 +1549,53 @@ def zotero_status(response: Response) -> dict[str, Any]:
 
 
 @app.get("/api/zotero/collections")
-def zotero_collections(response: Response) -> dict[str, Any]:
+def zotero_collections(response: Response, library: str = "user:0") -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
     try:
-        collections = zotero_get("/users/0/collections", {"limit": 500})
         return {
-            "collections": [
-                {
-                    "key": collection.get("key"),
-                    "name": collection.get("data", {}).get("name", "Untitled Collection"),
-                }
-                for collection in collections
-                if collection.get("key")
-                and not collection.get("data", {}).get("deleted")
-                and not collection.get("data", {}).get("trashed")
-            ]
+            "collections": zotero_api_collections(library),
+            "topCollections": zotero_api_collections(library, top_only=True),
         }
     except HTTPException:
-        return {"collections": db_collections()}
+        if library != "user:0":
+            raise
+        collections = db_collections()
+        return {
+            "collections": collections,
+            "topCollections": [collection for collection in collections if not collection.get("parentKey")],
+        }
+
+
+@app.get("/api/zotero/libraries")
+def zotero_libraries(response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return {"libraries": zotero_api_libraries(), "mode": "http"}
+    except HTTPException:
+        return {"libraries": [{"key": "user:0", "type": "user", "id": 0, "name": "My Library"}], "mode": "sqlite"}
 
 
 @app.get("/api/zotero/items")
 def zotero_items(
     response: Response,
+    library: str = "user:0",
     collection: Optional[str] = None,
     q: str = "",
-    limit: int = Query(default=50, ge=1, le=150),
+    limit: int = Query(default=250, ge=1, le=1000),
     style: str = "apa",
+    includeSubcollections: bool = False,
 ) -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
-    path = f"/users/0/collections/{quote(collection)}/items/top" if collection else "/users/0/items/top"
+    query = q.strip()
     try:
-        params = {"limit": limit, "format": "json", "include": "data,bib,citation", "style": style}
-        if q.strip():
-            params["q"] = q.strip()
-            params["qmode"] = "titleCreatorYear"
-        items = zotero_get(path, params)
-        publications = [publication_from_item(item) for item in items]
-        return {"items": [publication for publication in publications if publication], "mode": "http"}
+        return {
+            "items": zotero_api_items(library, collection, limit, query, style, includeSubcollections),
+            "mode": "http",
+        }
     except HTTPException:
-        return {"items": db_items(collection, limit, q), "mode": "sqlite"}
+        if library != "user:0":
+            raise
+        return {"items": db_items(collection, limit, query, includeSubcollections), "mode": "sqlite"}
 
 
 @app.get("/api/grobid/status")

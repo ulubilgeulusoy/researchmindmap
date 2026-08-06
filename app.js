@@ -128,9 +128,14 @@ let activeDocumentTarget = null;
 let documentEditSnapshot = null;
 let currentView = "map";
 let notesPanelDrag = null;
+let zoteroPanelDrag = null;
 let openAlexPanelDrag = null;
 let openAlexPanelResize = null;
 let zoteroItemsCache = [];
+let zoteroLibrariesCache = [];
+let zoteroCollectionsCache = [];
+let zoteroTopCollectionsCache = [];
+let zoteroMode = "";
 let zoteroSearchTimer = null;
 let openAlexResultsCache = [];
 let openAlexSearchTimer = null;
@@ -352,8 +357,11 @@ const deselectAllPdfHighlightsButton = document.getElementById("deselectAllPdfHi
 const appendPdfHighlightsButton = document.getElementById("appendPdfHighlightsButton");
 const closePdfHighlightsButton = document.getElementById("closePdfHighlightsButton");
 const zoteroPanel = document.getElementById("zoteroPanel");
+const zoteroPanelHeader = zoteroPanel.querySelector(".zotero-panel-header");
 const zoteroStatusText = document.getElementById("zoteroStatusText");
+const zoteroLibrarySelect = document.getElementById("zoteroLibrarySelect");
 const zoteroCollectionSelect = document.getElementById("zoteroCollectionSelect");
+const zoteroSubcollectionSelect = document.getElementById("zoteroSubcollectionSelect");
 const zoteroItemsList = document.getElementById("zoteroItemsList");
 const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
@@ -766,11 +774,27 @@ document.getElementById("loadZoteroItemsButton").addEventListener("click", loadZ
 document.getElementById("selectAllZoteroItemsButton").addEventListener("click", () => setPanelCheckboxes(zoteroItemsList, true));
 document.getElementById("deselectAllZoteroItemsButton").addEventListener("click", () => setPanelCheckboxes(zoteroItemsList, false));
 document.getElementById("importZoteroItemsButton").addEventListener("click", importSelectedZoteroItems);
+zoteroLibrarySelect.addEventListener("change", () => {
+  zoteroSearchInput.value = "";
+  zoteroItemsCache = [];
+  zoteroCollectionsCache = [];
+  zoteroTopCollectionsCache = [];
+  resetZoteroFolderSelects("Loading main folders...");
+  renderZoteroItems();
+  loadZoteroCollections();
+});
 zoteroCollectionSelect.addEventListener("change", () => {
   zoteroSearchInput.value = "";
   zoteroItemsCache = [];
+  renderZoteroSubcollectionOptions();
   renderZoteroItems();
-  zoteroStatusText.textContent = "Selected Zotero library. Load items or search.";
+  zoteroStatusText.textContent = "Selected Zotero folder. Load items or search.";
+});
+zoteroSubcollectionSelect.addEventListener("change", () => {
+  zoteroSearchInput.value = "";
+  zoteroItemsCache = [];
+  renderZoteroItems();
+  zoteroStatusText.textContent = "Selected Zotero subfolder. Load items or search.";
 });
 zoteroSearchInput.addEventListener("input", () => {
   window.clearTimeout(zoteroSearchTimer);
@@ -951,12 +975,15 @@ pdfHighlightsModal.addEventListener("click", (event) => {
   if (event.target === pdfHighlightsModal) closePdfHighlightsModal();
 });
 publicationNotesDragHandle.addEventListener("pointerdown", startNotesPanelDrag);
+zoteroPanelHeader.addEventListener("pointerdown", startZoteroPanelDrag);
 openAlexPanelHeader.addEventListener("pointerdown", startOpenAlexPanelDrag);
 openAlexResizeHandle.addEventListener("pointerdown", startOpenAlexPanelResize);
 window.addEventListener("pointermove", continueNotesPanelDrag);
+window.addEventListener("pointermove", continueZoteroPanelDrag);
 window.addEventListener("pointermove", continueOpenAlexPanelDrag);
 window.addEventListener("pointermove", continueOpenAlexPanelResize);
 window.addEventListener("pointerup", finishNotesPanelDrag);
+window.addEventListener("pointerup", finishZoteroPanelDrag);
 window.addEventListener("pointerup", finishOpenAlexPanelDrag);
 window.addEventListener("pointerup", finishOpenAlexPanelResize);
 Object.values(publicationNoteFields).forEach((field) => {
@@ -1862,6 +1889,9 @@ function addPublicationFromZotero(item, index = 0) {
       fontWeight: 700,
       zotero: {
         itemKey: item.zoteroKey,
+        libraryType: item.libraryType || "user",
+        libraryId: item.libraryId || 0,
+        libraryName: item.libraryName || "My Library",
         itemType: item.itemType,
         doi: item.doi,
         authors: item.authors || [],
@@ -2550,51 +2580,149 @@ function closeZoteroPanel() {
 async function checkZotero() {
   zoteroStatusText.textContent = "Checking Zotero Desktop...";
   zoteroItemsCache = [];
+  zoteroLibrariesCache = [];
+  zoteroCollectionsCache = [];
+  zoteroTopCollectionsCache = [];
+  zoteroMode = "";
   zoteroItemsList.textContent = "";
   zoteroListActions.hidden = true;
+  zoteroLibrarySelect.innerHTML = '<option value="user:0">My Library</option>';
+  resetZoteroFolderSelects("Load Zotero first");
   zoteroCollectionSelect.dataset.loaded = "";
   try {
     const status = await fetchJson(`/api/zotero/status?_=${Date.now()}`);
-    zoteroStatusText.textContent = status.message;
-    if (status.ok) await loadZoteroCollections();
+    zoteroMode = status.mode || "";
+    zoteroStatusText.textContent = zoteroStatusMessage(status.message);
+    if (status.ok) {
+      await loadZoteroLibraries();
+      await loadZoteroCollections();
+    }
   } catch (error) {
     zoteroStatusText.textContent = error.message;
   }
 }
 
+async function loadZoteroLibraries() {
+  const previousSelection = zoteroLibrarySelect.value || "user:0";
+  const data = await fetchJson(`/api/zotero/libraries?_=${Date.now()}`);
+  zoteroLibrariesCache = data.libraries || [{ key: "user:0", name: "My Library", type: "user", id: 0 }];
+  zoteroLibrarySelect.innerHTML = "";
+  const seen = new Set();
+  zoteroLibrariesCache.forEach((library) => {
+    if (!library.key || seen.has(library.key)) return;
+    seen.add(library.key);
+    const option = document.createElement("option");
+    option.value = library.key;
+    option.textContent = library.name;
+    zoteroLibrarySelect.appendChild(option);
+  });
+  zoteroLibrarySelect.value = seen.has(previousSelection) ? previousSelection : "user:0";
+}
+
 async function loadZoteroCollections() {
   const previousSelection = zoteroCollectionSelect.value;
-  const data = await fetchJson(`/api/zotero/collections?_=${Date.now()}`);
-  zoteroCollectionSelect.innerHTML = '<option value="">All top-level items</option>';
-  const seen = new Set();
-  (data.collections || []).forEach((collection) => {
-    if (!collection.key || seen.has(collection.key)) return;
-    seen.add(collection.key);
+  resetZoteroFolderSelects("Loading main folders...");
+  zoteroStatusText.textContent = "Loading Zotero folders...";
+  const params = new URLSearchParams();
+  params.set("library", zoteroLibrarySelect.value || "user:0");
+  params.set("_", Date.now().toString());
+  try {
+    const data = await fetchJson(`/api/zotero/collections?${params.toString()}`);
+    zoteroCollectionsCache = data.collections || [];
+    zoteroTopCollectionsCache = data.topCollections || zoteroCollectionsCache.filter((collection) => !collection.parentKey);
+    zoteroCollectionSelect.innerHTML = '<option value="">All main folders</option>';
+    const seen = new Set();
+    zoteroTopCollectionsCache.forEach((collection) => {
+      if (!collection.key || seen.has(collection.key)) return;
+      seen.add(collection.key);
+      const option = document.createElement("option");
+      option.value = collection.key;
+      option.textContent = collection.name;
+      zoteroCollectionSelect.appendChild(option);
+    });
+    zoteroCollectionSelect.value = seen.has(previousSelection) ? previousSelection : "";
+    zoteroCollectionSelect.disabled = false;
+    zoteroCollectionSelect.dataset.loaded = "true";
+    renderZoteroSubcollectionOptions();
+    zoteroStatusText.textContent = `Loaded ${zoteroTopCollectionsCache.length} main Zotero folder(s).`;
+  } catch (error) {
+    zoteroStatusText.textContent = error.message;
+    resetZoteroFolderSelects("Folder load failed");
+  }
+}
+
+function resetZoteroFolderSelects(mainLabel = "All main folders") {
+  zoteroCollectionSelect.innerHTML = `<option value="">${escapeHtml(mainLabel)}</option>`;
+  zoteroCollectionSelect.disabled = true;
+  zoteroSubcollectionSelect.innerHTML = '<option value="">All subfolders</option>';
+  zoteroSubcollectionSelect.disabled = true;
+}
+
+function renderZoteroSubcollectionOptions() {
+  const parentKey = zoteroCollectionSelect.value;
+  const childCollections = zoteroDescendantCollections(parentKey);
+  zoteroSubcollectionSelect.innerHTML = '<option value="">All subfolders</option>';
+  zoteroSubcollectionSelect.disabled = !parentKey || !childCollections.length;
+
+  childCollections.forEach((collection) => {
     const option = document.createElement("option");
     option.value = collection.key;
-    option.textContent = collection.name;
-    zoteroCollectionSelect.appendChild(option);
+    option.textContent = `${"  ".repeat(collection.depth)}${collection.name}`;
+    zoteroSubcollectionSelect.appendChild(option);
   });
-  zoteroCollectionSelect.value = seen.has(previousSelection) ? previousSelection : "";
-  zoteroCollectionSelect.dataset.loaded = "true";
+}
+
+function zoteroDescendantCollections(parentKey) {
+  if (!parentKey) return [];
+  const childrenByParent = new Map();
+  zoteroCollectionsCache.forEach((collection) => {
+    const key = collection.parentKey || "";
+    if (!childrenByParent.has(key)) childrenByParent.set(key, []);
+    childrenByParent.get(key).push(collection);
+  });
+
+  const descendants = [];
+  const appendChildren = (key, depth) => {
+    (childrenByParent.get(key) || []).forEach((collection) => {
+      descendants.push({ ...collection, depth });
+      appendChildren(collection.key, depth + 1);
+    });
+  };
+  appendChildren(parentKey, 0);
+  return descendants;
+}
+
+function zoteroStatusMessage(message) {
+  if (zoteroMode === "sqlite") {
+    return `${message} Recent Zotero edits may require Zotero sync/idle time or a working local API.`;
+  }
+  if (zoteroMode === "http") return `${message} Using live Zotero local API.`;
+  return message;
 }
 
 async function loadZoteroItems() {
   zoteroStatusText.textContent = "Loading Zotero items...";
   const params = new URLSearchParams();
-  if (zoteroCollectionSelect.value) params.set("collection", zoteroCollectionSelect.value);
+  params.set("library", zoteroLibrarySelect.value || "user:0");
+  const selectedCollection = zoteroSubcollectionSelect.value || zoteroCollectionSelect.value;
+  if (selectedCollection) params.set("collection", selectedCollection);
+  if (zoteroCollectionSelect.value && !zoteroSubcollectionSelect.value) {
+    params.set("includeSubcollections", "true");
+  }
   const query = zoteroSearchInput.value.trim();
   if (query) params.set("q", query);
-  params.set("limit", "100");
+  params.set("limit", "500");
   params.set("_", Date.now().toString());
 
   try {
     const data = await fetchJson(`/api/zotero/items?${params.toString()}`);
     zoteroItemsCache = data.items || [];
+    zoteroMode = data.mode || zoteroMode;
     renderZoteroItems();
+    const sourceNote = data.mode === "sqlite" ? " using database fallback" : "";
     zoteroStatusText.textContent = query
-      ? `Found ${zoteroItemsCache.length} Zotero item(s) for "${query}".`
-      : `Loaded ${zoteroItemsCache.length} Zotero items.`;
+      ? `Found ${zoteroItemsCache.length} Zotero item(s) for "${query}"${sourceNote}.`
+      : `Loaded ${zoteroItemsCache.length} Zotero items${sourceNote}.`;
   } catch (error) {
     zoteroStatusText.textContent = error.message;
   }
@@ -8669,6 +8797,44 @@ function finishNotesPanelDrag() {
     publicationNotesDragHandle.releasePointerCapture(notesPanelDrag.pointerId);
   }
   notesPanelDrag = null;
+}
+
+function startZoteroPanelDrag(event) {
+  if (event.button !== 0 || event.target.closest("button")) return;
+
+  event.preventDefault();
+  const rect = zoteroPanel.getBoundingClientRect();
+  zoteroPanelDrag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  zoteroPanel.style.left = `${rect.left}px`;
+  zoteroPanel.style.top = `${rect.top}px`;
+  zoteroPanel.style.right = "auto";
+  zoteroPanelHeader.setPointerCapture(event.pointerId);
+}
+
+function continueZoteroPanelDrag(event) {
+  if (!zoteroPanelDrag) return;
+
+  event.preventDefault();
+  const panelRect = zoteroPanel.getBoundingClientRect();
+  const maxLeft = Math.max(8, window.innerWidth - panelRect.width - 8);
+  const maxTop = Math.max(8, window.innerHeight - Math.min(panelRect.height, window.innerHeight - 16) - 8);
+  const nextLeft = clamp(event.clientX - zoteroPanelDrag.offsetX, 8, maxLeft);
+  const nextTop = clamp(event.clientY - zoteroPanelDrag.offsetY, 8, maxTop);
+  zoteroPanel.style.left = `${nextLeft}px`;
+  zoteroPanel.style.top = `${nextTop}px`;
+}
+
+function finishZoteroPanelDrag() {
+  if (!zoteroPanelDrag) return;
+
+  if (zoteroPanelHeader.hasPointerCapture(zoteroPanelDrag.pointerId)) {
+    zoteroPanelHeader.releasePointerCapture(zoteroPanelDrag.pointerId);
+  }
+  zoteroPanelDrag = null;
 }
 
 function startOpenAlexPanelDrag(event) {

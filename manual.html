@@ -120,10 +120,19 @@
 
     <section id="zotero">
       <h2>Zotero Integration</h2>
-      <p>Zotero integration requires the FastAPI backend and Zotero Desktop running locally. The backend first tries Zotero Desktop's local API at <code>http://localhost:23119/api/</code>. If needed, it can inspect the local Zotero data directory.</p>
+      <p>Zotero integration requires the FastAPI backend and Zotero Desktop running locally. The backend first tries Zotero Desktop's live local API at <code>http://localhost:23119/api/</code>. If the live API is not reachable, the app can fall back to a read-only copy of the local Zotero database, but recent Zotero edits may not appear immediately in fallback mode.</p>
+      <h3>Local API Setup</h3>
+      <p>In Zotero Desktop, enable local communication from <strong>Edit</strong>, <strong>Settings</strong>, <strong>Advanced</strong>. The setting may be shown as allowing other applications on this computer to communicate with Zotero. In Zotero 9, the advanced Config Editor can also be used to confirm these preferences:</p>
+      <pre><code>extensions.zotero.httpServer.enabled = true
+extensions.zotero.httpServer.localAPI.enabled = true
+extensions.zotero.httpServer.port = 23119</code></pre>
+      <p>After changing these settings, restart Zotero Desktop and click <strong>Check Zotero</strong> in the app. A healthy live connection reports that the Zotero Desktop HTTP local API is reachable. If the app reports database fallback, Zotero is running but the live local API is unavailable.</p>
       <pre><code>Windows: C:\Users\&lt;your-username&gt;\Zotero
 macOS/Linux: ~/Zotero</code></pre>
-      <p>You can set <code>ZOTERO_DATA_DIR</code> if your Zotero directory is custom. Imported publication nodes can store Zotero item key, title, authors, year, DOI, citation, URL, abstract, and tags.</p>
+      <p>You can set <code>ZOTERO_DATA_DIR</code> if your Zotero directory is custom and the app needs database fallback.</p>
+      <h3>Import Workflow</h3>
+      <p>The Zotero import panel has separate selectors for library, main folder, and subfolder. The library selector includes <strong>My Library</strong> and available Zotero group libraries. After selecting a library, the main-folder selector loads only top-level collections from that library. After selecting a main folder, the subfolder selector lists its nested subfolders. Choose <strong>All subfolders</strong> to load items from the selected main folder and its descendants, or choose one subfolder to load only that subfolder.</p>
+      <p>Imported publication nodes can store Zotero library type, library ID, library name, item key, title, authors, year, DOI, citation, URL, abstract, and tags. Keeping library metadata matters because group-library item keys can overlap with personal-library item keys.</p>
     </section>
 
     <section id="grobid">
