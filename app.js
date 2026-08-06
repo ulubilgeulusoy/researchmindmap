@@ -6,6 +6,7 @@ const CLUSTER_STYLE_KEY = "researchMindMapPrototypeClusterStyle";
 const CLUSTER_VIEW_KEY = "researchMindMapPrototypeClusterView";
 const ACTIVE_PROJECT_KEY = "researchMindMapPrototypeActiveProject";
 const PRESENCE_CLIENT_KEY = "researchMindMapPrototypePresenceClient";
+const PDF_ANNOTATION_FORMAT_KEY = "researchMindMapPrototypePdfAnnotationFormat";
 const DEFAULT_PROJECT_NAME = "MMEA";
 const PRESENCE_INTERVAL_MS = 15000;
 const MAX_UNDO_STEPS = 50;
@@ -131,6 +132,7 @@ let currentView = "map";
 let notesPanelDrag = null;
 let zoteroPanelDrag = null;
 let openAlexPanelDrag = null;
+let pdfHighlightsPanelDrag = null;
 let openAlexPanelResize = null;
 let zoteroItemsCache = [];
 let zoteroLibrariesCache = [];
@@ -355,8 +357,18 @@ const closePublicationNotes = document.getElementById("closePublicationNotes");
 const publicationNotesDragHandle = document.getElementById("publicationNotesDragHandle");
 const publicationNotesSubtitle = document.getElementById("publicationNotesSubtitle");
 const pdfHighlightsModal = document.getElementById("pdfHighlightsModal");
+const pdfHighlightsDialog = pdfHighlightsModal.querySelector(".pdf-highlights-dialog");
+const pdfHighlightsHeader = pdfHighlightsModal.querySelector(".pdf-highlights-header");
 const pdfHighlightsStatus = document.getElementById("pdfHighlightsStatus");
 const pdfHighlightsList = document.getElementById("pdfHighlightsList");
+const pdfAnnotationPrefixStyle = document.getElementById("pdfAnnotationPrefixStyle");
+const addPdfAnnotationPrefixButton = document.getElementById("addPdfAnnotationPrefixButton");
+const deletePdfAnnotationPrefixButton = document.getElementById("deletePdfAnnotationPrefixButton");
+const pdfAnnotationQuoteStyle = document.getElementById("pdfAnnotationQuoteStyle");
+const pdfAnnotationListStyle = document.getElementById("pdfAnnotationListStyle");
+const pdfAnnotationIncludeComments = document.getElementById("pdfAnnotationIncludeComments");
+const pdfAnnotationFormatPreview = document.getElementById("pdfAnnotationFormatPreview");
+const savePdfAnnotationDefaultsButton = document.getElementById("savePdfAnnotationDefaultsButton");
 const selectAllPdfHighlightsButton = document.getElementById("selectAllPdfHighlightsButton");
 const deselectAllPdfHighlightsButton = document.getElementById("deselectAllPdfHighlightsButton");
 const appendPdfHighlightsButton = document.getElementById("appendPdfHighlightsButton");
@@ -874,6 +886,14 @@ appendPdfHighlightsButton.addEventListener("click", appendSelectedPdfHighlights)
 selectAllPdfHighlightsButton.addEventListener("click", () => setPanelCheckboxes(pdfHighlightsList, true));
 deselectAllPdfHighlightsButton.addEventListener("click", () => setPanelCheckboxes(pdfHighlightsList, false));
 closePdfHighlightsButton.addEventListener("click", closePdfHighlightsModal);
+[pdfAnnotationPrefixStyle, pdfAnnotationQuoteStyle, pdfAnnotationListStyle, pdfAnnotationIncludeComments].forEach((control) => {
+  control?.addEventListener("change", updatePdfAnnotationFormatPreview);
+});
+pdfAnnotationPrefixStyle?.addEventListener("change", syncPdfAnnotationPrefixDeleteButton);
+pdfAnnotationPrefixStyle?.addEventListener("keydown", handlePdfAnnotationPrefixKeydown);
+addPdfAnnotationPrefixButton?.addEventListener("click", addCustomPdfAnnotationPrefix);
+deletePdfAnnotationPrefixButton?.addEventListener("click", deleteSelectedCustomPdfAnnotationPrefix);
+savePdfAnnotationDefaultsButton?.addEventListener("click", savePdfAnnotationFormatDefaults);
 edgeNotesText.addEventListener("focus", beginEdgeEdit);
 edgeNotesText.addEventListener("input", updateSelectedEdgeNotes);
 edgeNotesText.addEventListener("blur", commitEdgeEdit);
@@ -882,6 +902,7 @@ edgeTagsText.addEventListener("input", updateSelectedEdgeTags);
 edgeTagsText.addEventListener("blur", commitEdgeEdit);
 initializeTagAutocomplete(fields.tags);
 initializeTagAutocomplete(edgeTagsText);
+loadPdfAnnotationFormatDefaults();
 edgeColorInput.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthInput.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthNumber.addEventListener("input", updateGlobalConnectionStyle);
@@ -991,14 +1012,17 @@ pdfHighlightsModal.addEventListener("click", (event) => {
 publicationNotesDragHandle.addEventListener("pointerdown", startNotesPanelDrag);
 zoteroPanelHeader.addEventListener("pointerdown", startZoteroPanelDrag);
 openAlexPanelHeader.addEventListener("pointerdown", startOpenAlexPanelDrag);
+pdfHighlightsHeader.addEventListener("pointerdown", startPdfHighlightsPanelDrag);
 openAlexResizeHandle.addEventListener("pointerdown", startOpenAlexPanelResize);
 window.addEventListener("pointermove", continueNotesPanelDrag);
 window.addEventListener("pointermove", continueZoteroPanelDrag);
 window.addEventListener("pointermove", continueOpenAlexPanelDrag);
+window.addEventListener("pointermove", continuePdfHighlightsPanelDrag);
 window.addEventListener("pointermove", continueOpenAlexPanelResize);
 window.addEventListener("pointerup", finishNotesPanelDrag);
 window.addEventListener("pointerup", finishZoteroPanelDrag);
 window.addEventListener("pointerup", finishOpenAlexPanelDrag);
+window.addEventListener("pointerup", finishPdfHighlightsPanelDrag);
 window.addEventListener("pointerup", finishOpenAlexPanelResize);
 Object.values(publicationNoteFields).forEach((field) => {
   field.addEventListener("input", updatePublicationNotes);
@@ -3562,6 +3586,8 @@ function renderPdfHighlights() {
   appendPdfHighlightsButton.disabled = !pdfHighlightsCache.length;
   selectAllPdfHighlightsButton.disabled = !pdfHighlightsCache.length;
   deselectAllPdfHighlightsButton.disabled = !pdfHighlightsCache.length;
+  syncPdfAnnotationPrefixDeleteButton();
+  updatePdfAnnotationFormatPreview();
 
   pdfHighlightsCache.forEach((highlight, index) => {
     const row = document.createElement("div");
@@ -3604,20 +3630,175 @@ function closePdfHighlightsModal() {
   pdfHighlightsStatus.textContent = "No annotations imported yet.";
 }
 
-function formatAnnotationForNotes(highlight, editedText) {
+function readPdfAnnotationFormatSettings() {
+  return {
+    prefixStyle: pdfAnnotationPrefixStyle?.value || "compact",
+    quoteStyle: pdfAnnotationQuoteStyle?.value || "italic",
+    listStyle: pdfAnnotationListStyle?.value || "bullet",
+    includeComments: pdfAnnotationIncludeComments?.checked !== false
+  };
+}
+
+function getCustomPdfAnnotationPrefixValues() {
+  return Array.from(pdfAnnotationPrefixStyle?.options || [])
+    .map((option) => option.value)
+    .filter((value) => value.startsWith("custom:"));
+}
+
+function addPdfAnnotationPrefixOption(value) {
+  if (!pdfAnnotationPrefixStyle || !value?.startsWith("custom:")) return null;
+  let option = Array.from(pdfAnnotationPrefixStyle.options).find((item) => item.value === value);
+  if (option) return option;
+  option = document.createElement("option");
+  option.value = value;
+  option.textContent = value.slice("custom:".length);
+  pdfAnnotationPrefixStyle.insertBefore(option, pdfAnnotationPrefixStyle.querySelector('option[value="none"]'));
+  return option;
+}
+
+function loadPdfAnnotationFormatDefaults() {
+  let saved;
+  try {
+    saved = JSON.parse(localStorage.getItem(PDF_ANNOTATION_FORMAT_KEY) || "null");
+  } catch (error) {
+    console.warn("Could not load PDF annotation format defaults.", error);
+    return;
+  }
+  if (!saved || typeof saved !== "object") return;
+
+  (Array.isArray(saved.customPrefixes) ? saved.customPrefixes : []).forEach(addPdfAnnotationPrefixOption);
+  if (saved.prefixStyle?.startsWith("custom:")) addPdfAnnotationPrefixOption(saved.prefixStyle);
+  if (pdfAnnotationPrefixStyle && saved.prefixStyle && Array.from(pdfAnnotationPrefixStyle.options).some((option) => option.value === saved.prefixStyle)) {
+    pdfAnnotationPrefixStyle.value = saved.prefixStyle;
+  }
+  if (pdfAnnotationQuoteStyle && saved.quoteStyle) pdfAnnotationQuoteStyle.value = saved.quoteStyle;
+  if (pdfAnnotationListStyle && saved.listStyle) pdfAnnotationListStyle.value = saved.listStyle;
+  if (pdfAnnotationIncludeComments && typeof saved.includeComments === "boolean") {
+    pdfAnnotationIncludeComments.checked = saved.includeComments;
+  }
+  syncPdfAnnotationPrefixDeleteButton();
+  updatePdfAnnotationFormatPreview();
+}
+
+function savePdfAnnotationFormatDefaults() {
+  const settings = {
+    ...readPdfAnnotationFormatSettings(),
+    customPrefixes: getCustomPdfAnnotationPrefixValues()
+  };
+  localStorage.setItem(PDF_ANNOTATION_FORMAT_KEY, JSON.stringify(settings));
+  pdfHighlightsStatus.textContent = "Saved PDF annotation formatting defaults.";
+}
+
+function getPdfAnnotationPrefix(highlight, settings) {
+  const page = highlight.page || "?";
+  const type = highlight.type || "Annotation";
+  if (settings.prefixStyle === "page-type-bracket") return `Page ${page} [${type}]:`;
+  if (settings.prefixStyle === "page-type") return `Page ${page} - ${type}:`;
+  if (settings.prefixStyle === "short-page-type") return `p. ${page} - ${type}:`;
+  if (settings.prefixStyle === "page-word") return `Page ${page}:`;
+  if (settings.prefixStyle === "page-short") return `p. ${page}`;
+  if (settings.prefixStyle === "none") return "";
+  if (settings.prefixStyle?.startsWith("custom:")) {
+    return settings.prefixStyle
+      .slice("custom:".length)
+      .replace(/\{page\}|X/g, page)
+      .replace(/\{type\}|Type/g, type);
+  }
+  return `p. ${page} [${type}]:`;
+}
+
+function addCustomPdfAnnotationPrefix() {
+  if (!pdfAnnotationPrefixStyle) return;
+  const rawPrefix = window.prompt("Custom prefix. Use X or {page} for page, and Type or {type} for annotation type.", "Page X [Type]:");
+  const prefix = String(rawPrefix || "").trim();
+  if (!prefix) return;
+  const value = `custom:${prefix}`;
+  addPdfAnnotationPrefixOption(value);
+  pdfAnnotationPrefixStyle.value = value;
+  updatePdfAnnotationFormatPreview();
+  syncPdfAnnotationPrefixDeleteButton();
+}
+
+function handlePdfAnnotationPrefixKeydown(event) {
+  if (event.key !== "Delete" && event.key !== "Backspace") return;
+  if (!isCustomPdfAnnotationPrefixSelected()) return;
+  event.preventDefault();
+  deleteSelectedCustomPdfAnnotationPrefix();
+}
+
+function isCustomPdfAnnotationPrefixSelected() {
+  return Boolean(pdfAnnotationPrefixStyle?.value?.startsWith("custom:"));
+}
+
+function syncPdfAnnotationPrefixDeleteButton() {
+  if (deletePdfAnnotationPrefixButton) {
+    deletePdfAnnotationPrefixButton.disabled = !isCustomPdfAnnotationPrefixSelected();
+  }
+}
+
+function deleteSelectedCustomPdfAnnotationPrefix() {
+  const selectedOption = pdfAnnotationPrefixStyle?.selectedOptions?.[0];
+  if (!selectedOption || !selectedOption.value.startsWith("custom:")) return;
+  selectedOption.remove();
+  pdfAnnotationPrefixStyle.value = "compact";
+  updatePdfAnnotationFormatPreview();
+  syncPdfAnnotationPrefixDeleteButton();
+}
+
+function formatAnnotationQuoteText(text, settings) {
+  if (settings.quoteStyle === "blockquote") return `> ${text}`;
+  return settings.quoteStyle === "italic" ? `"${text}"` : text;
+}
+
+function formatAnnotationQuoteHtml(text, settings) {
+  const escaped = escapeHtml(text);
+  if (settings.quoteStyle === "blockquote") return `<blockquote>${escaped}</blockquote>`;
+  if (settings.quoteStyle === "italic") return `<em>&quot;${escaped}&quot;</em>`;
+  return escaped;
+}
+
+function formatAnnotationForNotes(highlight, editedText, settings = readPdfAnnotationFormatSettings()) {
   const [mainText, ...commentParts] = editedText.split(/\nComment:\s*/);
   const commentText = commentParts.join("\nComment: ").trim();
   const quoteText = mainText.trim();
-  const textLines = [`- p. ${highlight.page || "?"} [${highlight.type || "Annotation"}]: "${quoteText}"`];
-  if (commentText) textLines.push(`  - Comment: ${commentText}`);
+  const prefix = getPdfAnnotationPrefix(highlight, settings);
+  const textPrefix = prefix ? `${prefix} ` : "";
+  const textLines = [`${textPrefix}${formatAnnotationQuoteText(quoteText, settings)}`];
+  if (settings.includeComments && commentText) textLines.push(`  - Comment: ${commentText}`);
 
   const html = `
-    <li>
-      p. ${escapeHtml(String(highlight.page || "?"))} [${escapeHtml(highlight.type || "Annotation")}]: <em>&quot;${escapeHtml(quoteText)}&quot;</em>
-      ${commentText ? `<ul><li><strong>Comment:</strong> ${escapeHtml(commentText)}</li></ul>` : ""}
-    </li>
+    ${prefix ? `${escapeHtml(prefix)} ` : ""}${formatAnnotationQuoteHtml(quoteText, settings)}
+    ${settings.includeComments && commentText ? `<ul><li><strong>Comment:</strong> ${escapeHtml(commentText)}</li></ul>` : ""}
   `;
   return { text: textLines.join("\n"), html };
+}
+
+function wrapFormattedPdfAnnotations(annotations, settings) {
+  if (settings.listStyle === "paragraph") {
+    return {
+      text: annotations.map((annotation) => annotation.text).join("\n\n"),
+      html: annotations.map((annotation) => `<p>${annotation.html}</p>`).join("")
+    };
+  }
+
+  const isNumbered = settings.listStyle === "numbered";
+  const listTag = isNumbered ? "ol" : "ul";
+  const text = annotations
+    .map((annotation, index) => `${isNumbered ? `${index + 1}.` : "-"} ${annotation.text}`)
+    .join("\n");
+  const html = `<${listTag}>${annotations.map((annotation) => `<li>${annotation.html}</li>`).join("")}</${listTag}>`;
+  return { text, html };
+}
+
+function updatePdfAnnotationFormatPreview() {
+  if (!pdfAnnotationFormatPreview) return;
+  const settings = readPdfAnnotationFormatSettings();
+  const sample = formatAnnotationForNotes(
+    { page: 12, type: "Highlight" },
+    "Lorem ipsum dolor sit amet, consectetur adipiscing elit.\nComment: Optional reviewer comment.",
+    settings
+  );
+  pdfAnnotationFormatPreview.innerHTML = wrapFormattedPdfAnnotations([sample], settings).html;
 }
 
 function appendSelectedPdfHighlights() {
@@ -3634,17 +3815,17 @@ function appendSelectedPdfHighlights() {
 
   pushUndoState("append PDF annotations");
   const notes = normalizePublicationNotes(targetNode.data("publicationNotes"));
+  const formatSettings = readPdfAnnotationFormatSettings();
   const annotations = selectedIndexes
     .map((index) => {
       const highlight = pdfHighlightsCache[index];
       const editedText = pdfHighlightsList.querySelector(`[data-highlight-text="${index}"]`)?.value.trim();
-      return highlight && editedText ? formatAnnotationForNotes(highlight, editedText) : "";
+      return highlight && editedText ? formatAnnotationForNotes(highlight, editedText, formatSettings) : "";
     })
     .filter(Boolean);
-  const section = annotations.map((annotation) => annotation.text).join("\n");
-  const sectionHtml = `<ul>${annotations.map((annotation) => annotation.html).join("")}</ul>`;
-  notes.notes = [notes.notes, section].filter(Boolean).join("\n\n");
-  notes.notesHtml = [notes.notesHtml, sectionHtml].filter(Boolean).join("<br>");
+  const section = wrapFormattedPdfAnnotations(annotations, formatSettings);
+  notes.notes = [notes.notes, section.text].filter(Boolean).join("\n\n");
+  notes.notesHtml = [notes.notesHtml, section.html].filter(Boolean).join("<br>");
   targetNode.data("publicationNotes", notes);
 
   if (publicationNotesNode && publicationNotesNode.id() === targetNode.id()) {
@@ -8980,6 +9161,44 @@ function finishOpenAlexPanelDrag() {
     openAlexPanelHeader.releasePointerCapture(openAlexPanelDrag.pointerId);
   }
   openAlexPanelDrag = null;
+}
+
+function startPdfHighlightsPanelDrag(event) {
+  if (event.button !== 0 || event.target.closest("button, select, input, textarea")) return;
+
+  event.preventDefault();
+  const rect = pdfHighlightsDialog.getBoundingClientRect();
+  pdfHighlightsPanelDrag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  pdfHighlightsDialog.style.left = `${rect.left}px`;
+  pdfHighlightsDialog.style.top = `${rect.top}px`;
+  pdfHighlightsDialog.style.transform = "none";
+  pdfHighlightsHeader.setPointerCapture(event.pointerId);
+}
+
+function continuePdfHighlightsPanelDrag(event) {
+  if (!pdfHighlightsPanelDrag) return;
+
+  event.preventDefault();
+  const panelRect = pdfHighlightsDialog.getBoundingClientRect();
+  const maxLeft = Math.max(8, window.innerWidth - panelRect.width - 8);
+  const maxTop = Math.max(8, window.innerHeight - Math.min(panelRect.height, window.innerHeight - 16) - 8);
+  const nextLeft = clamp(event.clientX - pdfHighlightsPanelDrag.offsetX, 8, maxLeft);
+  const nextTop = clamp(event.clientY - pdfHighlightsPanelDrag.offsetY, 8, maxTop);
+  pdfHighlightsDialog.style.left = `${nextLeft}px`;
+  pdfHighlightsDialog.style.top = `${nextTop}px`;
+}
+
+function finishPdfHighlightsPanelDrag() {
+  if (!pdfHighlightsPanelDrag) return;
+
+  if (pdfHighlightsHeader.hasPointerCapture(pdfHighlightsPanelDrag.pointerId)) {
+    pdfHighlightsHeader.releasePointerCapture(pdfHighlightsPanelDrag.pointerId);
+  }
+  pdfHighlightsPanelDrag = null;
 }
 
 function startOpenAlexPanelResize(event) {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260806-wheel-zoom">
+  <link rel="stylesheet" href="style.css?v=20260806-pdf-format-defaults">
   <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
@@ -540,6 +540,49 @@
           </div>
           <button type="button" id="closePdfHighlightsButton" class="modal-close">Close</button>
         </div>
+        <section class="pdf-highlight-settings" aria-label="PDF annotation append settings">
+          <label>
+            Prefix
+            <span class="pdf-prefix-control">
+              <select id="pdfAnnotationPrefixStyle">
+                <option value="page-type-bracket">Page X [Type]:</option>
+                <option value="compact">p. X [Type]:</option>
+                <option value="page-type">Page X - Type:</option>
+                <option value="short-page-type">p. X - Type:</option>
+                <option value="page-word">Page X:</option>
+                <option value="page-short">p. X</option>
+                <option value="none">No prefix</option>
+              </select>
+              <button type="button" id="addPdfAnnotationPrefixButton" aria-label="Add custom prefix">+</button>
+              <button type="button" id="deletePdfAnnotationPrefixButton" aria-label="Delete custom prefix" disabled>-</button>
+            </span>
+          </label>
+          <label>
+            Quote
+            <select id="pdfAnnotationQuoteStyle">
+              <option value="italic">Italic quote</option>
+              <option value="plain">Plain text</option>
+              <option value="blockquote">Block quote</option>
+            </select>
+          </label>
+          <label>
+            List
+            <select id="pdfAnnotationListStyle">
+              <option value="bullet">Bulleted list</option>
+              <option value="numbered">Numbered list</option>
+              <option value="paragraph">Paragraphs</option>
+            </select>
+          </label>
+          <label class="pdf-highlight-toggle">
+            <input id="pdfAnnotationIncludeComments" type="checkbox" checked>
+            Include comments
+          </label>
+          <button type="button" id="savePdfAnnotationDefaultsButton" class="pdf-highlight-save-default">Save as default</button>
+          <div class="pdf-highlight-format-preview" aria-live="polite">
+            <span>Preview</span>
+            <div id="pdfAnnotationFormatPreview"></div>
+          </div>
+        </section>
         <div id="pdfHighlightsList" class="pdf-highlights-list"></div>
         <div class="pdf-highlights-actions">
           <button type="button" id="selectAllPdfHighlightsButton">Select All</button>
@@ -790,6 +833,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260806-wheel-zoom"></script>
+  <script src="app.js?v=20260806-pdf-format-defaults"></script>
 </body>
 </html>

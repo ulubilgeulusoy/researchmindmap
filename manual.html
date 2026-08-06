@@ -25,6 +25,7 @@
       <a href="#zotero">Zotero</a>
       <a href="#grobid">GROBID</a>
       <a href="#pdfs">PDFs</a>
+      <a href="#pdf-annotations">PDF Annotations</a>
       <a href="#images">Images</a>
       <a href="#saving">Saving</a>
       <a href="#recovery">Recovery</a>
@@ -180,10 +181,20 @@ Reference endpoint: POST /api/processReferences</code></pre>
     <section id="pdfs">
       <h2>Local PDF Workflow</h2>
       <p>For Zotero-backed publication nodes, PDFs are copied from Zotero into <code>autosaves/{project}/library_pdfs/</code>. The copy is done once. If a copied PDF already exists, the app opens the existing copy and does not overwrite it, protecting annotations and notes.</p>
-      <p>PDF actions include opening the project copy in the system default PDF viewer, opening the project PDF folder, and importing annotations. Annotation extraction uses PyMuPDF and can extract highlights, highlight comments, standalone comments, and free-text annotations. Adobe-style annotations usually work best.</p>
+      <p>PDF actions include opening the project copy in the system default PDF viewer, opening the project PDF folder, and importing annotations. Annotation import is covered in the PDF Annotations section.</p>
+    </section>
+
+    <section id="pdf-annotations">
+      <h2>PDF Annotations</h2>
+      <p>Use <strong>Import PDF Annotations</strong> from a Zotero-backed publication node to review annotations from its local PDF and append selected items into publication notes. Annotation extraction uses PyMuPDF and can extract highlights, highlight comments, standalone comments, and free-text annotations. Adobe-style annotations usually work best.</p>
+      <p>The PDF Annotations popup is wider than the basic dialogs and can be moved by dragging its header. The list shows each annotation with a checkbox, page/type label, extraction-method dropdown, and editable text box. You can select or deselect annotations before appending them.</p>
       <h3>Annotation Extraction Variants</h3>
       <p>For highlighted text, the app tries multiple extraction methods and shows them in the annotation review dropdown. <strong>Strict</strong> uses word-level geometry and usually gives the cleanest text when the PDF stores accurate highlight coordinates. <strong>Balanced</strong> and <strong>Loose</strong> allow progressively wider word matching. <strong>Textbox</strong> reads the rectangular highlight area directly and is kept as a fallback because it can recover text when geometry matching fails, but it may pull neighboring words, line fragments, or cramped text from complex PDF layouts.</p>
       <p>The default selection prefers strict or balanced text when they produce usable output. If the selected default looks wrong, use the dropdown to compare variants before appending annotations to notes.</p>
+      <h3>Append Formatting</h3>
+      <p>Before appending selected annotations, use the formatting controls at the top of the popup to choose the page/type prefix, quote style, list style, and whether imported comments should be included. A live preview under the controls shows a sample highlight using the selected format.</p>
+      <p>Built-in prefix formats include <code>Page X [Type]:</code>, <code>p. X [Type]:</code>, <code>Page X - Type:</code>, <code>p. X - Type:</code>, <code>Page X:</code>, <code>p. X</code>, and no prefix. Use the plus button to add a custom prefix. Custom prefixes can use <code>X</code> or <code>{page}</code> for the page number and <code>Type</code> or <code>{type}</code> for the annotation type. Custom prefixes can be removed with the minus button when a custom prefix is selected.</p>
+      <p>Use <strong>Save as default</strong> to remember the current prefix options, quote style, list style, and comment setting after a page refresh. These settings change how annotations are written into notes; they do not change the underlying text extraction method selected for each annotation.</p>
     </section>
 
     <section id="images">
