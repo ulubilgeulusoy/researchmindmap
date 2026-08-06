@@ -154,6 +154,7 @@ let activeDocumentTableCell = null;
 let activeDocumentTable = null;
 let documentImageResizeDrag = null;
 let documentTableSelectionDrag = null;
+const useJoditImageResize = true;
 let copiedDocumentImage = null;
 let copiedDocumentTableCells = null;
 let activeOutlineView = "type:Publication";
@@ -928,7 +929,7 @@ document.addEventListener("keydown", (event) => {
       return;
     }
     if (isInsideDocumentEditor(event.target)) return;
-    if (copiedDocumentImage && isDocumentImagePasteContext(event.target) && !hasEditableTextSelection()) {
+    if (!useJoditImageResize && copiedDocumentImage && isDocumentImagePasteContext(event.target) && !hasEditableTextSelection()) {
       event.preventDefault();
       pasteCopiedDocumentImage();
       return;
@@ -1255,12 +1256,6 @@ function initializeJoditEditor() {
       focus: () => beginDocumentEdit()
     }
   });
-  const root = getDocumentEditorRoot();
-  root.addEventListener("click", handleDocumentEditorClick);
-  root.addEventListener("keydown", handleDocumentEditorKeydown, true);
-  root.addEventListener("paste", handleDocumentEditorPaste);
-  root.addEventListener("dragover", handleDocumentEditorDragOver);
-  root.addEventListener("drop", handleDocumentEditorDrop);
 }
 
 function setDocumentEditorEnabled(enabled) {
@@ -6905,7 +6900,7 @@ async function handleDocumentEditorPaste(event) {
     return;
   }
 
-  if (copiedDocumentImage && !hasEditableTextSelection()) {
+  if (!useJoditImageResize && copiedDocumentImage && !hasEditableTextSelection()) {
     event.preventDefault();
     pasteCopiedDocumentImage();
     return;
@@ -7011,9 +7006,11 @@ async function insertDocumentImageFile(file) {
   beginDocumentEdit();
   restoreDocumentSelection();
   insertNodeInDocumentEditor(image);
-  selectDocumentImage(image);
-  image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
-  requestAnimationFrame(updateDocumentImageResizeOverlay);
+  if (!useJoditImageResize) {
+    selectDocumentImage(image);
+    image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
+    requestAnimationFrame(updateDocumentImageResizeOverlay);
+  }
   updateDocumentBody();
   commitDocumentEdit();
   setStatus("Inserted image.");
@@ -7052,6 +7049,7 @@ function insertNodeInDocumentEditor(node) {
 }
 
 function copySelectedDocumentImage() {
+  if (useJoditImageResize) return false;
   if (!selectedDocumentImage || selectedDocumentImage.tagName !== "IMG" || !documentEditor.contains(selectedDocumentImage)) return false;
   copiedDocumentImage = {
     src: selectedDocumentImage.getAttribute("src") || "",
@@ -7065,6 +7063,7 @@ function copySelectedDocumentImage() {
 }
 
 function pasteCopiedDocumentImage() {
+  if (useJoditImageResize) return false;
   if (!copiedDocumentImage || documentEditor.contentEditable !== "true") return false;
   beginDocumentEdit();
   restoreDocumentSelection();
@@ -7076,9 +7075,11 @@ function pasteCopiedDocumentImage() {
   image.style.width = copiedDocumentImage.width || "420px";
   image.style.height = "auto";
   insertNodeInDocumentEditor(image);
-  selectDocumentImage(image);
-  image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
-  requestAnimationFrame(updateDocumentImageResizeOverlay);
+  if (!useJoditImageResize) {
+    selectDocumentImage(image);
+    image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
+    requestAnimationFrame(updateDocumentImageResizeOverlay);
+  }
   updateDocumentBody();
   commitDocumentEdit();
   setStatus("Pasted copied image.");
@@ -7554,7 +7555,7 @@ function getUniqueVisualGridCells(grid, predicate) {
 }
 
 function getSelectedDocumentResizableElement() {
-  if (selectedDocumentImage && isInsideDocumentEditor(selectedDocumentImage)) return selectedDocumentImage;
+  if (!useJoditImageResize && selectedDocumentImage && isInsideDocumentEditor(selectedDocumentImage)) return selectedDocumentImage;
   if (selectedDocumentTable && isInsideDocumentEditor(selectedDocumentTable)) return selectedDocumentTable;
   if (selectedDocumentTableCells?.table && isInsideDocumentEditor(selectedDocumentTableCells.table)) return selectedDocumentTableCells.table;
   if (selectedDocumentTableColumn?.table && isInsideDocumentEditor(selectedDocumentTableColumn.table)) return selectedDocumentTableColumn.table;
@@ -8379,7 +8380,7 @@ function applyOutsideTableBorder(table) {
 
 function handleDocumentEditorPointerDown(event) {
   const image = event.target.closest("img");
-  if (image && documentEditor.contains(image)) {
+  if (!useJoditImageResize && image && documentEditor.contains(image)) {
     event.preventDefault();
     selectDocumentImage(image);
     return;
@@ -8608,10 +8609,12 @@ function updateDocumentImages() {
     placeholder.textContent = "Unsaved embedded image. Delete this placeholder and reinsert the image.";
     image.replaceWith(placeholder);
   });
-  root.querySelectorAll("img").forEach((image) => {
-    image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
-  });
-  requestDocumentImageResizeOverlayUpdate();
+  if (!useJoditImageResize) {
+    root.querySelectorAll("img").forEach((image) => {
+      image.addEventListener("load", updateDocumentImageResizeOverlay, { once: true });
+    });
+    requestDocumentImageResizeOverlayUpdate();
+  }
 }
 
 function handleDocumentEditorClick(event) {
@@ -8624,7 +8627,7 @@ function handleDocumentEditorClick(event) {
   }
 
   const image = event.target.closest("img");
-  if (image && root.contains(image)) {
+  if (!useJoditImageResize && image && root.contains(image)) {
     selectDocumentImage(image);
     hideDocumentLinkPopover();
     return;
