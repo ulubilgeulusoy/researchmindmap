@@ -359,12 +359,14 @@ const closePdfHighlightsButton = document.getElementById("closePdfHighlightsButt
 const zoteroPanel = document.getElementById("zoteroPanel");
 const zoteroPanelHeader = zoteroPanel.querySelector(".zotero-panel-header");
 const zoteroStatusText = document.getElementById("zoteroStatusText");
+const zoteroModeBadge = document.getElementById("zoteroModeBadge");
 const zoteroLibrarySelect = document.getElementById("zoteroLibrarySelect");
 const zoteroCollectionSelect = document.getElementById("zoteroCollectionSelect");
 const zoteroSubcollectionSelect = document.getElementById("zoteroSubcollectionSelect");
 const zoteroItemsList = document.getElementById("zoteroItemsList");
 const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
+const zoteroSortSelect = document.getElementById("zoteroSortSelect");
 const clearZoteroSearchButton = document.getElementById("clearZoteroSearchButton");
 const openAlexPanel = document.getElementById("openAlexPanel");
 const openAlexPanelHeader = openAlexPanel.querySelector(".zotero-panel-header");
@@ -796,6 +798,7 @@ zoteroSubcollectionSelect.addEventListener("change", () => {
   renderZoteroItems();
   zoteroStatusText.textContent = "Selected Zotero subfolder. Load items or search.";
 });
+zoteroSortSelect.addEventListener("change", renderZoteroItems);
 zoteroSearchInput.addEventListener("input", () => {
   window.clearTimeout(zoteroSearchTimer);
   zoteroSearchTimer = window.setTimeout(() => {
@@ -2579,6 +2582,7 @@ function closeZoteroPanel() {
 
 async function checkZotero() {
   zoteroStatusText.textContent = "Checking Zotero Desktop...";
+  updateZoteroModeBadge("");
   zoteroItemsCache = [];
   zoteroLibrariesCache = [];
   zoteroCollectionsCache = [];
@@ -2592,12 +2596,14 @@ async function checkZotero() {
   try {
     const status = await fetchJson(`/api/zotero/status?_=${Date.now()}`);
     zoteroMode = status.mode || "";
+    updateZoteroModeBadge(zoteroMode, status.ok);
     zoteroStatusText.textContent = zoteroStatusMessage(status.message);
     if (status.ok) {
       await loadZoteroLibraries();
       await loadZoteroCollections();
     }
   } catch (error) {
+    updateZoteroModeBadge("error");
     zoteroStatusText.textContent = error.message;
   }
 }
@@ -2693,11 +2699,28 @@ function zoteroDescendantCollections(parentKey) {
 }
 
 function zoteroStatusMessage(message) {
-  if (zoteroMode === "sqlite") {
+  if (zoteroMode === "sqlite" || zoteroMode === "cache") {
     return `${message} Recent Zotero edits may require Zotero sync/idle time or a working local API.`;
   }
   if (zoteroMode === "http") return `${message} Using live Zotero local API.`;
   return message;
+}
+
+function updateZoteroModeBadge(mode, ok = false) {
+  zoteroModeBadge.classList.remove("live", "backup", "error", "unknown");
+  if (mode === "http") {
+    zoteroModeBadge.textContent = "Live";
+    zoteroModeBadge.classList.add("live");
+  } else if (mode === "sqlite" || mode === "cache") {
+    zoteroModeBadge.textContent = "Backup";
+    zoteroModeBadge.classList.add("backup");
+  } else if (mode === "error" || ok === false && mode) {
+    zoteroModeBadge.textContent = "Cannot reach";
+    zoteroModeBadge.classList.add("error");
+  } else {
+    zoteroModeBadge.textContent = "Checking...";
+    zoteroModeBadge.classList.add("unknown");
+  }
 }
 
 async function loadZoteroItems() {
@@ -2718,8 +2741,9 @@ async function loadZoteroItems() {
     const data = await fetchJson(`/api/zotero/items?${params.toString()}`);
     zoteroItemsCache = data.items || [];
     zoteroMode = data.mode || zoteroMode;
+    updateZoteroModeBadge(zoteroMode, true);
     renderZoteroItems();
-    const sourceNote = data.mode === "sqlite" ? " using database fallback" : "";
+    const sourceNote = data.mode === "sqlite" ? " using database fallback" : data.mode === "cache" ? " using metadata backup" : "";
     zoteroStatusText.textContent = query
       ? `Found ${zoteroItemsCache.length} Zotero item(s) for "${query}"${sourceNote}.`
       : `Loaded ${zoteroItemsCache.length} Zotero items${sourceNote}.`;
@@ -2737,7 +2761,7 @@ function renderZoteroItems() {
   }
 
   zoteroListActions.hidden = false;
-  zoteroItemsCache.forEach((item, index) => {
+  sortedZoteroItems().forEach(({ item, index }) => {
     const row = document.createElement("label");
     row.className = "zotero-item-row";
     row.innerHTML = `
@@ -2749,6 +2773,24 @@ function renderZoteroItems() {
     `;
     zoteroItemsList.appendChild(row);
   });
+}
+
+function sortedZoteroItems() {
+  const items = zoteroItemsCache.map((item, index) => ({ item, index }));
+  const sortMode = zoteroSortSelect.value || "recent";
+  const titleForSort = (item) => (item.title || "Untitled").trim().toLocaleLowerCase();
+  if (sortMode === "title-asc") {
+    items.sort((left, right) => titleForSort(left.item).localeCompare(titleForSort(right.item)));
+  } else if (sortMode === "title-desc") {
+    items.sort((left, right) => titleForSort(right.item).localeCompare(titleForSort(left.item)));
+  } else {
+    items.sort((left, right) => {
+      const rightVersion = Number(right.item.version || right.item.dateModified || 0);
+      const leftVersion = Number(left.item.version || left.item.dateModified || 0);
+      return rightVersion - leftVersion;
+    });
+  }
+  return items;
 }
 
 function setPanelCheckboxes(container, checked) {

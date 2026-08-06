@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260806-zotero-controls-grouped">
+  <link rel="stylesheet" href="style.css?v=20260806-zotero-metadata-cache">
   <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
@@ -652,7 +652,10 @@
           <h2>Zotero Import</h2>
           <p id="zoteroStatusText">Connect to Zotero Desktop on this computer.</p>
         </div>
-        <button type="button" id="closeZoteroPanel">Close</button>
+        <div class="zotero-header-actions">
+          <span id="zoteroModeBadge" class="zotero-mode-badge unknown">Not checked</span>
+          <button type="button" id="closeZoteroPanel">Close</button>
+        </div>
       </div>
 
       <div class="zotero-controls">
@@ -671,6 +674,11 @@
 
       <div class="zotero-search-row">
         <input id="zoteroSearchInput" type="search" placeholder="Search selected Zotero library..." autocomplete="off">
+        <select id="zoteroSortSelect" aria-label="Sort Zotero items">
+          <option value="recent">Most recent</option>
+          <option value="title-asc">Title A-Z</option>
+          <option value="title-desc">Title Z-A</option>
+        </select>
         <button type="button" id="clearZoteroSearchButton" aria-label="Clear Zotero search">Clear</button>
       </div>
 
@@ -770,6 +778,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260806-zotero-loading-states"></script>
+  <script src="app.js?v=20260806-zotero-metadata-cache"></script>
 </body>
 </html>

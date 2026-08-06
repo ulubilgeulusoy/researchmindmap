@@ -2851,6 +2851,45 @@ button:disabled {
   cursor: pointer;
 }
 
+.zotero-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.zotero-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.zotero-mode-badge.live {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.zotero-mode-badge.backup {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.zotero-mode-badge.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.zotero-mode-badge.unknown {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
 .zotero-panel-header h2,
 .zotero-panel-header p {
   margin: 0;
@@ -3076,13 +3115,14 @@ button:disabled {
 
 .zotero-search-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto) auto;
   gap: 8px;
   padding: 6px 18px 12px;
   border-bottom: 1px solid var(--line);
 }
 
-.zotero-search-row input {
+.zotero-search-row input,
+.zotero-search-row select {
   min-width: 0;
   height: 36px;
   border: 1px solid var(--line);

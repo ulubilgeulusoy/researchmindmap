@@ -37,6 +37,7 @@ ZOTERO_HEADERS = {"Zotero-API-Version": "3"}
 GROBID_URL = "http://127.0.0.1:8070"
 DEFAULT_PROJECT_NAME = "MMEA"
 ZOTERO_PAGE_SIZE = 100
+ZOTERO_CACHE_FILE = AUTOSAVES_DIR / "zotero-metadata-cache.json"
 
 app = FastAPI(title="Research Mind Map Local Backend")
 AUTOSAVES_DIR.mkdir(parents=True, exist_ok=True)
@@ -440,6 +441,7 @@ def publication_from_db_row(connection: sqlite3.Connection, row: sqlite3.Row) ->
 
     return {
         "zoteroKey": row["key"],
+        "version": row["version"] if "version" in row.keys() else 0,
         "itemType": item_type,
         "title": title,
         "authors": authors,
@@ -524,7 +526,7 @@ def db_items(collection: Optional[str], limit: int, query: str = "", include_sub
         params.append(sqlite_limit)
         rows = connection.execute(
             f"""
-            SELECT items.itemID, items.key, itemTypes.typeName
+            SELECT items.itemID, items.key, items.version, itemTypes.typeName
             FROM items
             {' '.join(joins)}
             WHERE {' AND '.join(where)}
@@ -557,6 +559,41 @@ def unique_publications(publications: list[dict[str, Any]]) -> list[dict[str, An
         seen.add(key)
         unique.append(publication)
     return unique
+
+
+def read_zotero_cache() -> dict[str, Any]:
+    if not ZOTERO_CACHE_FILE.exists():
+        return {"libraries": [], "collections": {}, "topCollections": {}, "items": {}}
+    try:
+        data = json.loads(ZOTERO_CACHE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"libraries": [], "collections": {}, "topCollections": {}, "items": {}}
+    if not isinstance(data, dict):
+        return {"libraries": [], "collections": {}, "topCollections": {}, "items": {}}
+    data.setdefault("libraries", [])
+    data.setdefault("collections", {})
+    data.setdefault("topCollections", {})
+    data.setdefault("items", {})
+    return data
+
+
+def write_zotero_cache(cache: dict[str, Any]) -> None:
+    cache["updatedAt"] = datetime.now().astimezone().isoformat()
+    ZOTERO_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ZOTERO_CACHE_FILE.write_text(json.dumps(cache, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def update_zotero_cache(**updates: Any) -> None:
+    cache = read_zotero_cache()
+    for key, value in updates.items():
+        cache[key] = value
+    write_zotero_cache(cache)
+
+
+def cache_item_key(library_value: str, collection: Optional[str], query: str, include_subcollections: bool, limit: int) -> str:
+    collection_key = collection or ""
+    query_key = re.sub(r"\s+", " ", query.strip()).lower()
+    return f"{library_value}|{collection_key}|{include_subcollections}|{limit}|{query_key}"
 
 
 def parse_zotero_library(value: str = "user:0") -> dict[str, Any]:
@@ -669,7 +706,7 @@ def find_zotero_item_key_for_publication(publication: MapPublication) -> Optiona
     try:
         rows = connection.execute(
             """
-            SELECT items.itemID, items.key, itemTypes.typeName
+            SELECT items.itemID, items.key, items.version, itemTypes.typeName
             FROM items
             JOIN itemTypes ON itemTypes.itemTypeID = items.itemTypeID
             WHERE itemTypes.typeName NOT IN ('attachment', 'note', 'annotation')
@@ -1432,6 +1469,7 @@ def publication_from_item(item: dict[str, Any]) -> Optional[dict[str, Any]]:
 
     return {
         "zoteroKey": item.get("key"),
+        "version": item.get("version") or data.get("version") or 0,
         "libraryType": library.get("type", "user"),
         "libraryId": library.get("id", 0),
         "libraryName": library.get("name", "My Library"),
@@ -1522,6 +1560,32 @@ def zotero_api_items(
     return unique_publications(publications)[:limit]
 
 
+def cached_zotero_libraries() -> list[dict[str, Any]]:
+    libraries = read_zotero_cache().get("libraries") or []
+    return libraries if isinstance(libraries, list) and libraries else []
+
+
+def cached_zotero_collections(library_value: str) -> Optional[dict[str, list[dict[str, Any]]]]:
+    cache = read_zotero_cache()
+    collections = cache.get("collections", {}).get(library_value)
+    top_collections = cache.get("topCollections", {}).get(library_value)
+    if isinstance(collections, list) and isinstance(top_collections, list):
+        return {"collections": collections, "topCollections": top_collections}
+    return None
+
+
+def cached_zotero_items(
+    library_value: str,
+    collection: Optional[str],
+    query: str,
+    include_subcollections: bool,
+    limit: int,
+) -> list[dict[str, Any]]:
+    key = cache_item_key(library_value, collection, query, include_subcollections, limit)
+    items = read_zotero_cache().get("items", {}).get(key)
+    return items if isinstance(items, list) else []
+
+
 @app.get("/api/zotero/status")
 def zotero_status(response: Response) -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
@@ -1552,17 +1616,28 @@ def zotero_status(response: Response) -> dict[str, Any]:
 def zotero_collections(response: Response, library: str = "user:0") -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
     try:
+        collections = zotero_api_collections(library)
+        top_collections = zotero_api_collections(library, top_only=True)
+        cache = read_zotero_cache()
+        cache.setdefault("collections", {})[library] = collections
+        cache.setdefault("topCollections", {})[library] = top_collections
+        write_zotero_cache(cache)
         return {
-            "collections": zotero_api_collections(library),
-            "topCollections": zotero_api_collections(library, top_only=True),
+            "collections": collections,
+            "topCollections": top_collections,
+            "mode": "http",
         }
     except HTTPException:
+        cached = cached_zotero_collections(library)
+        if cached:
+            return {**cached, "mode": "cache"}
         if library != "user:0":
             raise
         collections = db_collections()
         return {
             "collections": collections,
             "topCollections": [collection for collection in collections if not collection.get("parentKey")],
+            "mode": "sqlite",
         }
 
 
@@ -1570,8 +1645,15 @@ def zotero_collections(response: Response, library: str = "user:0") -> dict[str,
 def zotero_libraries(response: Response) -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
     try:
-        return {"libraries": zotero_api_libraries(), "mode": "http"}
+        libraries = zotero_api_libraries()
+        cache = read_zotero_cache()
+        cache["libraries"] = libraries
+        write_zotero_cache(cache)
+        return {"libraries": libraries, "mode": "http"}
     except HTTPException:
+        cached = cached_zotero_libraries()
+        if cached:
+            return {"libraries": cached, "mode": "cache"}
         return {"libraries": [{"key": "user:0", "type": "user", "id": 0, "name": "My Library"}], "mode": "sqlite"}
 
 
@@ -1588,11 +1670,18 @@ def zotero_items(
     response.headers["Cache-Control"] = "no-store"
     query = q.strip()
     try:
+        items = zotero_api_items(library, collection, limit, query, style, includeSubcollections)
+        cache = read_zotero_cache()
+        cache.setdefault("items", {})[cache_item_key(library, collection, query, includeSubcollections, limit)] = items
+        write_zotero_cache(cache)
         return {
-            "items": zotero_api_items(library, collection, limit, query, style, includeSubcollections),
+            "items": items,
             "mode": "http",
         }
     except HTTPException:
+        cached = cached_zotero_items(library, collection, query, includeSubcollections, limit)
+        if cached:
+            return {"items": cached, "mode": "cache"}
         if library != "user:0":
             raise
         return {"items": db_items(collection, limit, query, includeSubcollections), "mode": "sqlite"}
