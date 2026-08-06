@@ -952,6 +952,11 @@ def confidence_for_text(text: str, method: str) -> str:
     return "Low"
 
 
+def usable_highlight_text(text: str, min_words: int = 2) -> bool:
+    words = clean_highlight_text(text).split()
+    return len(words) >= min_words
+
+
 def textbox_highlight_text(page: Any, quads: list[Any]) -> str:
     texts = []
     for quad in quads:
@@ -1056,7 +1061,18 @@ def best_highlight_candidate(page: Any, quads: list[Any], comment: str) -> dict[
         for method, text in candidates
         if text
     ]
-    method, text = max(candidates, key=lambda item: candidate_quality(item[1], item[0]))
+    preferred_candidates = [
+        (method, text)
+        for method, text in candidates
+        if method in {"strict", "balanced"} and usable_highlight_text(text)
+    ]
+    fallback_candidates = [
+        (method, text)
+        for method, text in candidates
+        if method not in {"textbox"} and usable_highlight_text(text)
+    ]
+    ranked_candidates = preferred_candidates or fallback_candidates or candidates
+    method, text = max(ranked_candidates, key=lambda item: candidate_quality(item[1], item[0]))
     if not text:
         text = "[Highlighted text could not be extracted from this PDF viewer's annotation coordinates.]"
         method = "unreadable"

@@ -181,6 +181,9 @@ Reference endpoint: POST /api/processReferences</code></pre>
       <h2>Local PDF Workflow</h2>
       <p>For Zotero-backed publication nodes, PDFs are copied from Zotero into <code>autosaves/{project}/library_pdfs/</code>. The copy is done once. If a copied PDF already exists, the app opens the existing copy and does not overwrite it, protecting annotations and notes.</p>
       <p>PDF actions include opening the project copy in the system default PDF viewer, opening the project PDF folder, and importing annotations. Annotation extraction uses PyMuPDF and can extract highlights, highlight comments, standalone comments, and free-text annotations. Adobe-style annotations usually work best.</p>
+      <h3>Annotation Extraction Variants</h3>
+      <p>For highlighted text, the app tries multiple extraction methods and shows them in the annotation review dropdown. <strong>Strict</strong> uses word-level geometry and usually gives the cleanest text when the PDF stores accurate highlight coordinates. <strong>Balanced</strong> and <strong>Loose</strong> allow progressively wider word matching. <strong>Textbox</strong> reads the rectangular highlight area directly and is kept as a fallback because it can recover text when geometry matching fails, but it may pull neighboring words, line fragments, or cramped text from complex PDF layouts.</p>
+      <p>The default selection prefers strict or balanced text when they produce usable output. If the selected default looks wrong, use the dropdown to compare variants before appending annotations to notes.</p>
     </section>
 
     <section id="images">
