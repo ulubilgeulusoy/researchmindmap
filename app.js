@@ -411,7 +411,7 @@ const cy = cytoscape({
   layout: { name: "preset", fit: true, padding: 70 },
   wheelSensitivity: 0.22,
   minZoom: 0.05,
-  maxZoom: 2,
+  maxZoom: 3,
   userZoomingEnabled: false,
   boxSelectionEnabled: true,
   selectionType: "additive",
@@ -3763,8 +3763,10 @@ function handleMapWheelZoom(event) {
   event.preventDefault();
   showMapZoomControl();
   const direction = event.deltaY > 0 ? -1 : 1;
+  const wheelUnits = Math.max(1, Math.min(6, Math.abs(event.deltaY) / 100));
+  const zoomStep = direction * 0.08 * wheelUnits;
   const containerRect = cy.container().getBoundingClientRect();
-  setMapZoomAtRenderedPosition(getAbsoluteZoomFromRelative(getRelativeMapZoom() + direction * 0.01), {
+  setMapZoomAtRenderedPosition(getAbsoluteZoomFromRelative(getRelativeMapZoom() + zoomStep), {
     x: event.clientX - containerRect.left,
     y: event.clientY - containerRect.top
   });
