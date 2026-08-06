@@ -323,7 +323,6 @@ const docApplyAlignment = document.getElementById("docApplyAlignment");
 const docAlignmentMenuButton = document.getElementById("docAlignmentMenuButton");
 const docAlignmentMenu = document.getElementById("docAlignmentMenu");
 const docAlignmentIcon = document.getElementById("docAlignmentIcon");
-const docImageButton = document.getElementById("docImageButton");
 const docTableButton = document.getElementById("docTableButton");
 const docImageInput = document.getElementById("docImageInput");
 const docImageWidth = document.getElementById("docImageWidth");
@@ -1194,7 +1193,6 @@ documentTableTools.querySelectorAll("[data-table-action]").forEach((button) => {
   button.addEventListener("pointerdown", (event) => event.preventDefault());
   button.addEventListener("click", () => runDocumentTableAction(button.dataset.tableAction));
 });
-docImageButton.addEventListener("click", openDocumentImagePicker);
 docImageInput.addEventListener("change", insertSelectedDocumentImage);
 docImageWidth.addEventListener("input", updateSelectedDocumentImageWidth);
 docImageWidth.addEventListener("change", commitDocumentEdit);
@@ -1236,12 +1234,6 @@ function initializeJoditEditor() {
       "font", "fontsize", "brush", "paragraph", "|",
       "left", "center", "right", "justify", "|",
       "link", "table", "|",
-      {
-        name: "uluNodeLink",
-        tooltip: "Link to mind-map node",
-        text: "Node Link",
-        exec: () => openDocumentNodeLinkPicker()
-      },
       {
         name: "uluImage",
         tooltip: "Insert project image",

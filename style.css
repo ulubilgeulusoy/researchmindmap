@@ -914,9 +914,14 @@ button:disabled {
 }
 
 .document-page .jodit-toolbar__box {
+  position: sticky;
+  top: 0;
+  z-index: 12;
   border: 1px solid var(--line);
   border-radius: 6px;
   margin-bottom: 10px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(32, 38, 50, 0.08);
 }
 
 .doc-toolbar-group {
