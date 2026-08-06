@@ -77,7 +77,8 @@ class AnalyzeMapRequest(BaseModel):
 class OpenAlexSimilarRequest(BaseModel):
     publications: list[MapPublication]
     modes: list[str] = ["related"]
-    limit: int = 25
+    limit: int = 0
+    strictIntersection: bool = False
 
 
 class PdfPrepareRequest(BaseModel):
@@ -1183,6 +1184,8 @@ def grobid_get(path: str) -> str:
 
 OPENALEX_API = "https://api.openalex.org"
 OPENALEX_USER_AGENT = "ResearchMindMap/1.0 (https://github.com/ulubilgeulusoy/researchmindmap)"
+OPENALEX_PAGE_SIZE = 100
+OPENALEX_DEFAULT_MAX_RESULTS = int(os.environ.get("OPENALEX_MAX_RESULTS", "1000"))
 
 
 def openalex_get(path: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -1202,6 +1205,33 @@ def openalex_get(path: str, params: Optional[dict[str, Any]] = None) -> dict[str
         raise HTTPException(status_code=503, detail="Could not reach OpenAlex.") from exc
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=502, detail="OpenAlex returned invalid JSON.") from exc
+
+
+def openalex_max_results(requested_limit: int = 0) -> int:
+    if requested_limit > 0:
+        return requested_limit
+    return max(1, OPENALEX_DEFAULT_MAX_RESULTS)
+
+
+def openalex_get_all_works(params: dict[str, Any], max_results: int) -> list[dict[str, Any]]:
+    works: list[dict[str, Any]] = []
+    cursor = "*"
+    while len(works) < max_results:
+        page_params = {
+            **params,
+            "per-page": min(OPENALEX_PAGE_SIZE, max_results - len(works)),
+            "per_page": min(OPENALEX_PAGE_SIZE, max_results - len(works)),
+            "cursor": cursor,
+        }
+        data = openalex_get("/works", page_params)
+        results = data.get("results") or []
+        if not results:
+            break
+        works.extend(results)
+        cursor = (data.get("meta") or {}).get("next_cursor")
+        if not cursor:
+            break
+    return works[:max_results]
 
 
 def openalex_short_id(value: str) -> str:
@@ -1701,27 +1731,27 @@ def grobid_status() -> dict[str, Any]:
 def openalex_search(
     response: Response,
     q: str = "",
-    limit: int = Query(default=25, ge=1, le=50),
+    limit: int = Query(default=0, ge=0, le=10000),
 ) -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
     query = q.strip()
     if not query:
         return {"items": []}
-    data = openalex_get(
-        "/works",
+    max_results = openalex_max_results(limit)
+    works = openalex_get_all_works(
         {
             "search": query,
-            "per-page": limit,
             "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index",
         },
+        max_results,
     )
-    return {"items": [openalex_result(work) for work in data.get("results") or []]}
+    return {"items": [openalex_result(work) for work in works], "maxResults": max_results}
 
 
 @app.post("/api/openalex/similar")
 def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dict[str, Any]:
     response.headers["Cache-Control"] = "no-store"
-    limit = max(1, min(payload.limit, 50))
+    limit = openalex_max_results(payload.limit)
     modes = [mode for mode in payload.modes if mode in {"related", "cites", "cited_by"}]
     if not modes:
         modes = ["related"]
@@ -1729,6 +1759,7 @@ def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dic
     items: list[dict[str, Any]] = []
     item_by_key: dict[str, dict[str, Any]] = {}
     relationship_by_key: dict[str, dict[str, str]] = {}
+    seed_hits_by_key: dict[str, set[str]] = {}
     resolved: list[dict[str, Any]] = []
 
     for publication in payload.publications[:8]:
@@ -1751,19 +1782,19 @@ def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dic
             filter_value = openalex_mode_filter(mode, work_id)
             if not filter_value:
                 continue
-            data = openalex_get(
-                "/works",
+            works = openalex_get_all_works(
                 {
                     "filter": filter_value,
-                    "per-page": limit,
                     "sort": "cited_by_count:desc",
                     "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index,referenced_works",
                 },
+                limit,
             )
-            for work in data.get("results") or []:
+            for work in works:
                 key = openalex_short_id(work.get("id") or "") or work.get("doi") or work.get("display_name")
                 if not key:
                     continue
+                seed_hits_by_key.setdefault(key, set()).add(work_id)
                 known = relationship_by_key.setdefault(key, {})
                 if mode == "cites":
                     known[work_id] = "result-cites-seed"
@@ -1778,16 +1809,34 @@ def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dic
                 seen.add(key)
                 item_by_key[key] = item
                 items.append(item)
-                if len(items) >= limit:
+
+                if not payload.strictIntersection and len(items) >= limit:
                     return {"items": items, "resolved": [
                         {"title": seed.get("title", ""), "openalexId": seed.get("openalexId", "")}
                         for seed in resolved
-                    ], "modes": modes}
+                    ], "modes": modes, "strictIntersection": False}
+
+    if payload.strictIntersection and resolved:
+        required_seed_ids = {seed.get("openalexId", "") for seed in resolved if seed.get("openalexId")}
+        requires_citation_relationship = "related" not in modes
+        items = [
+            item for item in items
+            if required_seed_ids
+            and required_seed_ids.issubset(seed_hits_by_key.get(openalex_short_id(item.get("id") or "") or item.get("doi") or item.get("title"), set()))
+            and (
+                not requires_citation_relationship
+                or required_seed_ids.issubset({
+                    relationship.get("seedOpenAlexId", "")
+                    for relationship in item.get("relationships", [])
+                    if relationship.get("relation") in {"result-cites-seed", "seed-cites-result"}
+                })
+            )
+        ][:limit]
 
     return {"items": items, "resolved": [
         {"title": seed.get("title", ""), "openalexId": seed.get("openalexId", "")}
         for seed in resolved
-    ], "modes": modes}
+    ], "modes": modes, "strictIntersection": payload.strictIntersection}
 
 
 @app.post("/api/pdf/prepare")

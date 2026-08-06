@@ -11,6 +11,7 @@ const PRESENCE_INTERVAL_MS = 15000;
 const MAX_UNDO_STEPS = 50;
 const MAX_AUTOSAVE_HISTORY = 3;
 const MAX_AUTOSAVE_HISTORY_BYTES = 1_500_000;
+const MAX_OPENALEX_SEED_PUBLICATIONS = 8;
 const AUTOSAVE_DELAY_MS = 700;
 const DEFAULT_NODE_SIZE = 88;
 const MIN_NODE_SIZE = 56;
@@ -377,12 +378,14 @@ const openAlexResultsList = document.getElementById("openAlexResultsList");
 const openAlexResultsCount = document.getElementById("openAlexResultsCount");
 const clearOpenAlexSearchButton = document.getElementById("clearOpenAlexSearchButton");
 const openAlexPublicationFilterInput = document.getElementById("openAlexPublicationFilterInput");
+const openAlexPublicationTagFilter = document.getElementById("openAlexPublicationTagFilter");
 const openAlexPublicationList = document.getElementById("openAlexPublicationList");
 const openAlexPublicationCount = document.getElementById("openAlexPublicationCount");
 const clearOpenAlexPublicationFilterButton = document.getElementById("clearOpenAlexPublicationFilterButton");
 const openAlexModeRelated = document.getElementById("openAlexModeRelated");
 const openAlexModeCites = document.getElementById("openAlexModeCites");
 const openAlexModeCitedBy = document.getElementById("openAlexModeCitedBy");
+const openAlexStrictIntersection = document.getElementById("openAlexStrictIntersection");
 const grobidPanel = document.getElementById("grobidPanel");
 const grobidStatusText = document.getElementById("grobidStatusText");
 const grobidSuggestionsList = document.getElementById("grobidSuggestionsList");
@@ -813,17 +816,19 @@ document.getElementById("closeOpenAlexPanel").addEventListener("click", closeOpe
 document.getElementById("findSimilarOpenAlexButton").addEventListener("click", findSimilarOpenAlexWorks);
 document.getElementById("searchOpenAlexButton").addEventListener("click", searchOpenAlexWorks);
 document.getElementById("selectAllOpenAlexPublicationsButton").addEventListener("click", () => {
-  setPanelCheckboxes(openAlexPublicationList, true);
+  setOpenAlexPublicationCheckboxes(true);
   updateOpenAlexPublicationCount();
 });
 document.getElementById("deselectAllOpenAlexPublicationsButton").addEventListener("click", () => {
   setPanelCheckboxes(openAlexPublicationList, false);
   updateOpenAlexPublicationCount();
 });
-openAlexPublicationList.addEventListener("change", updateOpenAlexPublicationCount);
+openAlexPublicationList.addEventListener("change", handleOpenAlexPublicationSelectionChange);
 openAlexPublicationFilterInput.addEventListener("input", renderOpenAlexPublicationList);
+openAlexPublicationTagFilter.addEventListener("change", renderOpenAlexPublicationList);
 clearOpenAlexPublicationFilterButton.addEventListener("click", () => {
   openAlexPublicationFilterInput.value = "";
+  openAlexPublicationTagFilter.value = "";
   renderOpenAlexPublicationList();
 });
 openAlexSearchInput.addEventListener("input", () => {
@@ -2833,6 +2838,7 @@ function importSelectedZoteroItems() {
 
 function openOpenAlexPanel() {
   openAlexPanel.hidden = false;
+  renderOpenAlexPublicationTagFilter();
   renderOpenAlexPublicationList();
   renderOpenAlexResults();
 }
@@ -2862,8 +2868,11 @@ function openAlexPublicationFromNode(node) {
 
 function getOpenAlexPublicationNodes() {
   const filter = openAlexPublicationFilterInput.value.trim().toLowerCase();
+  const tagFilter = openAlexPublicationTagFilter.value.trim().toLowerCase();
   return cy.nodes().filter((node) => {
     if (node.data("type") !== "Publication") return false;
+    const tags = publicationTagsForNode(node);
+    if (tagFilter && !tags.some((tag) => tag.toLowerCase() === tagFilter)) return false;
     if (!filter) return true;
     const publication = openAlexPublicationFromNode(node);
     const text = [
@@ -2877,6 +2886,29 @@ function getOpenAlexPublicationNodes() {
   }).sort((a, b) => (a.data("label") || "").localeCompare(b.data("label") || ""));
 }
 
+function publicationTagsForNode(node) {
+  return Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
+}
+
+function renderOpenAlexPublicationTagFilter() {
+  const previousValue = openAlexPublicationTagFilter.value;
+  const tags = new Set();
+  cy.nodes().forEach((node) => {
+    if (node.data("type") !== "Publication") return;
+    publicationTagsForNode(node).forEach((tag) => {
+      if (tag) tags.add(tag);
+    });
+  });
+  openAlexPublicationTagFilter.innerHTML = '<option value="">All tags</option>';
+  Array.from(tags).sort((a, b) => a.localeCompare(b)).forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    openAlexPublicationTagFilter.appendChild(option);
+  });
+  openAlexPublicationTagFilter.value = tags.has(previousValue) ? previousValue : "";
+}
+
 function renderOpenAlexPublicationList() {
   const checked = new Set(Array.from(openAlexPublicationList.querySelectorAll("input:checked")).map((input) => input.value));
   const selected = new Set(cy.$("node:selected").filter((node) => node.data("type") === "Publication").map((node) => node.id()));
@@ -2888,6 +2920,7 @@ function renderOpenAlexPublicationList() {
     return;
   }
 
+  let checkedCount = 0;
   publications.forEach((node) => {
     const publication = openAlexPublicationFromNode(node);
     const row = document.createElement("label");
@@ -2900,16 +2933,39 @@ function renderOpenAlexPublicationList() {
       </span>
     `;
     const checkbox = row.querySelector("input");
-    checkbox.checked = checked.has(publication.id) || (!checked.size && selected.has(publication.id));
+    const shouldCheck = checked.has(publication.id) || (!checked.size && selected.has(publication.id));
+    checkbox.checked = shouldCheck && checkedCount < MAX_OPENALEX_SEED_PUBLICATIONS;
+    if (checkbox.checked) checkedCount += 1;
     openAlexPublicationList.appendChild(row);
   });
+  updateOpenAlexPublicationCount();
+}
+
+function setOpenAlexPublicationCheckboxes(checked) {
+  const checkboxes = Array.from(openAlexPublicationList.querySelectorAll('input[type="checkbox"]'));
+  let selectedCount = 0;
+  checkboxes.forEach((input) => {
+    input.checked = checked && selectedCount < MAX_OPENALEX_SEED_PUBLICATIONS;
+    if (input.checked) selectedCount += 1;
+  });
+}
+
+function handleOpenAlexPublicationSelectionChange(event) {
+  if (
+    event.target?.matches?.('input[type="checkbox"]')
+    && event.target.checked
+    && openAlexPublicationList.querySelectorAll("input:checked").length > MAX_OPENALEX_SEED_PUBLICATIONS
+  ) {
+    event.target.checked = false;
+    openAlexStatusText.textContent = `Select up to ${MAX_OPENALEX_SEED_PUBLICATIONS} seed publications.`;
+  }
   updateOpenAlexPublicationCount();
 }
 
 function updateOpenAlexPublicationCount() {
   const total = openAlexPublicationList.querySelectorAll('input[type="checkbox"]').length;
   const selectedCount = openAlexPublicationList.querySelectorAll("input:checked").length;
-  openAlexPublicationCount.textContent = `${selectedCount} selected of ${total}`;
+  openAlexPublicationCount.textContent = `${selectedCount} selected of ${total} (max ${MAX_OPENALEX_SEED_PUBLICATIONS})`;
 }
 
 function selectedOpenAlexModes() {
@@ -2931,7 +2987,7 @@ async function searchOpenAlexWorks() {
   openAlexResultsCount.textContent = "Searching...";
 
   try {
-    const params = new URLSearchParams({ q: query, limit: "25", _: Date.now().toString() });
+    const params = new URLSearchParams({ q: query, _: Date.now().toString() });
     const data = await fetchJson(`/api/openalex/search?${params.toString()}`);
     openAlexResultsCache = data.items || [];
     renderOpenAlexResults();
@@ -2957,11 +3013,17 @@ async function findSimilarOpenAlexWorks() {
   openAlexResultsCount.textContent = "Searching...";
 
   try {
-    const data = await postJson("/api/openalex/similar", { publications, modes, limit: 30 });
+    const data = await postJson("/api/openalex/similar", {
+      publications,
+      modes,
+      strictIntersection: openAlexStrictIntersection.checked
+    });
     openAlexResultsCache = data.items || [];
     renderOpenAlexResults();
     const resolvedCount = (data.resolved || []).length;
-    openAlexStatusText.textContent = `Found ${openAlexResultsCache.length} paper(s) from ${resolvedCount} OpenAlex match(es).`;
+    openAlexStatusText.textContent = openAlexStrictIntersection.checked
+      ? `Found ${openAlexResultsCache.length} shared paper(s) across ${resolvedCount} OpenAlex match(es).`
+      : `Found ${openAlexResultsCache.length} paper(s) from ${resolvedCount} OpenAlex match(es).`;
   } catch (error) {
     openAlexStatusText.textContent = error.message;
   }

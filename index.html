@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260806-zotero-metadata-cache">
+  <link rel="stylesheet" href="style.css?v=20260806-openalex-seed-checkbox-align">
   <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
@@ -720,12 +720,25 @@
             <label><input type="checkbox" id="openAlexModeCites"> Papers that cite selected</label>
             <label><input type="checkbox" id="openAlexModeCitedBy"> Papers cited by selected</label>
           </div>
+          <div class="openalex-strict-row">
+            <label class="openalex-switch">
+              <input type="checkbox" id="openAlexStrictIntersection">
+              <span class="openalex-switch-track" aria-hidden="true"></span>
+              <span>
+                <strong>Only shared results</strong>
+                <small>Require every selected seed to match</small>
+              </span>
+            </label>
+          </div>
           <div class="zotero-search-row openalex-picker-search-row">
             <input id="openAlexPublicationFilterInput" type="search" placeholder="Filter map publication nodes..." autocomplete="off">
+            <select id="openAlexPublicationTagFilter" aria-label="Filter map publications by tag">
+              <option value="">All tags</option>
+            </select>
             <button type="button" id="clearOpenAlexPublicationFilterButton" aria-label="Clear publication filter">Clear</button>
           </div>
           <div class="list-actions openalex-picker-actions">
-            <span>Map publication nodes</span>
+            <span>Map publication nodes <small>Max 8 seeds</small></span>
             <button type="button" id="selectAllOpenAlexPublicationsButton">Select All</button>
             <button type="button" id="deselectAllOpenAlexPublicationsButton">Deselect All</button>
           </div>
@@ -778,6 +791,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260806-zotero-metadata-cache"></script>
+  <script src="app.js?v=20260806-openalex-paging"></script>
 </body>
 </html>
