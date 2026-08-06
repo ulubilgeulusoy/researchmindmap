@@ -161,6 +161,10 @@ let activeOutlineView = "type:Publication";
 let isAdditiveSelectKeyDown = false;
 let copiedNodesClipboard = [];
 let currentDocumentAlignmentCommand = "justifyLeft";
+let activeTagAutocompleteInput = null;
+let activeTagAutocompleteIndex = -1;
+let tagAutocompleteOptions = [];
+let tagAutocompleteMenu = null;
 const nodeSelectionBeforeTap = new Map();
 let zoomControlHideTimer = null;
 let mapZoomBase = 1;
@@ -876,6 +880,8 @@ edgeNotesText.addEventListener("blur", commitEdgeEdit);
 edgeTagsText.addEventListener("focus", beginEdgeEdit);
 edgeTagsText.addEventListener("input", updateSelectedEdgeTags);
 edgeTagsText.addEventListener("blur", commitEdgeEdit);
+initializeTagAutocomplete(fields.tags);
+initializeTagAutocomplete(edgeTagsText);
 edgeColorInput.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthInput.addEventListener("input", updateGlobalConnectionStyle);
 edgeWidthNumber.addEventListener("input", updateGlobalConnectionStyle);
@@ -9503,6 +9509,140 @@ function parseTags(value) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function initializeTagAutocomplete(input) {
+  if (!input) return;
+  input.setAttribute("autocomplete", "off");
+  input.addEventListener("focus", () => updateTagAutocomplete(input));
+  input.addEventListener("input", () => updateTagAutocomplete(input));
+  input.addEventListener("click", () => updateTagAutocomplete(input));
+  input.addEventListener("keydown", handleTagAutocompleteKeydown);
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (activeTagAutocompleteInput === input) hideTagAutocomplete();
+    }, 120);
+  });
+}
+
+function getExistingProjectTags() {
+  const tags = new Map();
+  if (!cy) return [];
+  cy.elements().forEach((element) => {
+    const elementTags = Array.isArray(element.data("tags"))
+      ? element.data("tags")
+      : parseTags(element.data("tags") || "");
+    elementTags.forEach((tag) => {
+      const trimmed = String(tag || "").trim();
+      if (!trimmed) return;
+      const key = trimmed.toLowerCase();
+      if (!tags.has(key)) tags.set(key, trimmed);
+    });
+  });
+  return Array.from(tags.values()).sort((a, b) => a.localeCompare(b));
+}
+
+function getTagAutocompleteToken(input) {
+  const cursor = input.selectionStart ?? input.value.length;
+  const beforeCursor = input.value.slice(0, cursor);
+  const tokenStart = beforeCursor.lastIndexOf(",") + 1;
+  const token = input.value.slice(tokenStart, cursor).trim();
+  return { cursor, tokenStart, token };
+}
+
+function updateTagAutocomplete(input) {
+  if (!input || input.disabled) {
+    hideTagAutocomplete();
+    return;
+  }
+
+  const { token } = getTagAutocompleteToken(input);
+  const existingInInput = new Set(parseTags(input.value).map((tag) => tag.toLowerCase()));
+  const query = token.toLowerCase();
+  tagAutocompleteOptions = getExistingProjectTags()
+    .filter((tag) => !existingInInput.has(tag.toLowerCase()) || tag.toLowerCase() === query)
+    .filter((tag) => !query || tag.toLowerCase().includes(query))
+    .slice(0, 10);
+
+  if (!tagAutocompleteOptions.length) {
+    hideTagAutocomplete();
+    return;
+  }
+
+  activeTagAutocompleteInput = input;
+  activeTagAutocompleteIndex = 0;
+  renderTagAutocompleteMenu();
+}
+
+function renderTagAutocompleteMenu() {
+  if (!activeTagAutocompleteInput) return;
+  if (!tagAutocompleteMenu) {
+    tagAutocompleteMenu = document.createElement("div");
+    tagAutocompleteMenu.className = "tag-autocomplete-menu";
+    document.body.appendChild(tagAutocompleteMenu);
+  }
+
+  tagAutocompleteMenu.innerHTML = "";
+  tagAutocompleteOptions.forEach((tag, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = index === activeTagAutocompleteIndex ? "active" : "";
+    button.textContent = tag;
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      applyTagAutocompleteOption(tag);
+    });
+    tagAutocompleteMenu.appendChild(button);
+  });
+
+  const rect = activeTagAutocompleteInput.getBoundingClientRect();
+  tagAutocompleteMenu.style.left = `${rect.left}px`;
+  tagAutocompleteMenu.style.top = `${rect.bottom + 4}px`;
+  tagAutocompleteMenu.style.width = `${rect.width}px`;
+  tagAutocompleteMenu.hidden = false;
+}
+
+function handleTagAutocompleteKeydown(event) {
+  if (event.target !== activeTagAutocompleteInput || !tagAutocompleteMenu || tagAutocompleteMenu.hidden) return;
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    activeTagAutocompleteIndex = (activeTagAutocompleteIndex + 1) % tagAutocompleteOptions.length;
+    renderTagAutocompleteMenu();
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    activeTagAutocompleteIndex = (activeTagAutocompleteIndex - 1 + tagAutocompleteOptions.length) % tagAutocompleteOptions.length;
+    renderTagAutocompleteMenu();
+  } else if (event.key === "Enter" || event.key === "Tab") {
+    const tag = tagAutocompleteOptions[activeTagAutocompleteIndex];
+    if (!tag) return;
+    event.preventDefault();
+    applyTagAutocompleteOption(tag);
+  } else if (event.key === "Escape") {
+    hideTagAutocomplete();
+  }
+}
+
+function applyTagAutocompleteOption(tag) {
+  const input = activeTagAutocompleteInput;
+  if (!input) return;
+  const { cursor, tokenStart } = getTagAutocompleteToken(input);
+  const beforeToken = input.value.slice(0, tokenStart);
+  const afterToken = input.value.slice(cursor);
+  const prefix = beforeToken && !beforeToken.endsWith(" ") ? `${beforeToken} ` : beforeToken;
+  const separator = afterToken.trimStart().startsWith(",") ? "" : ", ";
+  input.value = `${prefix}${tag}${separator}${afterToken.replace(/^\s+/, "")}`;
+  const nextCursor = `${prefix}${tag}${separator}`.length;
+  input.setSelectionRange(nextCursor, nextCursor);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.focus();
+  hideTagAutocomplete();
+}
+
+function hideTagAutocomplete() {
+  activeTagAutocompleteInput = null;
+  activeTagAutocompleteIndex = -1;
+  tagAutocompleteOptions = [];
+  if (tagAutocompleteMenu) tagAutocompleteMenu.hidden = true;
 }
 
 function normalizePublicationNotes(notes = {}) {

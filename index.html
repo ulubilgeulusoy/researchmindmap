@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260806-jodit-cleanup">
+  <link rel="stylesheet" href="style.css?v=20260806-zoom-300">
   <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
@@ -119,10 +119,10 @@
         </div>
         <div id="mapZoomControl" class="map-zoom-control" aria-label="Map zoom controls">
           <button type="button" id="zoomOutButton" aria-label="Zoom out">-</button>
-          <input id="mapZoomSlider" type="range" min="0.05" max="2" step="0.01" value="1" aria-label="Map zoom level">
+          <input id="mapZoomSlider" type="range" min="0.05" max="3" step="0.01" value="1" aria-label="Map zoom level">
           <button type="button" id="zoomInButton" aria-label="Zoom in">+</button>
           <label class="map-zoom-number">
-            <input id="mapZoomValue" type="number" min="5" max="200" step="1" value="100" aria-label="Map zoom percentage">
+            <input id="mapZoomValue" type="number" min="5" max="300" step="1" value="100" aria-label="Map zoom percentage">
             <span>%</span>
           </label>
         </div>
@@ -790,6 +790,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260806-jodit-cleanup"></script>
+  <script src="app.js?v=20260806-zoom-300"></script>
 </body>
 </html>
