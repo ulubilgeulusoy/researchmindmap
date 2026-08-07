@@ -219,7 +219,6 @@ const nodePrimaryTagControl = document.getElementById("nodePrimaryTagControl");
 const nodePrimaryTag = document.getElementById("nodePrimaryTag");
 const nodeKeywordsPanel = document.getElementById("nodeKeywordsPanel");
 const nodeKeywordsList = document.getElementById("nodeKeywordsList");
-const nodeClusterKeyword = document.getElementById("nodeClusterKeyword");
 const panelSwitch = document.querySelector(".panel-switch");
 const detailsTabButton = document.getElementById("detailsTabButton");
 const formattingTabButton = document.getElementById("formattingTabButton");
@@ -768,7 +767,6 @@ zoomInButton.addEventListener("click", () => {
   stepMapZoom(0.01);
 });
 clusterModeSelect.addEventListener("change", () => applyClusterMode(clusterModeSelect.value));
-nodeClusterKeyword.addEventListener("change", updateSelectedNodeClusterKeyword);
 clusterSpacingSlider.addEventListener("pointerdown", () => {
   if (currentClusterMode === "none") return;
   pushUndoState("cluster spacing");
@@ -1902,7 +1900,6 @@ function addNode(type) {
       url: "",
       tags: [],
       keywords: [],
-      clusterKeyword: "",
       size: DEFAULT_NODE_SIZE,
       textWidth: getTextWidth(DEFAULT_NODE_SIZE),
       zIndex: getNextNodeZIndex(),
@@ -1953,7 +1950,6 @@ function addPublicationFromZotero(item, index = 0, batchOrigin = null, options =
       url,
       tags,
       keywords,
-      clusterKeyword: getValidClusterKeyword(item.clusterKeyword, keywords),
       size: DEFAULT_NODE_SIZE,
       textWidth: getTextWidth(DEFAULT_NODE_SIZE),
       zIndex: getNextNodeZIndex(),
@@ -3092,8 +3088,7 @@ async function recoverZoteroKeywordsForMapNodes() {
         const keywords = normalizeKeywords(item.keywords || []);
         if (!keywords.length) return;
         node.data({
-          keywords,
-          clusterKeyword: getValidClusterKeyword(node.data("clusterKeyword"), keywords)
+          keywords
         });
         updated += 1;
       });
@@ -3125,7 +3120,6 @@ async function recoverZoteroKeywordsForMapNodes() {
           if (!keywords.length) return;
           node.data({
             keywords,
-            clusterKeyword: getValidClusterKeyword(node.data("clusterKeyword"), keywords),
             keywordsSource: "openalex",
             openalex: {
               ...(node.data("openalex") || {}),
@@ -4699,14 +4693,13 @@ function getRealNodes() {
 }
 
 function groupNodesForCluster(mode) {
+  if (mode === "keywords") return groupNodesForKeywordCluster();
   const grouped = new Map();
 
   getRealNodes().forEach((node) => {
     let key = "All nodes";
     if (mode === "tags") {
       key = getPrimaryTagClusterKey(node);
-    } else if (mode === "keywords") {
-      key = getPrimaryKeywordClusterKey(node);
     } else if (mode === "authors") {
       key = getPrimaryAuthorClusterKey(node);
     }
@@ -5743,10 +5736,53 @@ function getPrimaryTagClusterKey(node) {
   return normalizeClusterLabel(tags[0]) || "Untagged";
 }
 
-function getPrimaryKeywordClusterKey(node) {
-  if (node.data("type") !== "Publication") return "No keyword";
-  const keywords = normalizeKeywords(node.data("keywords") || []);
-  return normalizeClusterLabel(getValidClusterKeyword(node.data("clusterKeyword"), keywords)) || "No keyword";
+function groupNodesForKeywordCluster() {
+  const grouped = new Map();
+  const keywordCounts = getGlobalKeywordCounts();
+  getRealNodes().forEach((node) => {
+    const key = getKeywordClusterKey(node, keywordCounts, grouped);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(node);
+  });
+  return Array.from(grouped.entries())
+    .map(([key, nodes]) => ({ key, nodes }))
+    .sort((a, b) => {
+      if (a.key === "Other clusters") return 1;
+      if (b.key === "Other clusters") return -1;
+      if (a.key === "No keyword") return 1;
+      if (b.key === "No keyword") return -1;
+      return b.nodes.length - a.nodes.length || a.key.localeCompare(b.key);
+    });
+}
+
+function getGlobalKeywordCounts() {
+  const counts = new Map();
+  getRealNodes().forEach((node) => {
+    if (node.data("type") !== "Publication") return;
+    normalizeKeywords(node.data("keywords") || []).forEach((keyword) => {
+      const label = normalizeClusterLabel(keyword);
+      if (!label) return;
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+  });
+  return counts;
+}
+
+function getKeywordClusterKey(node, keywordCounts, grouped) {
+  if (node.data("type") !== "Publication") return "Other clusters";
+  const keywords = Array.from(new Set(
+    normalizeKeywords(node.data("keywords") || [])
+      .map(normalizeClusterLabel)
+      .filter(Boolean)
+  ));
+  if (!keywords.length) return "No keyword";
+  const highestCount = Math.max(...keywords.map((keyword) => keywordCounts.get(keyword) || 0));
+  let candidates = keywords.filter((keyword) => (keywordCounts.get(keyword) || 0) === highestCount);
+  if (candidates.length === 1) return candidates[0];
+  const highestAssigned = Math.max(...candidates.map((keyword) => grouped.get(keyword)?.length || 0));
+  candidates = candidates.filter((keyword) => (grouped.get(keyword)?.length || 0) === highestAssigned);
+  if (candidates.length === 1) return candidates[0];
+  return candidates[Math.floor(Math.random() * candidates.length)] || "No keyword";
 }
 
 function getTagClusterKeys(node, options = {}) {
@@ -5758,12 +5794,11 @@ function getTagClusterKeys(node, options = {}) {
 }
 
 function groupNodesForTagBackgrounds() {
+  if (currentClusterMode === "keywords") return groupNodesForKeywordCluster();
   const style = readClusterStyle();
   const grouped = new Map();
   getRealNodes().forEach((node) => {
-    const keys = currentClusterMode === "keywords"
-      ? [getPrimaryKeywordClusterKey(node)]
-      : getTagClusterKeys(node, { useAllTags: style.useAllTags });
+    const keys = getTagClusterKeys(node, { useAllTags: style.useAllTags });
     keys.forEach((key) => {
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key).push(node);
@@ -10195,7 +10230,6 @@ function normalizeElements(elements) {
       normalized.data.tags = Array.isArray(normalized.data.tags) ? normalized.data.tags : parseTags(normalized.data.tags || "");
       normalized.data.primaryTag = getValidPrimaryTag(normalized.data.primaryTag, normalized.data.tags);
       normalized.data.keywords = normalizeKeywords(normalized.data.keywords || normalized.data.zotero?.keywords || []);
-      normalized.data.clusterKeyword = getValidClusterKeyword(normalized.data.clusterKeyword, normalized.data.keywords);
       normalized.data.size = clampNodeSize(normalized.data.size);
       normalized.data.textWidth = getTextWidth(normalized.data.size);
       normalized.data.label = normalized.data.label || "Untitled";
@@ -10238,23 +10272,12 @@ function normalizeKeywords(value) {
   return keywords;
 }
 
-function getValidClusterKeyword(value, keywords = []) {
-  const normalizedKeywords = normalizeKeywords(keywords);
-  if (!normalizedKeywords.length) return "";
-  const selected = String(value || "").trim();
-  const match = normalizedKeywords.find((keyword) => keyword.toLowerCase() === selected.toLowerCase());
-  return match || normalizedKeywords[0];
-}
-
 function renderNodeKeywords(node, isPublication = true) {
-  if (!nodeKeywordsPanel || !nodeKeywordsList || !nodeClusterKeyword) return;
+  if (!nodeKeywordsPanel || !nodeKeywordsList) return;
   const keywords = isPublication ? normalizeKeywords(node?.data("keywords") || []) : [];
-  const clusterKeyword = getValidClusterKeyword(node?.data("clusterKeyword"), keywords);
   nodeKeywordsPanel.hidden = !isPublication;
   nodeKeywordsList.replaceChildren();
-  nodeClusterKeyword.replaceChildren();
   if (!isPublication) {
-    nodeClusterKeyword.disabled = true;
     return;
   }
   if (!keywords.length) {
@@ -10262,12 +10285,7 @@ function renderNodeKeywords(node, isPublication = true) {
     empty.className = "node-keywords-empty";
     empty.textContent = "No keywords from Zotero";
     nodeKeywordsList.appendChild(empty);
-    const option = document.createElement("option");
-    option.value = "";
-    option.textContent = "No keyword";
-    nodeClusterKeyword.appendChild(option);
-    nodeClusterKeyword.disabled = true;
-    node.data({ keywords: [], clusterKeyword: "" });
+    node.data({ keywords: [] });
     return;
   }
   keywords.forEach((keyword) => {
@@ -10275,26 +10293,8 @@ function renderNodeKeywords(node, isPublication = true) {
     chip.className = "node-keyword-chip";
     chip.textContent = keyword;
     nodeKeywordsList.appendChild(chip);
-    const option = document.createElement("option");
-    option.value = keyword;
-    option.textContent = keyword;
-    nodeClusterKeyword.appendChild(option);
   });
-  nodeClusterKeyword.value = clusterKeyword;
-  nodeClusterKeyword.disabled = false;
-  node.data({ keywords, clusterKeyword });
-}
-
-function updateSelectedNodeClusterKeyword() {
-  if (!selectedNode || selectedNode.removed()) return;
-  const keywords = normalizeKeywords(selectedNode.data("keywords") || []);
-  const clusterKeyword = getValidClusterKeyword(nodeClusterKeyword.value, keywords);
-  selectedNode.data("clusterKeyword", clusterKeyword);
-  nodeClusterKeyword.value = clusterKeyword;
-  if (currentClusterMode === "keywords") {
-    applyClusterMode("keywords", { autosave: false });
-  }
-  scheduleAutosave("Autosaved publication cluster keyword.");
+  node.data({ keywords });
 }
 
 function initializeTagAutocomplete(input) {
@@ -10540,8 +10540,6 @@ function clearForm() {
   nodePrimaryTag.disabled = true;
   nodeKeywordsPanel.hidden = true;
   nodeKeywordsList.replaceChildren();
-  nodeClusterKeyword.replaceChildren();
-  nodeClusterKeyword.disabled = true;
   fields.tags.value = "";
   fields.size.value = DEFAULT_NODE_SIZE;
   fields.sizeNumber.value = DEFAULT_NODE_SIZE;
