@@ -80,6 +80,7 @@ For the full publication workflow:
 - OpenAlex discovery does not require an API key or local install, but the FastAPI host must have internet access.
 - Adding OpenAlex results directly to Zotero requires a Zotero web API key with write access. Enter the key in the OpenAlex Zotero API Access dialog; My Library writes also require your numeric Zotero user ID, while group-library writes use the group ID from Zotero metadata.
 - Zotero tags and keyword-style metadata are imported into the app's publication Keywords area. Normal Zotero imports leave app Tags empty; OpenAlex-created nodes keep the app tag `OpenAlex`.
+- OpenAlex-to-Zotero imports are metadata-first. To use those nodes with Open PDF, PDF annotations, or GROBID citation analysis, use Zotero Desktop's Find Available PDF/Find Full Text action or manually attach PDFs to the Zotero items.
 - GROBID requires a separate local service. Docker Desktop is recommended. With Docker running, use:
 
 ```sh
