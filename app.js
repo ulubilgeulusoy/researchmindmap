@@ -1997,6 +1997,86 @@ function addPublicationFromZotero(item, index = 0, batchOrigin = null, options =
   });
 }
 
+function normalizePublicationDoi(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^https?:\/\/(dx\.)?doi\.org\//i, "")
+    .replace(/^doi:/i, "")
+    .toLowerCase();
+}
+
+function normalizePublicationTitle(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u201C\u201D]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findExistingPublicationNodeForItem(item) {
+  const itemKey = item.zoteroKey || item.itemKey || "";
+  const libraryType = item.libraryType || "user";
+  const libraryId = Number(item.libraryId || 0);
+  const doi = normalizePublicationDoi(item.doi);
+  const title = normalizePublicationTitle(item.title);
+  let titleMatch = null;
+  const nodes = getRealNodes().filter((node) => node.data("type") === "Publication");
+  for (const node of nodes) {
+    const zotero = node.data("zotero") || {};
+    if (itemKey && zotero.itemKey === itemKey && (zotero.libraryType || "user") === libraryType && Number(zotero.libraryId || 0) === libraryId) {
+      return node;
+    }
+  }
+  for (const node of nodes) {
+    const zotero = node.data("zotero") || {};
+    const nodeDoi = normalizePublicationDoi(zotero.doi || node.data("doi") || "");
+    if (doi && nodeDoi && doi === nodeDoi) return node;
+  }
+  for (const node of nodes) {
+    const nodeTitle = normalizePublicationTitle(node.data("label") || "");
+    if (title && nodeTitle && title === nodeTitle) {
+      titleMatch = node;
+      break;
+    }
+  }
+  return titleMatch;
+}
+
+function updateExistingPublicationNodeFromItem(node, item, options = {}) {
+  if (!node || !node.length) return;
+  const notes = normalizePublicationNotes(node.data("publicationNotes"));
+  const nextUrl = node.data("url") || item.url || "";
+  const nextCitation = notes.citation || item.citation || "";
+  const nextAbstract = notes.abstract || item.abstract || "";
+  const existingTags = Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
+  const nextTags = options.tags === "openalex" ? normalizeKeywords([...existingTags, "OpenAlex"]) : existingTags;
+  const nextKeywords = normalizeKeywords([...(node.data("keywords") || []), ...(item.keywords || [])]);
+  node.data({
+    label: node.data("label") || item.title || "Untitled Zotero Item",
+    url: nextUrl,
+    tags: nextTags,
+    keywords: nextKeywords,
+    zotero: {
+      ...(node.data("zotero") || {}),
+      itemKey: item.zoteroKey || node.data("zotero")?.itemKey,
+      libraryType: item.libraryType || node.data("zotero")?.libraryType || "user",
+      libraryId: item.libraryId ?? node.data("zotero")?.libraryId ?? 0,
+      libraryName: item.libraryName || node.data("zotero")?.libraryName || "My Library",
+      itemType: item.itemType || node.data("zotero")?.itemType,
+      doi: item.doi || node.data("zotero")?.doi,
+      authors: item.authors || node.data("zotero")?.authors || [],
+      year: item.year || node.data("zotero")?.year || ""
+    },
+    publicationNotes: normalizePublicationNotes({
+      ...notes,
+      citation: nextCitation,
+      url: nextUrl,
+      abstract: nextAbstract
+    })
+  });
+}
+
 function findEmptyPublicationBatchOrigin(count) {
   const columns = Math.min(5, Math.max(1, count));
   const rows = Math.max(1, Math.ceil(count / columns));
@@ -3535,9 +3615,23 @@ async function importSelectedOpenAlexResultsToZotero() {
     setOpenAlexLoading(true, "Adding publication nodes to an open area of the map...", "Adding OpenAlex results");
     pushUndoState("import OpenAlex results");
     let lastNode = null;
-    const batchOrigin = findEmptyPublicationBatchOrigin(items.length);
-    items.forEach((item, index) => {
+    let createdNodeCount = 0;
+    let reusedNodeCount = 0;
+    const newItems = [];
+    items.forEach((item) => {
+      const existingNode = findExistingPublicationNodeForItem(item);
+      if (existingNode) {
+        updateExistingPublicationNodeFromItem(existingNode, item, { tags: "openalex" });
+        lastNode = existingNode;
+        reusedNodeCount += 1;
+      } else {
+        newItems.push(item);
+      }
+    });
+    const batchOrigin = findEmptyPublicationBatchOrigin(newItems.length);
+    newItems.forEach((item, index) => {
       lastNode = addPublicationFromZotero(item, index, batchOrigin, { tags: "openalex" });
+      createdNodeCount += 1;
     });
     if (lastNode) {
       cy.$(":selected").unselect();
@@ -3552,7 +3646,7 @@ async function importSelectedOpenAlexResultsToZotero() {
     cy.fit(undefined, 70);
     scheduleAutosave("Autosaved OpenAlex imports.");
     if (data.collectionCreated) await loadZoteroCollections();
-    openAlexStatusText.textContent = `Created ${data.createdCount || 0} Zotero item(s), reused ${data.existingCount || 0}, and added ${items.length} publication node(s). ${openAlexImportDiagnosticsText(data.diagnostics)}`;
+    openAlexStatusText.textContent = `Created ${data.createdCount || 0} Zotero item(s), reused ${data.existingCount || 0}, added ${createdNodeCount} publication node(s), and updated ${reusedNodeCount} existing node(s). ${openAlexImportDiagnosticsText(data.diagnostics)}`;
   } catch (error) {
     openAlexStatusText.textContent = error.message;
   } finally {
