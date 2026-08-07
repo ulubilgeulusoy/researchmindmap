@@ -79,7 +79,14 @@
           <button type="button" id="zoteroButton">Zotero</button>
           <button type="button" id="openAlexButton">OpenAlex</button>
           <button type="button" id="grobidButton">GROBID</button>
+        </div>
+      </details>
+
+      <details class="toolbar-menu">
+        <summary>Tools</summary>
+        <div class="toolbar-menu-panel">
           <button type="button" id="recoverZoteroKeywordsButton">Keyword Recover</button>
+          <button type="button" id="tagEditorButton">Tag Editor</button>
         </div>
       </details>
 
@@ -928,6 +935,38 @@
         <div class="settings-actions">
           <button type="button" id="confirmKeywordButton">Apply</button>
         </div>
+      </div>
+    </section>
+
+    <section id="tagEditorPanel" class="node-type-settings-panel" hidden>
+      <div class="tag-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="tagEditorTitle">
+        <div class="node-type-settings-header">
+          <div>
+            <h2 id="tagEditorTitle">Tag Editor</h2>
+            <p id="tagEditorStatus">Manage app-side tags for map nodes.</p>
+          </div>
+          <button type="button" id="closeTagEditorButton">Close</button>
+        </div>
+        <div class="tag-editor-toolbar">
+          <input id="tagEditorSearch" type="search" placeholder="Search nodes or tags" autocomplete="off">
+          <select id="tagEditorTypeFilter" aria-label="Filter node type">
+            <option value="">All node types</option>
+          </select>
+          <select id="tagEditorTagFilter" aria-label="Filter tag">
+            <option value="">All tags</option>
+          </select>
+        </div>
+        <div class="tag-editor-actions">
+          <button type="button" id="tagEditorSelectAllButton">Select Visible</button>
+          <button type="button" id="tagEditorDeselectAllButton">Deselect All</button>
+          <input id="tagEditorTagInput" type="text" placeholder="Tag">
+          <input id="tagEditorRenameInput" type="text" placeholder="New tag for rename">
+          <button type="button" id="tagEditorAddButton">Add</button>
+          <button type="button" id="tagEditorRemoveButton">Remove</button>
+          <button type="button" id="tagEditorRenameButton">Rename</button>
+          <button type="button" id="tagEditorClearButton">Clear</button>
+        </div>
+        <div id="tagEditorList" class="tag-editor-list"></div>
       </div>
     </section>
 

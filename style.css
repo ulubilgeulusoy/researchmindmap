@@ -2548,6 +2548,103 @@ button:disabled {
   padding: 8px 10px;
 }
 
+.tag-editor-dialog {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 12px;
+  width: min(980px, calc(100vw - 34px));
+  max-height: min(760px, calc(100vh - 34px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(32, 38, 50, 0.2);
+}
+
+.tag-editor-toolbar,
+.tag-editor-actions {
+  display: grid;
+  gap: 8px;
+}
+
+.tag-editor-toolbar {
+  grid-template-columns: minmax(180px, 1fr) 170px 170px;
+}
+
+.tag-editor-actions {
+  grid-template-columns: auto auto minmax(140px, 1fr) minmax(150px, 1fr) auto auto auto auto;
+  align-items: center;
+}
+
+.tag-editor-toolbar input,
+.tag-editor-toolbar select,
+.tag-editor-actions input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.tag-editor-actions button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.tag-editor-list {
+  min-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.tag-editor-row {
+  display: grid;
+  grid-template-columns: 28px minmax(180px, 1fr) minmax(220px, 1.2fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+
+.tag-editor-row:last-child {
+  border-bottom: 0;
+}
+
+.tag-editor-node-main {
+  display: grid;
+  gap: 3px;
+}
+
+.tag-editor-node-main span,
+.tag-editor-tags em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.tag-editor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.tag-editor-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8eef7;
+  color: #1f2937;
+  font-size: 12px;
+}
+
 .range-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 76px;
@@ -4371,6 +4468,12 @@ button:disabled {
   }
 
   .publication-notes-form {
+    grid-template-columns: 1fr;
+  }
+
+  .tag-editor-toolbar,
+  .tag-editor-actions,
+  .tag-editor-row {
     grid-template-columns: 1fr;
   }
 }

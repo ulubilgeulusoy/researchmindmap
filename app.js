@@ -188,6 +188,7 @@ let nodeTypes = readNodeTypes();
 let presenceTimer = null;
 let presenceLeaveSent = false;
 let keywordModalMode = "add";
+let tagEditorSelectedIds = new Set();
 const presenceClientId = getPresenceClientId();
 
 const fields = {
@@ -397,6 +398,22 @@ const zoteroCollectionSelect = document.getElementById("zoteroCollectionSelect")
 const zoteroSubcollectionSelect = document.getElementById("zoteroSubcollectionSelect");
 const zoteroItemsList = document.getElementById("zoteroItemsList");
 const recoverZoteroKeywordsButton = document.getElementById("recoverZoteroKeywordsButton");
+const tagEditorButton = document.getElementById("tagEditorButton");
+const tagEditorPanel = document.getElementById("tagEditorPanel");
+const closeTagEditorButton = document.getElementById("closeTagEditorButton");
+const tagEditorStatus = document.getElementById("tagEditorStatus");
+const tagEditorSearch = document.getElementById("tagEditorSearch");
+const tagEditorTypeFilter = document.getElementById("tagEditorTypeFilter");
+const tagEditorTagFilter = document.getElementById("tagEditorTagFilter");
+const tagEditorSelectAllButton = document.getElementById("tagEditorSelectAllButton");
+const tagEditorDeselectAllButton = document.getElementById("tagEditorDeselectAllButton");
+const tagEditorTagInput = document.getElementById("tagEditorTagInput");
+const tagEditorRenameInput = document.getElementById("tagEditorRenameInput");
+const tagEditorAddButton = document.getElementById("tagEditorAddButton");
+const tagEditorRemoveButton = document.getElementById("tagEditorRemoveButton");
+const tagEditorRenameButton = document.getElementById("tagEditorRenameButton");
+const tagEditorClearButton = document.getElementById("tagEditorClearButton");
+const tagEditorList = document.getElementById("tagEditorList");
 const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
 const zoteroSortSelect = document.getElementById("zoteroSortSelect");
@@ -834,6 +851,23 @@ document.getElementById("selectAllZoteroItemsButton").addEventListener("click", 
 document.getElementById("deselectAllZoteroItemsButton").addEventListener("click", () => setPanelCheckboxes(zoteroItemsList, false));
 document.getElementById("importZoteroItemsButton").addEventListener("click", importSelectedZoteroItems);
 recoverZoteroKeywordsButton.addEventListener("click", recoverZoteroKeywordsForMapNodes);
+tagEditorButton.addEventListener("click", openTagEditor);
+closeTagEditorButton.addEventListener("click", closeTagEditor);
+tagEditorPanel.addEventListener("click", (event) => {
+  if (event.target === tagEditorPanel) closeTagEditor();
+});
+tagEditorSearch.addEventListener("input", renderTagEditorList);
+tagEditorTypeFilter.addEventListener("change", renderTagEditorList);
+tagEditorTagFilter.addEventListener("change", renderTagEditorList);
+tagEditorSelectAllButton.addEventListener("click", selectVisibleTagEditorRows);
+tagEditorDeselectAllButton.addEventListener("click", () => {
+  tagEditorSelectedIds.clear();
+  renderTagEditorList();
+});
+tagEditorAddButton.addEventListener("click", () => applyTagEditorAction("add"));
+tagEditorRemoveButton.addEventListener("click", () => applyTagEditorAction("remove"));
+tagEditorRenameButton.addEventListener("click", () => applyTagEditorAction("rename"));
+tagEditorClearButton.addEventListener("click", () => applyTagEditorAction("clear"));
 zoteroLibrarySelect.addEventListener("change", () => {
   zoteroSearchInput.value = "";
   zoteroItemsCache = [];
@@ -10371,6 +10405,159 @@ function parseTags(value) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function normalizeTagList(value) {
+  return parseTags(Array.isArray(value) ? value.join(",") : value);
+}
+
+function openTagEditor() {
+  tagEditorSelectedIds = new Set();
+  syncTagEditorFilters();
+  tagEditorPanel.hidden = false;
+  renderTagEditorList();
+  tagEditorSearch.focus();
+}
+
+function closeTagEditor() {
+  tagEditorPanel.hidden = true;
+}
+
+function getTagEditorNodes() {
+  return getRealNodes().sort((a, b) => {
+    const typeCompare = (a.data("type") || "").localeCompare(b.data("type") || "");
+    return typeCompare || (a.data("label") || "").localeCompare(b.data("label") || "");
+  });
+}
+
+function syncTagEditorFilters() {
+  const currentType = tagEditorTypeFilter.value;
+  const currentTag = tagEditorTagFilter.value;
+  tagEditorTypeFilter.innerHTML = '<option value="">All node types</option>';
+  getNodeTypeNames().forEach((type) => {
+    const option = document.createElement("option");
+    option.value = type;
+    option.textContent = type;
+    tagEditorTypeFilter.appendChild(option);
+  });
+  tagEditorTypeFilter.value = getNodeTypeNames().includes(currentType) ? currentType : "";
+
+  const tags = getExistingProjectTags();
+  tagEditorTagFilter.innerHTML = '<option value="">All tags</option>';
+  tags.forEach((tag) => {
+    const option = document.createElement("option");
+    option.value = tag;
+    option.textContent = tag;
+    tagEditorTagFilter.appendChild(option);
+  });
+  tagEditorTagFilter.value = tags.includes(currentTag) ? currentTag : "";
+}
+
+function getVisibleTagEditorNodes() {
+  const query = tagEditorSearch.value.trim().toLowerCase();
+  const typeFilter = tagEditorTypeFilter.value;
+  const tagFilter = tagEditorTagFilter.value.toLowerCase();
+  return getTagEditorNodes().filter((node) => {
+    const tags = normalizeTagList(node.data("tags") || []);
+    if (typeFilter && node.data("type") !== typeFilter) return false;
+    if (tagFilter && !tags.some((tag) => tag.toLowerCase() === tagFilter)) return false;
+    if (!query) return true;
+    return [
+      node.data("label") || "",
+      node.data("type") || "",
+      tags.join(" ")
+    ].join(" ").toLowerCase().includes(query);
+  });
+}
+
+function renderTagEditorList() {
+  const nodes = getVisibleTagEditorNodes();
+  tagEditorList.innerHTML = "";
+  tagEditorStatus.textContent = `${nodes.length} visible node(s), ${tagEditorSelectedIds.size} selected.`;
+  if (!nodes.length) {
+    tagEditorList.textContent = "No nodes match the current filters.";
+    return;
+  }
+  nodes.forEach((node) => {
+    const row = document.createElement("label");
+    row.className = "tag-editor-row";
+    const tags = normalizeTagList(node.data("tags") || []);
+    row.innerHTML = `
+      <input type="checkbox" value="${escapeHtml(node.id())}" ${tagEditorSelectedIds.has(node.id()) ? "checked" : ""}>
+      <span class="tag-editor-node-main">
+        <strong>${escapeHtml(node.data("label") || "Untitled")}</strong>
+        <span>${escapeHtml(node.data("type") || "Node")}</span>
+      </span>
+      <span class="tag-editor-tags">${tags.length ? tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("") : '<em>No tags</em>'}</span>
+    `;
+    const checkbox = row.querySelector("input");
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) tagEditorSelectedIds.add(node.id());
+      else tagEditorSelectedIds.delete(node.id());
+      tagEditorStatus.textContent = `${getVisibleTagEditorNodes().length} visible node(s), ${tagEditorSelectedIds.size} selected.`;
+    });
+    tagEditorList.appendChild(row);
+  });
+}
+
+function selectVisibleTagEditorRows() {
+  getVisibleTagEditorNodes().forEach((node) => tagEditorSelectedIds.add(node.id()));
+  renderTagEditorList();
+}
+
+function getSelectedTagEditorNodes() {
+  return getRealNodes().filter((node) => tagEditorSelectedIds.has(node.id()));
+}
+
+function applyTagEditorAction(action) {
+  const nodes = getSelectedTagEditorNodes();
+  if (!nodes.length) {
+    tagEditorStatus.textContent = "Select at least one node.";
+    return;
+  }
+  const tag = tagEditorTagInput.value.trim();
+  const nextTag = tagEditorRenameInput.value.trim();
+  if ((action === "add" || action === "remove" || action === "rename") && !tag) {
+    tagEditorStatus.textContent = "Enter a tag.";
+    return;
+  }
+  if (action === "rename" && !nextTag) {
+    tagEditorStatus.textContent = "Enter a new tag for rename.";
+    return;
+  }
+  pushUndoState("tag editor");
+  let changed = 0;
+  nodes.forEach((node) => {
+    const currentTags = normalizeTagList(node.data("tags") || []);
+    let nextTags = currentTags;
+    if (action === "add") {
+      nextTags = normalizeTagList([...currentTags, tag]);
+    } else if (action === "remove") {
+      nextTags = currentTags.filter((item) => item.toLowerCase() !== tag.toLowerCase());
+    } else if (action === "rename") {
+      nextTags = normalizeTagList(currentTags.map((item) => item.toLowerCase() === tag.toLowerCase() ? nextTag : item));
+    } else if (action === "clear") {
+      nextTags = [];
+    }
+    if (nextTags.join("\u0001") === currentTags.join("\u0001")) return;
+    node.data({
+      tags: nextTags,
+      primaryTag: getValidPrimaryTag(node.data("primaryTag"), nextTags)
+    });
+    changed += 1;
+  });
+  if (selectedNode && !selectedNode.removed()) {
+    fields.tags.value = normalizeTagList(selectedNode.data("tags") || []).join(", ");
+    updateDocumentPrimaryTagControl();
+  }
+  syncTagEditorFilters();
+  renderTagEditorList();
+  renderOpenAlexPublicationTagFilter();
+  renderDocumentOutline();
+  if (currentClusterMode === "tags") applyClusterMode("tags", { autosave: false });
+  scheduleAutosave("Autosaved tag editor changes.");
+  tagEditorStatus.textContent = `Updated ${changed} node(s).`;
+  setStatus(`Updated tags for ${changed} node(s).`);
 }
 
 function normalizeKeywords(value) {
