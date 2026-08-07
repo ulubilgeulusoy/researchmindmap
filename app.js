@@ -408,7 +408,6 @@ const tagEditorTagFilter = document.getElementById("tagEditorTagFilter");
 const tagEditorSelectAllButton = document.getElementById("tagEditorSelectAllButton");
 const tagEditorDeselectAllButton = document.getElementById("tagEditorDeselectAllButton");
 const tagEditorTagInput = document.getElementById("tagEditorTagInput");
-const tagEditorRenameInput = document.getElementById("tagEditorRenameInput");
 const tagEditorAddButton = document.getElementById("tagEditorAddButton");
 const tagEditorRemoveButton = document.getElementById("tagEditorRemoveButton");
 const tagEditorRenameButton = document.getElementById("tagEditorRenameButton");
@@ -10515,14 +10514,14 @@ function applyTagEditorAction(action) {
     tagEditorStatus.textContent = "Select at least one node.";
     return;
   }
-  const tag = tagEditorTagInput.value.trim();
-  const nextTag = tagEditorRenameInput.value.trim();
-  if ((action === "add" || action === "remove" || action === "rename") && !tag) {
-    tagEditorStatus.textContent = "Enter a tag.";
+  const filterTag = tagEditorTagFilter.value.trim();
+  const textTag = tagEditorTagInput.value.trim();
+  if ((action === "remove" || action === "rename") && !filterTag) {
+    tagEditorStatus.textContent = "Select a tag filter first.";
     return;
   }
-  if (action === "rename" && !nextTag) {
-    tagEditorStatus.textContent = "Enter a new tag for rename.";
+  if ((action === "add" || action === "rename") && !textTag) {
+    tagEditorStatus.textContent = "Enter tag text.";
     return;
   }
   pushUndoState("tag editor");
@@ -10531,11 +10530,11 @@ function applyTagEditorAction(action) {
     const currentTags = normalizeTagList(node.data("tags") || []);
     let nextTags = currentTags;
     if (action === "add") {
-      nextTags = normalizeTagList([...currentTags, tag]);
+      nextTags = normalizeTagList([...currentTags, textTag]);
     } else if (action === "remove") {
-      nextTags = currentTags.filter((item) => item.toLowerCase() !== tag.toLowerCase());
+      nextTags = currentTags.filter((item) => item.toLowerCase() !== filterTag.toLowerCase());
     } else if (action === "rename") {
-      nextTags = normalizeTagList(currentTags.map((item) => item.toLowerCase() === tag.toLowerCase() ? nextTag : item));
+      nextTags = normalizeTagList(currentTags.map((item) => item.toLowerCase() === filterTag.toLowerCase() ? textTag : item));
     } else if (action === "clear") {
       nextTags = [];
     }

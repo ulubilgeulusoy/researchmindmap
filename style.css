@@ -2572,7 +2572,7 @@ button:disabled {
 }
 
 .tag-editor-actions {
-  grid-template-columns: auto auto minmax(140px, 1fr) minmax(150px, 1fr) auto auto auto auto;
+  grid-template-columns: auto auto minmax(220px, 1fr) auto auto auto auto;
   align-items: center;
 }
 
