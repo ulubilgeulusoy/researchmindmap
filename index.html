@@ -59,6 +59,7 @@
             <select id="clusterModeSelect" aria-label="Cluster map nodes">
               <option value="none">No Cluster</option>
               <option value="tags">By Tags</option>
+              <option value="keywords">By Keywords</option>
               <option value="authors">By Author</option>
               <option value="connections">By Connections</option>
             </select>
@@ -78,6 +79,7 @@
           <button type="button" id="zoteroButton">Zotero</button>
           <button type="button" id="openAlexButton">OpenAlex</button>
           <button type="button" id="grobidButton">GROBID</button>
+          <button type="button" id="recoverZoteroKeywordsButton">Keyword Recover</button>
         </div>
       </details>
 
@@ -234,6 +236,24 @@
               Tags
               <input id="nodeTags" name="tags" type="text" placeholder="prompting, synthesis" disabled>
             </label>
+
+            <label id="nodePrimaryTagControl" hidden>
+              Cluster tag
+              <select id="nodePrimaryTag" disabled>
+                <option value="">First tag</option>
+              </select>
+            </label>
+
+            <div id="nodeKeywordsPanel" class="node-keywords-panel" hidden>
+              <label>
+                Keywords
+                <div id="nodeKeywordsList" class="node-keywords-list" aria-live="polite"></div>
+              </label>
+              <label>
+                Cluster keyword
+                <select id="nodeClusterKeyword" disabled></select>
+              </label>
+            </div>
 
             <button type="button" id="openNotesButton" disabled>Open Notes</button>
             <button type="button" id="openLinkButton" disabled>Open Link</button>
@@ -436,12 +456,6 @@
 
         <div class="document-page-scroll">
           <article class="document-page">
-            <label id="documentPrimaryTagControl" class="document-primary-tag-control" hidden>
-              <span>Group this node by</span>
-              <select id="documentPrimaryTag">
-                <option value="">First tag</option>
-              </select>
-            </label>
             <textarea id="documentSectionTitle" class="document-title-input" rows="1" placeholder="Select a node section" disabled></textarea>
             <div id="documentEditor" class="document-editor" contenteditable="false">
               Select a node from the outline or the map to edit its linked document section.
@@ -807,17 +821,6 @@
             <div id="openAlexResultsList" class="zotero-items-list openalex-results-list"></div>
           </div>
       </div>
-      <div id="openAlexLoadingOverlay" class="openalex-loading-overlay" hidden>
-        <div class="openalex-loading-dialog">
-          <strong>Finding similar papers</strong>
-          <div class="grobid-progress running">
-            <div class="grobid-progress-track">
-              <div class="grobid-progress-bar"></div>
-            </div>
-          </div>
-          <p id="openAlexLoadingText">Checking Zotero targets and searching OpenAlex...</p>
-        </div>
-      </div>
       <div id="openAlexCredentialOverlay" class="openalex-loading-overlay" hidden>
         <div class="openalex-credential-dialog">
           <div class="openalex-credential-header">
@@ -891,6 +894,18 @@
       </div>
       <div id="grobidSuggestionsList" class="zotero-items-list"></div>
     </section>
+
+    <div id="openAlexLoadingOverlay" class="openalex-loading-overlay app-loading-overlay" hidden>
+      <div class="openalex-loading-dialog">
+        <strong id="openAlexLoadingTitle">Processing</strong>
+        <div class="grobid-progress running">
+          <div class="grobid-progress-track">
+            <div class="grobid-progress-bar"></div>
+          </div>
+        </div>
+        <p id="openAlexLoadingText">Working...</p>
+      </div>
+    </div>
 
   </div>
   <script src="app.js?v=20260806-pdf-format-defaults"></script>

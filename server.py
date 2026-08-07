@@ -96,6 +96,7 @@ class OpenAlexImportItem(BaseModel):
     type: str = ""
     citedByCount: int = 0
     abstract: str = ""
+    keywords: list[str] = []
 
 
 class OpenAlexImportRequest(BaseModel):
@@ -105,6 +106,24 @@ class OpenAlexImportRequest(BaseModel):
     zoteroApiKey: str = ""
     zoteroUserId: str = ""
     items: list[OpenAlexImportItem]
+
+
+class ZoteroKeywordRecoverRequest(BaseModel):
+    library: str = "user:0"
+    itemKeys: list[str] = []
+    zoteroApiKey: str = ""
+    zoteroUserId: str = ""
+
+
+class KeywordEnrichmentPublication(BaseModel):
+    zoteroKey: str = ""
+    title: str = ""
+    doi: str = ""
+    year: str = ""
+
+
+class OpenAlexKeywordEnrichRequest(BaseModel):
+    publications: list[KeywordEnrichmentPublication]
 
 
 class PdfPrepareRequest(BaseModel):
@@ -551,6 +570,47 @@ def zotero_tags(connection: sqlite3.Connection, item_id: int) -> list[str]:
     return [row["name"] for row in rows if row["name"]]
 
 
+def split_keyword_text(value: Any) -> list[str]:
+    if isinstance(value, list):
+        raw_parts = []
+        for item in value:
+            raw_parts.extend(re.split(r"[;,]\s*|\n+", str(item or "")))
+    else:
+        raw_parts = re.split(r"[;,]\s*|\n+", str(value or ""))
+    keywords = []
+    seen = set()
+    for part in raw_parts:
+        keyword = re.sub(r"\s+", " ", str(part or "")).strip()
+        if not keyword:
+            continue
+        key = keyword.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        keywords.append(keyword)
+    return keywords
+
+
+def zotero_keywords_from_data(data: dict[str, Any]) -> list[str]:
+    candidates: list[str] = []
+    candidates.extend(
+        tag.get("tag")
+        for tag in data.get("tags", [])
+        if isinstance(tag, dict) and tag.get("tag") and tag.get("tag") != "OpenAlex"
+    )
+    for key in ("keywords", "subject"):
+        value = data.get(key)
+        if isinstance(value, list):
+            candidates.extend(str(item) for item in value)
+        elif value:
+            candidates.extend(split_keyword_text(value))
+    extra = data.get("extra") or ""
+    for line in str(extra).splitlines():
+        if re.match(r"^\s*(keywords?|subject)\s*:", line, re.I):
+            candidates.extend(split_keyword_text(line.split(":", 1)[1]))
+    return split_keyword_text(candidates)
+
+
 def apa_like_citation(authors: list[str], year: str, title: str) -> str:
     author_text = ", ".join(authors[:3])
     if len(authors) > 3:
@@ -586,6 +646,11 @@ def publication_from_db_row(connection: sqlite3.Connection, row: sqlite3.Row) ->
         "abstract": values.get("abstractNote") or "",
         "citation": apa_like_citation(authors, year, title),
         "tags": zotero_tags(connection, row["itemID"]),
+        "keywords": split_keyword_text([
+            *[tag for tag in zotero_tags(connection, row["itemID"]) if tag != "OpenAlex"],
+            values.get("keywords") or "",
+            values.get("subject") or "",
+        ]),
     }
 
 
@@ -1422,6 +1487,19 @@ def openalex_best_url(work: dict[str, Any]) -> str:
     return work.get("id") or ""
 
 
+def openalex_keywords(work: dict[str, Any]) -> list[str]:
+    concepts = work.get("concepts") or []
+    ranked = []
+    for concept in concepts:
+        name = concept.get("display_name")
+        if not name:
+            continue
+        score = concept.get("score") or 0
+        ranked.append((score, name))
+    ranked.sort(key=lambda entry: entry[0], reverse=True)
+    return split_keyword_text([name for _, name in ranked[:8]])
+
+
 def openalex_result(work: dict[str, Any], relationships: Optional[list[dict[str, str]]] = None) -> dict[str, Any]:
     primary = work.get("primary_location") or {}
     source = primary.get("source") or {}
@@ -1442,6 +1520,7 @@ def openalex_result(work: dict[str, Any], relationships: Optional[list[dict[str,
         "type": work.get("type") or "",
         "citedByCount": work.get("cited_by_count") or 0,
         "abstract": abstract_from_inverted_index(work.get("abstract_inverted_index")),
+        "keywords": openalex_keywords(work),
         "relationships": relationships or [],
     }
 
@@ -1464,6 +1543,39 @@ def openalex_resolve_work(publication: MapPublication) -> Optional[str]:
         if results:
             return openalex_short_id(results[0].get("id") or "")
     return None
+
+
+def openalex_work_for_keywords(publication: KeywordEnrichmentPublication) -> Optional[dict[str, Any]]:
+    select = "id,display_name,publication_year,doi,concepts"
+    doi = normalize_doi(publication.doi)
+    if doi:
+        try:
+            return openalex_get(
+                f"/works/{quote(f'https://doi.org/{doi}', safe=':/')}",
+                {"select": select},
+            )
+        except HTTPException:
+            pass
+    title = publication.title.strip()
+    if not title:
+        return None
+    data = openalex_get(
+        "/works",
+        {
+            "search": title,
+            "per-page": 1,
+            "select": select,
+        },
+    )
+    results = data.get("results") or []
+    if not results:
+        return None
+    result = results[0]
+    query_title = normalize_title(title)
+    result_title = normalize_title(result.get("display_name") or "")
+    if query_title and result_title and (query_title == result_title or query_title in result_title or result_title in query_title):
+        return result
+    return result if doi else None
 
 
 def openalex_work_reference_ids(work: dict[str, Any]) -> set[str]:
@@ -1662,6 +1774,7 @@ def publication_from_item(item: dict[str, Any]) -> Optional[dict[str, Any]]:
         "abstract": data.get("abstractNote") or "",
         "citation": strip_html(citation),
         "tags": [tag.get("tag") for tag in data.get("tags", []) if tag.get("tag")],
+        "keywords": zotero_keywords_from_data(data),
     }
 
 
@@ -1813,6 +1926,8 @@ def zotero_item_from_openalex(item: OpenAlexImportItem, collection_key: str = ""
         extra_lines.append(f"OpenAlex ID: {item.openalexId}")
     if item.citedByCount:
         extra_lines.append(f"OpenAlex cited by count: {item.citedByCount}")
+    if item.keywords:
+        extra_lines.append(f"Keywords: {'; '.join(split_keyword_text(item.keywords))}")
     zotero_item = {
         "itemType": "journalArticle",
         "title": item.title or "Untitled OpenAlex work",
@@ -1847,6 +1962,25 @@ def zotero_items_by_keys(library_value: str, keys: list[str], api_key: str = "",
         max_items=len(keys),
         api_key=api_key,
     )
+    publications = [publication_from_item(item) for item in items]
+    by_key = {publication.get("zoteroKey"): publication for publication in publications if publication}
+    return [by_key[key] for key in keys if key in by_key]
+
+
+def zotero_local_items_by_keys(library_value: str, keys: list[str]) -> list[dict[str, Any]]:
+    if not keys:
+        return []
+    local_library_value = "user:0" if library_value.startswith("user:") else library_value
+    library = parse_zotero_library(local_library_value)
+    items = []
+    for key in keys:
+        try:
+            items.append(zotero_get(
+                f"{library['path']}/items/{quote(key)}",
+                {"format": "json", "include": "data,bib,citation", "style": "apa"},
+            ))
+        except HTTPException:
+            continue
     publications = [publication_from_item(item) for item in items]
     by_key = {publication.get("zoteroKey"): publication for publication in publications if publication}
     return [by_key[key] for key in keys if key in by_key]
@@ -1997,6 +2131,115 @@ def zotero_items(
         return {"items": db_items(collection, limit, query, includeSubcollections), "mode": "sqlite"}
 
 
+@app.post("/api/zotero/recover-keywords")
+def zotero_recover_keywords(payload: ZoteroKeywordRecoverRequest, response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    keys = []
+    seen = set()
+    for key in payload.itemKeys:
+        cleaned = re.sub(r"\s+", "", key or "").strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        keys.append(cleaned)
+    if not keys:
+        raise HTTPException(status_code=400, detail="No Zotero item keys were provided.")
+    recovered_by_key: dict[str, dict[str, Any]] = {}
+    modes = []
+    try:
+        items = zotero_local_items_by_keys(payload.library, keys)
+        if items:
+            recovered_by_key.update({item.get("zoteroKey"): item for item in items if item.get("zoteroKey")})
+            modes.append("http")
+    except HTTPException:
+        pass
+    missing_keys = [key for key in keys if key not in recovered_by_key]
+    try:
+        items = zotero_items_by_keys(payload.library, missing_keys, payload.zoteroApiKey, payload.zoteroUserId)
+        if items:
+            recovered_by_key.update({item.get("zoteroKey"): item for item in items if item.get("zoteroKey")})
+            modes.append("web")
+    except HTTPException:
+        if payload.library != "user:0" and not payload.library.startswith("user:"):
+            raise
+    missing_keys = [key for key in keys if key not in recovered_by_key]
+    if missing_keys and (payload.library == "user:0" or payload.library.startswith("user:")):
+        recovered = []
+        connection = with_zotero_db()
+        try:
+            for key in missing_keys:
+                row = connection.execute(
+                    """
+                    SELECT items.itemID, items.key, items.version, itemTypes.typeName
+                    FROM items
+                    JOIN itemTypes ON itemTypes.itemTypeID = items.itemTypeID
+                    LEFT JOIN deletedItems ON deletedItems.itemID = items.itemID
+                    WHERE items.key = ? AND deletedItems.itemID IS NULL
+                    """,
+                    (key,),
+                ).fetchone()
+                if not row:
+                    continue
+                publication = publication_from_db_row(connection, row)
+                if publication:
+                    recovered.append(publication)
+        finally:
+            connection.close()
+        if recovered:
+            recovered_by_key.update({item.get("zoteroKey"): item for item in recovered if item.get("zoteroKey")})
+            modes.append("sqlite")
+    items = [recovered_by_key[key] for key in keys if key in recovered_by_key]
+    keyword_items = sum(1 for item in items if item.get("keywords"))
+    return {
+        "items": items,
+        "mode": modes[-1] if modes else "none",
+        "modes": modes,
+        "diagnostics": {
+            "requested": len(keys),
+            "returned": len(items),
+            "withKeywords": keyword_items,
+            "missingKeys": [key for key in keys if key not in recovered_by_key],
+            "emptyKeywordKeys": [item.get("zoteroKey") for item in items if not item.get("keywords")],
+        },
+    }
+
+
+@app.post("/api/openalex/enrich-keywords")
+def openalex_enrich_keywords(payload: OpenAlexKeywordEnrichRequest, response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    items = []
+    missing = []
+    empty = []
+    for publication in payload.publications:
+        key = publication.zoteroKey.strip()
+        if not key:
+            continue
+        work = openalex_work_for_keywords(publication)
+        if not work:
+            missing.append(key)
+            continue
+        keywords = openalex_keywords(work)
+        if not keywords:
+            empty.append(key)
+            continue
+        items.append({
+            "zoteroKey": key,
+            "keywords": keywords,
+            "openalexId": openalex_short_id(work.get("id") or ""),
+            "openalexUrl": work.get("id") or "",
+            "title": work.get("display_name") or publication.title,
+        })
+    return {
+        "items": items,
+        "diagnostics": {
+            "requested": len(payload.publications),
+            "returned": len(items),
+            "missingKeys": missing,
+            "emptyKeywordKeys": empty,
+        },
+    }
+
+
 @app.get("/api/grobid/status")
 def grobid_status() -> dict[str, Any]:
     try:
@@ -2021,7 +2264,7 @@ def openalex_search(
     works = openalex_get_all_works(
         {
             "search": query,
-            "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index",
+            "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index,concepts",
         },
         max_results,
     )
@@ -2066,7 +2309,7 @@ def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dic
                 {
                     "filter": filter_value,
                     "sort": "cited_by_count:desc",
-                    "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index,referenced_works",
+                    "select": "id,display_name,authorships,publication_year,doi,primary_location,open_access,type,cited_by_count,abstract_inverted_index,referenced_works,concepts",
                 },
                 limit,
             )

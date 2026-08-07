@@ -215,6 +215,11 @@ const autosaveMessage = document.getElementById("autosaveMessage");
 const panelMessage = document.getElementById("panelMessage");
 const selectedKind = document.getElementById("selectedKind");
 const nodeCitationLabel = document.getElementById("nodeCitationLabel");
+const nodePrimaryTagControl = document.getElementById("nodePrimaryTagControl");
+const nodePrimaryTag = document.getElementById("nodePrimaryTag");
+const nodeKeywordsPanel = document.getElementById("nodeKeywordsPanel");
+const nodeKeywordsList = document.getElementById("nodeKeywordsList");
+const nodeClusterKeyword = document.getElementById("nodeClusterKeyword");
 const panelSwitch = document.querySelector(".panel-switch");
 const detailsTabButton = document.getElementById("detailsTabButton");
 const formattingTabButton = document.getElementById("formattingTabButton");
@@ -283,8 +288,6 @@ const documentViewButton = document.getElementById("documentViewButton");
 const multiViewButton = document.getElementById("multiViewButton");
 const outlineViewSelect = document.getElementById("outlineViewSelect");
 const documentOutlineList = document.getElementById("documentOutlineList");
-const documentPrimaryTagControl = document.getElementById("documentPrimaryTagControl");
-const documentPrimaryTag = document.getElementById("documentPrimaryTag");
 
 window.addEventListener("error", (event) => {
   const message = event?.message || "Unknown JavaScript error";
@@ -381,6 +384,7 @@ const zoteroLibrarySelect = document.getElementById("zoteroLibrarySelect");
 const zoteroCollectionSelect = document.getElementById("zoteroCollectionSelect");
 const zoteroSubcollectionSelect = document.getElementById("zoteroSubcollectionSelect");
 const zoteroItemsList = document.getElementById("zoteroItemsList");
+const recoverZoteroKeywordsButton = document.getElementById("recoverZoteroKeywordsButton");
 const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
 const zoteroSortSelect = document.getElementById("zoteroSortSelect");
@@ -394,6 +398,7 @@ const openAlexSearchInput = document.getElementById("openAlexSearchInput");
 const openAlexResultsList = document.getElementById("openAlexResultsList");
 const openAlexResultsCount = document.getElementById("openAlexResultsCount");
 const openAlexLoadingOverlay = document.getElementById("openAlexLoadingOverlay");
+const openAlexLoadingTitle = document.getElementById("openAlexLoadingTitle");
 const openAlexLoadingText = document.getElementById("openAlexLoadingText");
 const openAlexImportActions = document.getElementById("openAlexImportActions");
 const openAlexZoteroLibrarySelect = document.getElementById("openAlexZoteroLibrarySelect");
@@ -635,7 +640,7 @@ cy.on("free", "node", (event) => {
   if (event.target.data("clusterBackground")) return;
   clusterBasePositions = null;
   clusterSpacingAnchors = null;
-  if (currentClusterMode === "tags") renderTagClusterBackgrounds();
+  if (isClusterBackgroundMode(currentClusterMode)) renderTagClusterBackgrounds();
   scheduleAutosave("Autosaved after node move.");
 });
 cy.on("remove add data style", () => scheduleBubbleSetUpdate());
@@ -763,6 +768,7 @@ zoomInButton.addEventListener("click", () => {
   stepMapZoom(0.01);
 });
 clusterModeSelect.addEventListener("change", () => applyClusterMode(clusterModeSelect.value));
+nodeClusterKeyword.addEventListener("change", updateSelectedNodeClusterKeyword);
 clusterSpacingSlider.addEventListener("pointerdown", () => {
   if (currentClusterMode === "none") return;
   pushUndoState("cluster spacing");
@@ -792,7 +798,7 @@ outlineViewSelect.addEventListener("change", () => {
   updateDocumentPrimaryTagControl();
   renderDocumentOutline();
 });
-documentPrimaryTag.addEventListener("change", updateActiveDocumentPrimaryTag);
+nodePrimaryTag.addEventListener("change", updateSelectedNodePrimaryTag);
 document.getElementById("saveButton").addEventListener("click", saveGraph);
 document.getElementById("exportButton").addEventListener("click", exportJson);
 document.getElementById("importButton").addEventListener("click", () => importFile.click());
@@ -807,6 +813,7 @@ document.getElementById("loadZoteroItemsButton").addEventListener("click", loadZ
 document.getElementById("selectAllZoteroItemsButton").addEventListener("click", () => setPanelCheckboxes(zoteroItemsList, true));
 document.getElementById("deselectAllZoteroItemsButton").addEventListener("click", () => setPanelCheckboxes(zoteroItemsList, false));
 document.getElementById("importZoteroItemsButton").addEventListener("click", importSelectedZoteroItems);
+recoverZoteroKeywordsButton.addEventListener("click", recoverZoteroKeywordsForMapNodes);
 zoteroLibrarySelect.addEventListener("change", () => {
   zoteroSearchInput.value = "";
   zoteroItemsCache = [];
@@ -1894,6 +1901,8 @@ function addNode(type) {
       nodeColor: getNodeColorForType(type),
       url: "",
       tags: [],
+      keywords: [],
+      clusterKeyword: "",
       size: DEFAULT_NODE_SIZE,
       textWidth: getTextWidth(DEFAULT_NODE_SIZE),
       zIndex: getNextNodeZIndex(),
@@ -1917,7 +1926,7 @@ function addNode(type) {
   scheduleAutosave("Autosaved after adding node.");
 }
 
-function addPublicationFromZotero(item, index = 0, batchOrigin = null) {
+function addPublicationFromZotero(item, index = 0, batchOrigin = null, options = {}) {
   const id = makeStableId("Publication");
   const extent = cy.extent();
   const origin = batchOrigin || {
@@ -1931,6 +1940,8 @@ function addPublicationFromZotero(item, index = 0, batchOrigin = null) {
   const citation = item.citation || "";
   const url = item.url || "";
   const abstract = item.abstract || "";
+  const keywords = normalizeKeywords(item.keywords || []);
+  const tags = options.tags === "openalex" ? ["OpenAlex"] : [];
 
   return cy.add({
     group: "nodes",
@@ -1940,7 +1951,9 @@ function addPublicationFromZotero(item, index = 0, batchOrigin = null) {
       type: "Publication",
       nodeColor: getNodeColorForType("Publication"),
       url,
-      tags: item.tags || [],
+      tags,
+      keywords,
+      clusterKeyword: getValidClusterKeyword(item.clusterKeyword, keywords),
       size: DEFAULT_NODE_SIZE,
       textWidth: getTextWidth(DEFAULT_NODE_SIZE),
       zIndex: getNextNodeZIndex(),
@@ -2213,6 +2226,8 @@ function selectNode(node) {
   fields.citation.disabled = !isPublication;
   fields.citation.value = isPublication ? publicationNotes.citation : "";
   fields.tags.value = Array.isArray(node.data("tags")) ? node.data("tags").join(", ") : "";
+  updateDocumentPrimaryTagControl();
+  renderNodeKeywords(node, isPublication);
   fields.size.value = getNodeSize(node);
   fields.sizeNumber.value = getNodeSize(node);
   fields.fontSize.value = getNodeFontSize(node);
@@ -2433,6 +2448,7 @@ function updateSelectedNode(options = {}) {
   nodeCitationLabel.hidden = nextType !== "Publication";
   fields.citation.disabled = nextType !== "Publication";
   if (nextType !== "Publication") fields.citation.value = "";
+  renderNodeKeywords(selectedNode, nextType === "Publication");
   updateDocumentPrimaryTagControl();
 
   selectedKind.textContent = nextType;
@@ -2486,41 +2502,41 @@ function updateSelectedNodeFormatting(options = {}) {
 }
 
 function updateDocumentPrimaryTagControl() {
-  const node = getActiveDocumentNode();
+  const node = selectedNode && !selectedNode.removed() ? selectedNode : null;
   const type = node?.data("type");
   const showControl = Boolean(node) && (type === "Idea" || type === "Publication");
-  documentPrimaryTagControl.hidden = !showControl;
-  documentPrimaryTag.disabled = !showControl;
+  nodePrimaryTagControl.hidden = !showControl;
+  nodePrimaryTag.disabled = !showControl;
   if (!showControl) return;
 
   const tags = Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
   const currentPrimary = getValidPrimaryTag(node.data("primaryTag"), tags);
-  documentPrimaryTag.innerHTML = "";
+  nodePrimaryTag.innerHTML = "";
 
   const firstOption = document.createElement("option");
   firstOption.value = "";
   firstOption.textContent = tags.length ? `First tag (${tags[0]})` : "First tag";
-  documentPrimaryTag.appendChild(firstOption);
+  nodePrimaryTag.appendChild(firstOption);
 
   tags.forEach((tag) => {
     const option = document.createElement("option");
     option.value = tag;
     option.textContent = tag;
-    documentPrimaryTag.appendChild(option);
+    nodePrimaryTag.appendChild(option);
   });
-  documentPrimaryTag.value = currentPrimary;
+  nodePrimaryTag.value = currentPrimary;
 }
 
-function updateActiveDocumentPrimaryTag() {
-  const node = getActiveDocumentNode();
+function updateSelectedNodePrimaryTag() {
+  const node = selectedNode && !selectedNode.removed() ? selectedNode : null;
   if (!node) return;
   const tags = Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
-  const primaryTag = getValidPrimaryTag(documentPrimaryTag.value, tags);
+  const primaryTag = getValidPrimaryTag(nodePrimaryTag.value, tags);
   node.data("primaryTag", primaryTag);
   updateDocumentPrimaryTagControl();
   renderDocumentOutline();
-  setStatus(primaryTag ? `Document outline grouping set to ${primaryTag}.` : "Document outline grouping uses first tag.");
-  scheduleAutosave("Autosaved document group tag.");
+  setStatus(primaryTag ? `Cluster tag set to ${primaryTag}.` : "Cluster tag uses first tag.");
+  scheduleAutosave("Autosaved cluster tag.");
 }
 
 function getValidPrimaryTag(primaryTag, tags) {
@@ -2907,13 +2923,15 @@ function updateOpenAlexZoteroModeBadge(mode, ok = false) {
   }
 }
 
-function setOpenAlexLoading(active, text = "Searching OpenAlex...") {
+function setOpenAlexLoading(active, text = "Searching OpenAlex...", title = "Processing") {
   openAlexLoadingOverlay.hidden = !active;
+  openAlexLoadingTitle.textContent = title;
   openAlexLoadingText.textContent = text;
 }
 
 async function loadZoteroItems() {
   zoteroStatusText.textContent = "Loading Zotero items...";
+  setOpenAlexLoading(true, "Loading Zotero items...", "Loading Zotero");
   const params = new URLSearchParams();
   params.set("library", zoteroLibrarySelect.value || "user:0");
   const selectedCollection = zoteroSubcollectionSelect.value || zoteroCollectionSelect.value;
@@ -2938,6 +2956,8 @@ async function loadZoteroItems() {
       : `Loaded ${zoteroItemsCache.length} Zotero items${sourceNote}.`;
   } catch (error) {
     zoteroStatusText.textContent = error.message;
+  } finally {
+    setOpenAlexLoading(false);
   }
 }
 
@@ -3018,6 +3038,118 @@ function importSelectedZoteroItems() {
   cy.fit(undefined, 70);
   scheduleAutosave("Autosaved Zotero imports.");
   zoteroStatusText.textContent = `Imported ${selectedIndexes.length} publication nodes.`;
+}
+
+async function recoverZoteroKeywordsForMapNodes() {
+  const candidateNodes = getRealNodes().filter((node) => node.data("type") === "Publication" && node.data("zotero")?.itemKey);
+  if (!candidateNodes.length) {
+    zoteroStatusText.textContent = "No Zotero-backed publication nodes found for keyword recovery.";
+    setStatus("No Zotero-backed publication nodes found for keyword recovery.");
+    return;
+  }
+
+  const nodesByLibrary = new Map();
+  candidateNodes.forEach((node) => {
+    const zotero = node.data("zotero") || {};
+    const library = `${zotero.libraryType || "user"}:${zotero.libraryId || 0}`;
+    if (!nodesByLibrary.has(library)) nodesByLibrary.set(library, []);
+    nodesByLibrary.get(library).push(node);
+  });
+
+  zoteroStatusText.textContent = `Recovering keywords for ${candidateNodes.length} publication node(s)...`;
+  setStatus(`Recovering keywords for ${candidateNodes.length} publication node(s)...`);
+  setOpenAlexLoading(true, "Recovering publication keywords from Zotero...", "Recovering keywords");
+  try {
+    const modes = new Set();
+    const diagnostics = {
+      scanned: candidateNodes.length,
+      requested: 0,
+      returned: 0,
+      withKeywords: 0,
+      missing: 0,
+      empty: 0,
+      openAlexRequested: 0,
+      openAlexReturned: 0
+    };
+    let updated = 0;
+    pushUndoState("recover Zotero keywords");
+    for (const [library, nodes] of nodesByLibrary.entries()) {
+      const itemKeys = Array.from(new Set(nodes.map((node) => node.data("zotero")?.itemKey).filter(Boolean)));
+      if (!itemKeys.length) continue;
+      const data = await postJson("/api/zotero/recover-keywords", { library, itemKeys });
+      (data.modes || [data.mode]).filter(Boolean).forEach((mode) => modes.add(mode));
+      const serverDiagnostics = data.diagnostics || {};
+      diagnostics.requested += Number(serverDiagnostics.requested || itemKeys.length);
+      diagnostics.returned += Number(serverDiagnostics.returned || (data.items || []).length);
+      diagnostics.withKeywords += Number(serverDiagnostics.withKeywords || 0);
+      diagnostics.missing += Number(serverDiagnostics.missingKeys?.length || 0);
+      diagnostics.empty += Number(serverDiagnostics.emptyKeywordKeys?.length || 0);
+      const byKey = new Map((data.items || []).map((item) => [item.zoteroKey, item]));
+      nodes.forEach((node) => {
+        const zoteroKey = node.data("zotero")?.itemKey;
+        const item = byKey.get(zoteroKey);
+        if (!item) return;
+        const keywords = normalizeKeywords(item.keywords || []);
+        if (!keywords.length) return;
+        node.data({
+          keywords,
+          clusterKeyword: getValidClusterKeyword(node.data("clusterKeyword"), keywords)
+        });
+        updated += 1;
+      });
+    }
+    const missingKeywordNodes = candidateNodes.filter((node) => !normalizeKeywords(node.data("keywords") || []).length);
+    if (missingKeywordNodes.length) {
+      setOpenAlexLoading(true, `Zotero had no keywords for ${missingKeywordNodes.length} node(s). Searching OpenAlex...`, "Enriching keywords");
+      const publications = missingKeywordNodes.map((node) => {
+        const zotero = node.data("zotero") || {};
+        const notes = normalizePublicationNotes(node.data("publicationNotes"));
+        return {
+          zoteroKey: zotero.itemKey || "",
+          title: node.data("label") || "",
+          doi: zotero.doi || "",
+          year: zotero.year || "",
+          url: notes.url || node.data("url") || ""
+        };
+      }).filter((publication) => publication.zoteroKey && (publication.doi || publication.title));
+      diagnostics.openAlexRequested = publications.length;
+      if (publications.length) {
+        const data = await postJson("/api/openalex/enrich-keywords", { publications });
+        diagnostics.openAlexReturned = Number(data.diagnostics?.returned || (data.items || []).length);
+        const byKey = new Map((data.items || []).map((item) => [item.zoteroKey, item]));
+        missingKeywordNodes.forEach((node) => {
+          const zoteroKey = node.data("zotero")?.itemKey;
+          const item = byKey.get(zoteroKey);
+          if (!item) return;
+          const keywords = normalizeKeywords(item.keywords || []);
+          if (!keywords.length) return;
+          node.data({
+            keywords,
+            clusterKeyword: getValidClusterKeyword(node.data("clusterKeyword"), keywords),
+            keywordsSource: "openalex",
+            openalex: {
+              ...(node.data("openalex") || {}),
+              id: item.openalexId || "",
+              url: item.openalexUrl || ""
+            }
+          });
+          updated += 1;
+        });
+      }
+    }
+    if (selectedNode && !selectedNode.removed()) renderNodeKeywords(selectedNode, selectedNode.data("type") === "Publication");
+    if (currentClusterMode === "keywords") applyClusterMode("keywords", { autosave: false });
+    scheduleAutosave("Autosaved recovered Zotero keywords.");
+    const sourceNote = modes.has("sqlite") ? " Some items used database fallback." : "";
+    const diagnosticText = ` Scanned ${diagnostics.scanned}; requested ${diagnostics.requested}; Zotero returned ${diagnostics.returned}; with keywords ${diagnostics.withKeywords}; missing ${diagnostics.missing}; empty ${diagnostics.empty}; OpenAlex searched ${diagnostics.openAlexRequested}; OpenAlex found ${diagnostics.openAlexReturned}.`;
+    zoteroStatusText.textContent = `Recovered keywords for ${updated} publication node(s).${sourceNote}${diagnosticText}`;
+    setStatus(`Recovered keywords for ${updated} publication node(s).${diagnosticText}`);
+  } catch (error) {
+    zoteroStatusText.textContent = error.message;
+    setStatus(error.message);
+  } finally {
+    setOpenAlexLoading(false);
+  }
 }
 
 function openOpenAlexPanel() {
@@ -3256,9 +3388,9 @@ async function findSimilarOpenAlexWorks() {
     openAlexStatusText.textContent = "Select at least one OpenAlex discovery mode.";
     return;
   }
-  setOpenAlexLoading(true, "Checking Zotero targets...");
+  setOpenAlexLoading(true, "Checking Zotero targets...", "Finding similar papers");
   await ensureZoteroTargetsForOpenAlex();
-  setOpenAlexLoading(true, `Searching OpenAlex for ${publications.length} selected publication(s)...`);
+  setOpenAlexLoading(true, `Searching OpenAlex for ${publications.length} selected publication(s)...`, "Finding similar papers");
   openAlexStatusText.textContent = `Finding papers for ${publications.length} selected publication(s)...`;
   openAlexResultsList.textContent = "";
   openAlexResultsCount.textContent = "Searching...";
@@ -3368,7 +3500,7 @@ async function importSelectedOpenAlexResultsToZotero() {
 
   openAlexStatusText.textContent = "Adding OpenAlex results to Zotero...";
   hideOpenAlexCredentialDialog();
-  setOpenAlexLoading(true, "Creating Zotero collection and items...");
+  setOpenAlexLoading(true, "Creating Zotero collection and items...", "Adding OpenAlex results");
   try {
     const data = await postJson("/api/openalex/import-to-zotero", {
       library,
@@ -3384,12 +3516,12 @@ async function importSelectedOpenAlexResultsToZotero() {
       return;
     }
 
-    setOpenAlexLoading(true, "Adding publication nodes to an open area of the map...");
+    setOpenAlexLoading(true, "Adding publication nodes to an open area of the map...", "Adding OpenAlex results");
     pushUndoState("import OpenAlex results");
     let lastNode = null;
     const batchOrigin = findEmptyPublicationBatchOrigin(items.length);
     items.forEach((item, index) => {
-      lastNode = addPublicationFromZotero(item, index, batchOrigin);
+      lastNode = addPublicationFromZotero(item, index, batchOrigin, { tags: "openalex" });
     });
     if (lastNode) {
       cy.$(":selected").unselect();
@@ -4343,7 +4475,7 @@ function scheduleHideMapZoomControl() {
 function applyClusterMode(mode, options = {}) {
   const autosave = options.autosave !== false;
   const restore = options.restore === true;
-  const nextMode = ["none", "tags", "authors", "connections"].includes(mode) ? mode : "none";
+  const nextMode = getValidClusterMode(mode);
   const tagIntersectionMode = nextMode === "tags" && readClusterStyle().useAllTags;
   if (tagIntersectionMode && !restore && clusterSpacingFactor > 1.35) {
     clusterSpacingFactor = 1.1;
@@ -4364,17 +4496,17 @@ function applyClusterMode(mode, options = {}) {
 
   if (autosave) pushUndoState("cluster layout");
   currentClusterMode = nextMode;
-  if (nextMode !== "tags") removeClusterBackgrounds();
+  if (!isClusterBackgroundMode(nextMode)) removeClusterBackgrounds();
 
   const layout = getLayoutForClusterMode(nextMode);
   clusterBasePositions = layout.positions;
   clusterSpacingAnchors = layout.anchors;
   const positions = getScaledClusterPositions();
   animateNodesToPositions(positions);
-  if (nextMode === "tags") {
+  if (isClusterBackgroundMode(nextMode)) {
     window.setTimeout(() => renderTagClusterBackgrounds(), 520);
   }
-  const label = nextMode === "tags" ? "tags" : nextMode === "authors" ? "authors" : "connection count";
+  const label = nextMode === "tags" ? "tags" : nextMode === "keywords" ? "keywords" : nextMode === "authors" ? "authors" : "connection count";
   setStatus(`Clustered by ${label}. Spacing ${clusterSpacingFactor.toFixed(2)}x.`);
   if (!restore) writeClusterViewState();
   if (autosave) scheduleAutosave("Autosaved clustered layout.");
@@ -4394,12 +4526,20 @@ function readClusterViewState() {
   try {
     const saved = JSON.parse(localStorage.getItem(CLUSTER_VIEW_KEY) || "{}");
     return {
-      mode: ["none", "tags", "authors", "connections"].includes(saved.mode) ? saved.mode : "none",
+      mode: getValidClusterMode(saved.mode),
       spacing: clampClusterSpacing(saved.spacing || 1)
     };
   } catch (error) {
     return { mode: "none", spacing: 1 };
   }
+}
+
+function getValidClusterMode(mode) {
+  return ["none", "tags", "keywords", "authors", "connections"].includes(mode) ? mode : "none";
+}
+
+function isClusterBackgroundMode(mode) {
+  return mode === "tags" || mode === "keywords";
 }
 
 function writeClusterViewState() {
@@ -4486,9 +4626,9 @@ function updateClusterStyleFromSettings(options = {}) {
   if (clampTextSize) clusterTextSize.value = style.textSize;
   writeClusterStyle(style);
   applyClusterStyleToBackgrounds(style);
-  if (currentClusterMode === "tags") {
+  if (isClusterBackgroundMode(currentClusterMode)) {
     if (previousStyle.useAllTags !== style.useAllTags || previousStyle.minTagSize !== style.minTagSize) {
-      applyClusterMode("tags", { autosave: false });
+      applyClusterMode(currentClusterMode, { autosave: false });
       return;
     }
     renderTagClusterBackgrounds();
@@ -4521,7 +4661,7 @@ function applyClusterSpacing({ animate = false, autosave = false } = {}) {
   if (animate) {
     animateNodesToPositions(positions);
     restoreMapViewport(viewport);
-    if (currentClusterMode === "tags") {
+    if (isClusterBackgroundMode(currentClusterMode)) {
       window.setTimeout(() => {
         restoreMapViewport(viewport);
         renderTagClusterBackgrounds();
@@ -4530,7 +4670,7 @@ function applyClusterSpacing({ animate = false, autosave = false } = {}) {
   } else {
     setNodesToPositions(positions);
     restoreMapViewport(viewport);
-    if (currentClusterMode === "tags") renderTagClusterBackgrounds();
+    if (isClusterBackgroundMode(currentClusterMode)) renderTagClusterBackgrounds();
   }
   if (autosave) scheduleAutosave("Autosaved cluster spacing.");
   writeClusterViewState();
@@ -4565,6 +4705,8 @@ function groupNodesForCluster(mode) {
     let key = "All nodes";
     if (mode === "tags") {
       key = getPrimaryTagClusterKey(node);
+    } else if (mode === "keywords") {
+      key = getPrimaryKeywordClusterKey(node);
     } else if (mode === "authors") {
       key = getPrimaryAuthorClusterKey(node);
     }
@@ -4580,6 +4722,8 @@ function groupNodesForCluster(mode) {
       if (b.key === "Other authors") return -1;
       if (a.key === "Untagged") return 1;
       if (b.key === "Untagged") return -1;
+      if (a.key === "No keyword") return 1;
+      if (b.key === "No keyword") return -1;
       return b.nodes.length - a.nodes.length || a.key.localeCompare(b.key);
     });
 }
@@ -4879,7 +5023,7 @@ function getExternalAuthorVector(node, groupKey, center, centerByGroupKey) {
 
 function renderTagClusterBackgrounds(positions = captureCurrentNodePositions()) {
   const style = readClusterStyle();
-  const useIntersectionMode = Boolean(style.useAllTags);
+  const useIntersectionMode = currentClusterMode === "tags" && Boolean(style.useAllTags);
   if (useIntersectionMode) {
     removeClusterBackgrounds();
     if (bubbleSetsUnavailable) {
@@ -5599,6 +5743,12 @@ function getPrimaryTagClusterKey(node) {
   return normalizeClusterLabel(tags[0]) || "Untagged";
 }
 
+function getPrimaryKeywordClusterKey(node) {
+  if (node.data("type") !== "Publication") return "No keyword";
+  const keywords = normalizeKeywords(node.data("keywords") || []);
+  return normalizeClusterLabel(getValidClusterKeyword(node.data("clusterKeyword"), keywords)) || "No keyword";
+}
+
 function getTagClusterKeys(node, options = {}) {
   const useAllTags = options.useAllTags === true;
   const tags = Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
@@ -5611,7 +5761,10 @@ function groupNodesForTagBackgrounds() {
   const style = readClusterStyle();
   const grouped = new Map();
   getRealNodes().forEach((node) => {
-    getTagClusterKeys(node, { useAllTags: style.useAllTags }).forEach((key) => {
+    const keys = currentClusterMode === "keywords"
+      ? [getPrimaryKeywordClusterKey(node)]
+      : getTagClusterKeys(node, { useAllTags: style.useAllTags });
+    keys.forEach((key) => {
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key).push(node);
     });
@@ -6228,8 +6381,6 @@ function clearDocumentEditor() {
   documentConnectionContext.classList.remove("connection-endpoint-context");
   documentConnectionContext.hidden = true;
   documentConnectionContext.innerHTML = "";
-  documentPrimaryTagControl.hidden = true;
-  documentPrimaryTag.disabled = true;
   documentSectionTitle.disabled = true;
   documentMetadata.hidden = true;
   documentCitation.disabled = true;
@@ -10043,6 +10194,8 @@ function normalizeElements(elements) {
       normalized.data.nodeColor = getNodeColorForType(normalized.data.type);
       normalized.data.tags = Array.isArray(normalized.data.tags) ? normalized.data.tags : parseTags(normalized.data.tags || "");
       normalized.data.primaryTag = getValidPrimaryTag(normalized.data.primaryTag, normalized.data.tags);
+      normalized.data.keywords = normalizeKeywords(normalized.data.keywords || normalized.data.zotero?.keywords || []);
+      normalized.data.clusterKeyword = getValidClusterKeyword(normalized.data.clusterKeyword, normalized.data.keywords);
       normalized.data.size = clampNodeSize(normalized.data.size);
       normalized.data.textWidth = getTextWidth(normalized.data.size);
       normalized.data.label = normalized.data.label || "Untitled";
@@ -10068,6 +10221,80 @@ function parseTags(value) {
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+}
+
+function normalizeKeywords(value) {
+  const rawValues = Array.isArray(value) ? value : String(value || "").split(/[;,\n]/);
+  const seen = new Set();
+  const keywords = [];
+  rawValues.forEach((item) => {
+    const keyword = String(item || "").replace(/\s+/g, " ").trim();
+    if (!keyword) return;
+    const key = keyword.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    keywords.push(keyword);
+  });
+  return keywords;
+}
+
+function getValidClusterKeyword(value, keywords = []) {
+  const normalizedKeywords = normalizeKeywords(keywords);
+  if (!normalizedKeywords.length) return "";
+  const selected = String(value || "").trim();
+  const match = normalizedKeywords.find((keyword) => keyword.toLowerCase() === selected.toLowerCase());
+  return match || normalizedKeywords[0];
+}
+
+function renderNodeKeywords(node, isPublication = true) {
+  if (!nodeKeywordsPanel || !nodeKeywordsList || !nodeClusterKeyword) return;
+  const keywords = isPublication ? normalizeKeywords(node?.data("keywords") || []) : [];
+  const clusterKeyword = getValidClusterKeyword(node?.data("clusterKeyword"), keywords);
+  nodeKeywordsPanel.hidden = !isPublication;
+  nodeKeywordsList.replaceChildren();
+  nodeClusterKeyword.replaceChildren();
+  if (!isPublication) {
+    nodeClusterKeyword.disabled = true;
+    return;
+  }
+  if (!keywords.length) {
+    const empty = document.createElement("span");
+    empty.className = "node-keywords-empty";
+    empty.textContent = "No keywords from Zotero";
+    nodeKeywordsList.appendChild(empty);
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = "No keyword";
+    nodeClusterKeyword.appendChild(option);
+    nodeClusterKeyword.disabled = true;
+    node.data({ keywords: [], clusterKeyword: "" });
+    return;
+  }
+  keywords.forEach((keyword) => {
+    const chip = document.createElement("span");
+    chip.className = "node-keyword-chip";
+    chip.textContent = keyword;
+    nodeKeywordsList.appendChild(chip);
+    const option = document.createElement("option");
+    option.value = keyword;
+    option.textContent = keyword;
+    nodeClusterKeyword.appendChild(option);
+  });
+  nodeClusterKeyword.value = clusterKeyword;
+  nodeClusterKeyword.disabled = false;
+  node.data({ keywords, clusterKeyword });
+}
+
+function updateSelectedNodeClusterKeyword() {
+  if (!selectedNode || selectedNode.removed()) return;
+  const keywords = normalizeKeywords(selectedNode.data("keywords") || []);
+  const clusterKeyword = getValidClusterKeyword(nodeClusterKeyword.value, keywords);
+  selectedNode.data("clusterKeyword", clusterKeyword);
+  nodeClusterKeyword.value = clusterKeyword;
+  if (currentClusterMode === "keywords") {
+    applyClusterMode("keywords", { autosave: false });
+  }
+  scheduleAutosave("Autosaved publication cluster keyword.");
 }
 
 function initializeTagAutocomplete(input) {
@@ -10262,6 +10489,7 @@ function setFormEnabled(enabled) {
   });
   openNotesButton.disabled = !enabled;
   openLinkButton.disabled = !enabled || !fields.url.value.trim();
+  nodePrimaryTag.disabled = !enabled || nodePrimaryTagControl.hidden;
   copyNodeStyleButton.disabled = !enabled;
   pasteNodeStyleButton.disabled = !enabled || !copiedNodeStyle;
   setMultiFormatEnabled(enabled);
@@ -10307,6 +10535,13 @@ function clearForm() {
   fields.citation.value = "";
   fields.citation.disabled = true;
   nodeCitationLabel.hidden = true;
+  nodePrimaryTagControl.hidden = true;
+  nodePrimaryTag.replaceChildren();
+  nodePrimaryTag.disabled = true;
+  nodeKeywordsPanel.hidden = true;
+  nodeKeywordsList.replaceChildren();
+  nodeClusterKeyword.replaceChildren();
+  nodeClusterKeyword.disabled = true;
   fields.tags.value = "";
   fields.size.value = DEFAULT_NODE_SIZE;
   fields.sizeNumber.value = DEFAULT_NODE_SIZE;

@@ -2451,6 +2451,49 @@ button:disabled {
   min-height: 112px;
 }
 
+.node-keywords-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.node-keywords-panel[hidden] {
+  display: none;
+}
+
+.node-keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.node-keyword-chip,
+.node-keywords-empty {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.node-keyword-chip {
+  color: #1f2937;
+  background: #e8eef7;
+}
+
+.node-keywords-empty {
+  color: var(--muted);
+  background: transparent;
+}
+
 .range-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 76px;
@@ -3288,6 +3331,11 @@ button:disabled {
 
 .openalex-loading-overlay[hidden] {
   display: none;
+}
+
+.app-loading-overlay {
+  position: fixed;
+  z-index: 80;
 }
 
 .openalex-loading-dialog {
