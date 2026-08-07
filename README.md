@@ -1,6 +1,6 @@
 ﻿# Research Mind Map Prototype
 
-Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, Jodit-powered writing notes, OpenAlex paper discovery, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
+Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, Jodit-powered writing notes, OpenAlex paper discovery and keyword enrichment, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
 
 ## Project Status
 
@@ -79,6 +79,7 @@ For the full publication workflow:
 - Zotero requires Zotero Desktop installed and running locally. Zotero Connector in the browser is recommended for saving papers found through OpenAlex, DOI, or publisher pages into Zotero before importing them as nodes.
 - OpenAlex discovery does not require an API key or local install, but the FastAPI host must have internet access.
 - Adding OpenAlex results directly to Zotero requires a Zotero web API key with write access. Enter the key in the OpenAlex Zotero API Access dialog; My Library writes also require your numeric Zotero user ID, while group-library writes use the group ID from Zotero metadata.
+- Zotero tags and keyword-style metadata are imported into the app's publication Keywords area. Normal Zotero imports leave app Tags empty; OpenAlex-created nodes keep the app tag `OpenAlex`.
 - GROBID requires a separate local service. Docker Desktop is recommended. With Docker running, use:
 
 ```sh
@@ -117,6 +118,7 @@ The app-side GROBID usage is the same on Windows, macOS, and Ubuntu: the FastAPI
 - Publication, idea, and connection notes with Jodit-powered rich-text editing.
 - OpenAlex discovery for related papers, papers that cite selected map publications, and papers cited by selected map publications.
 - Zotero Desktop import and local PDF workflows.
+- Publication keywords from Zotero/OpenAlex, manual keyword editing, keyword recovery, and automatic keyword clustering.
 - PDF annotation extraction through PyMuPDF.
 - GROBID-based citation relationship suggestions.
 - Project-scoped autosaves, snapshots, note images, copied PDFs, JSON import/export.

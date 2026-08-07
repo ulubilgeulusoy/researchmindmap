@@ -44,7 +44,7 @@
         <li>Protected default node types: Publication, Idea, and Unassigned.</li>
         <li>Right-click node actions for editing, connecting, duplicating, links, ordering, type changes, style copy/paste, and deletion.</li>
         <li>Undo for graph edits with Ctrl+Z or Command+Z.</li>
-        <li>Application-wide search for nodes, connections, notes, citations, URLs, tags, and metadata.</li>
+        <li>Application-wide search for nodes, connections, notes, citations, URLs, tags, keywords, and metadata.</li>
         <li>Project workspaces with server autosaves, snapshots, and JSON backup/import.</li>
         <li>OpenAlex discovery for related papers and citation-direction searches.</li>
         <li>Local integrations for Zotero, PDFs, note images, and GROBID.</li>
@@ -71,19 +71,21 @@
       <h2>Views and Projects</h2>
       <p>The toolbar has three workspace modes: Map, Document, and Multi View. Map shows the visual mind map with the right-side details panel. Document shows a writing workspace linked to map nodes and connections. Multi View shows map and document side by side.</p>
       <p>The project selector switches between project folders. Each project has its own latest autosave, snapshots, copied PDFs, note images, and deleted-image archive. Switching projects loads that project's latest server autosave when the FastAPI backend is running.</p>
-      <p>The document outline can group by currently used node types or by connections. Ideas and publications are grouped by document tag. Connections are grouped by first tag and are shown with short labels such as Connection 1, Connection 2, or Citation connection.</p>
+      <p>The document outline can group by currently used node types or by connections. Ideas and publications are grouped by the cluster tag selected in the Details panel, falling back to the first tag when no cluster tag is selected. Connections are grouped by first tag and are shown with short labels such as Connection 1, Connection 2, or Citation connection.</p>
     </section>
 
     <section id="clustering">
       <h2>Clustering</h2>
-      <p>The map can cluster by tags, authors, or number of connections. Tag clustering uses the first tag by default and can draw configurable background circles with tag labels. In single-tag mode, connected nodes from other clusters are nudged toward relevant cluster edges to make cross-cluster links easier to read.</p>
+      <p>The map can cluster by tags, keywords, authors, or number of connections. Tag clustering uses each node's selected cluster tag from the Details panel, falling back to the first tag when no cluster tag is selected. Tag clusters can draw configurable background circles with tag labels. In single-tag mode, connected nodes from other clusters are nudged toward relevant cluster edges to make cross-cluster links easier to read.</p>
+      <p>Keyword clustering is automatic and publication-focused. The app counts all keywords across publication nodes, then assigns each publication to the most common keyword among that publication's own keywords. Keyword order is ignored. If multiple keywords tie, the app chooses the keyword whose cluster already has more assigned nodes; if that is also tied, one of the tied keywords is chosen randomly. Non-publication nodes are placed in an Other clusters area, and publications without keywords are placed in No keyword.</p>
       <p>Author clustering counts every listed publication author, normalizes names by first and last name, and uses an author-frequency threshold to avoid one-paper author clusters. Low-frequency papers are placed into an Other authors area.</p>
       <p>Connection-count clustering groups nodes by how many map connections they have, which helps identify central and isolated nodes.</p>
     </section>
 
     <section id="details">
       <h2>Map Details Panel</h2>
-      <p>Selecting a node opens details for title, type, URL, publication citation, tags, notes, links, PDF opening, and PDF annotation import. The formatting tab supports node size, font size, font family, font style, and style copy/paste. Multi-select formatting is supported for node size and text style changes.</p>
+      <p>Selecting a node opens details for title, type, URL, publication citation, editable app tags, the selected cluster tag, publication keywords, notes, links, PDF opening, and PDF annotation import. The formatting tab supports node size, font size, font family, font style, and style copy/paste. Multi-select formatting is supported for node size and text style changes.</p>
+      <p>Tags and keywords are separate. Tags are editable app labels used for manual organization and tag clustering. The Cluster tag dropdown lets you choose which tag should group that node, or First tag to follow the first tag in the tag field. Publication keywords are bibliographic/topic metadata imported from Zotero/OpenAlex or managed manually. The Keywords area has Add, Edit, and Remove buttons that open small dialogs for changing a publication's keyword list. Keyword clustering uses all keywords automatically; there is no per-node cluster keyword selector.</p>
       <p>Selecting a connection opens connection details: label, source node, target node, notes, tags, global arrow color, and global arrow thickness. When a connection is selected, both endpoint nodes are highlighted on the map.</p>
     </section>
 
@@ -97,7 +99,7 @@
     <section id="openalex">
       <h2>OpenAlex Discovery</h2>
       <p>OpenAlex is used as a discovery tool, not as the canonical publication library. The app can search OpenAlex works directly, or use selected publication nodes as seed papers to find related literature. OpenAlex results are shown with DOI, OpenAlex, source, PDF, and copy actions when those links are available.</p>
-      <p>The intended workflow is to discover papers with OpenAlex, review the result metadata and relationship hints, then either open the DOI/source/PDF links manually or add selected results directly to Zotero and create map publication nodes from the new Zotero items. Zotero remains the source of truth for item metadata, local PDFs, and later PDF/GROBID workflows.</p>
+      <p>The intended workflow is to discover papers with OpenAlex, review the result metadata and relationship hints, then either open the DOI/source/PDF links manually or add selected results directly to Zotero and create map publication nodes from the new Zotero items. Zotero remains the source of truth for item metadata, local PDFs, and later PDF/GROBID workflows. OpenAlex concepts are imported as publication keywords in the app, while OpenAlex-created map nodes keep the app tag <strong>OpenAlex</strong>.</p>
       <h3>Finding Papers From Seed Publications</h3>
       <ol>
         <li>Import or create publication nodes on the map.</li>
@@ -125,10 +127,13 @@
       <p>You can use the top OpenAlex search box for direct keyword search, or use seed-based discovery. Selected OpenAlex results can be added to an existing Zotero library and either an existing collection or a new collection, then created as Zotero-backed publication nodes. The app tries to avoid obvious duplicates by DOI or title; reused Zotero items are added to the selected collection when possible.</p>
       <p>The Zotero API Access dialog contains the target library, target collection, new collection name, API key field, Show key toggle, and numeric user ID field when needed. The numeric user ID is required only when writing to My Library. Group libraries do not require the numeric user ID because the group ID comes from Zotero library metadata.</p>
       <p>The API key is not saved in project JSON. It is kept only in the current browser session field while the app is open. If the key is missing, clicking Add to Zotero + Nodes opens the dialog automatically. Clicking Add to Zotero + Nodes inside the dialog continues the import directly and shows a processing animation while the app creates or reuses the Zotero collection and items.</p>
-      <p>OpenAlex-created nodes are placed as a batch in an open area near the existing map instead of directly on top of current nodes. Imported citations use Zotero's bibliography output when available, rather than the short in-text citation.</p>
+      <p>OpenAlex-created nodes are placed as a batch in an open area near the existing map instead of directly on top of current nodes. Imported citations use Zotero's bibliography output when available, rather than the short in-text citation. OpenAlex keywords are written to Zotero metadata through the item's Extra field as a <code>Keywords:</code> line when the app creates the Zotero item, then restored into the app's keyword list when the item is read back.</p>
       <h3>Zotero API Key for OpenAlex Imports</h3>
       <p>Direct OpenAlex-to-Zotero import writes through the Zotero web API, not the Zotero Desktop local API. Create a Zotero private key at <code>https://www.zotero.org/settings/keys</code>. For My Library imports, enable Personal Library access and write access, then enter your numeric Zotero user ID in the dialog. For group-library imports, give the key write access to the target group library.</p>
       <p>Zotero's free file-storage limit mainly affects PDF and attachment syncing. OpenAlex imports create metadata-only Zotero items and collections, but Zotero Desktop still needs data sync enabled to pull web-created items down into the local desktop app. If a new My Library collection appears in Zotero Web but not Zotero Desktop, click Sync in Zotero Desktop and check for sync errors.</p>
+      <h3>Keyword Recovery and Enrichment</h3>
+      <p>The Sources menu includes <strong>Keyword Recover</strong>. This scans all Zotero-backed publication nodes on the map, pulls topic terms from Zotero metadata, and updates the app's publication keywords. The action shows a processing dialog while it runs and reports how many nodes were scanned, how many Zotero items were returned, how many had keywords, and how many were missing or empty.</p>
+      <p>If Zotero does not return keywords for a publication, the same button then tries OpenAlex enrichment using DOI first and title as a fallback. OpenAlex concept terms found this way are added to the node's keyword list. This does not overwrite app tags.</p>
     </section>
 
     <section id="zotero">
@@ -149,8 +154,9 @@ macOS/Linux: ~/Zotero</code></pre>
       <p>When the live Zotero API is working, the backend saves a local metadata backup at <code>autosaves/zotero-metadata-cache.json</code>. This cache stores normalized library, collection, and item metadata that has been loaded through the Zotero panel. If the live API later becomes unavailable, the app tries this metadata backup before falling back to direct SQLite database reads.</p>
       <p>The metadata backup is for browsing and importing Zotero item metadata. Local PDF attachment resolution still depends on Zotero's local files and database information.</p>
       <h3>Import Workflow</h3>
-      <p>The Zotero import panel has separate selectors for library, main folder, and subfolder. The library selector includes <strong>My Library</strong> and available Zotero group libraries. After selecting a library, the main-folder selector loads only top-level collections from that library. After selecting a main folder, the subfolder selector lists its nested subfolders. Choose <strong>All subfolders</strong> to load items from the selected main folder and its descendants, or choose one subfolder to load only that subfolder.</p>
-      <p>Imported publication nodes can store Zotero library type, library ID, library name, item key, title, authors, year, DOI, citation, URL, abstract, and tags. Keeping library metadata matters because group-library item keys can overlap with personal-library item keys.</p>
+      <p>The Zotero import panel has separate selectors for library, main folder, and subfolder. The library selector includes <strong>My Library</strong> and available Zotero group libraries. After selecting a library, the main-folder selector loads only top-level collections from that library. After selecting a main folder, the subfolder selector lists its nested subfolders. Choose <strong>All subfolders</strong> to load items from the selected main folder and its descendants, or choose one subfolder to load only that subfolder. Load Items shows the same processing dialog pattern used by OpenAlex and keyword recovery.</p>
+      <p>Imported publication nodes can store Zotero library type, library ID, library name, item key, title, authors, year, DOI, citation, URL, abstract, keywords, and bibliographic notes. Keeping library metadata matters because group-library item keys can overlap with personal-library item keys.</p>
+      <p>Zotero item tags, Zotero keyword/subject-style metadata, and <code>Extra: Keywords:</code> lines are imported into the app's publication Keywords area. Normal Zotero imports do not populate the app Tags field. Tags are reserved for app-side organization. OpenAlex imports are the exception: OpenAlex-created publication nodes receive the app tag <strong>OpenAlex</strong> while their topic terms are stored as keywords.</p>
     </section>
 
     <section id="grobid">
