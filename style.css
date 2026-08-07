@@ -2494,6 +2494,60 @@ button:disabled {
   background: transparent;
 }
 
+.node-keyword-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.node-keyword-actions button {
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.node-keyword-actions button:disabled {
+  color: var(--muted);
+  background: #f1f5f9;
+  cursor: not-allowed;
+}
+
+.keyword-dialog {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(32, 38, 50, 0.2);
+}
+
+.keyword-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  color: #394253;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.keyword-dialog label[hidden] {
+  display: none;
+}
+
+.keyword-dialog input,
+.keyword-dialog select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
 .range-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 76px;

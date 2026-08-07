@@ -249,6 +249,11 @@
                 Keywords
                 <div id="nodeKeywordsList" class="node-keywords-list" aria-live="polite"></div>
               </label>
+              <div class="node-keyword-actions" aria-label="Keyword actions">
+                <button type="button" id="addKeywordButton">Add</button>
+                <button type="button" id="editKeywordButton">Edit</button>
+                <button type="button" id="removeKeywordButton">Remove</button>
+              </div>
             </div>
 
             <button type="button" id="openNotesButton" disabled>Open Notes</button>
@@ -902,6 +907,29 @@
         <p id="openAlexLoadingText">Working...</p>
       </div>
     </div>
+
+    <section id="keywordModal" class="node-type-settings-panel" hidden>
+      <div class="keyword-dialog" role="dialog" aria-modal="true" aria-labelledby="keywordModalTitle">
+        <div class="node-type-settings-header">
+          <div>
+            <h2 id="keywordModalTitle">Keyword</h2>
+            <p id="keywordModalDescription">Update publication keywords.</p>
+          </div>
+          <button type="button" id="closeKeywordModalButton">Close</button>
+        </div>
+        <label id="keywordSelectLabel" hidden>
+          Keyword
+          <select id="keywordSelect"></select>
+        </label>
+        <label id="keywordValueLabel">
+          Keyword text
+          <input id="keywordValueInput" type="text" placeholder="keyword">
+        </label>
+        <div class="settings-actions">
+          <button type="button" id="confirmKeywordButton">Apply</button>
+        </div>
+      </div>
+    </section>
 
   </div>
   <script src="app.js?v=20260806-pdf-format-defaults"></script>

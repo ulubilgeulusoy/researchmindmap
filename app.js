@@ -187,6 +187,7 @@ let activeProject = localStorage.getItem(ACTIVE_PROJECT_KEY) || DEFAULT_PROJECT_
 let nodeTypes = readNodeTypes();
 let presenceTimer = null;
 let presenceLeaveSent = false;
+let keywordModalMode = "add";
 const presenceClientId = getPresenceClientId();
 
 const fields = {
@@ -219,6 +220,18 @@ const nodePrimaryTagControl = document.getElementById("nodePrimaryTagControl");
 const nodePrimaryTag = document.getElementById("nodePrimaryTag");
 const nodeKeywordsPanel = document.getElementById("nodeKeywordsPanel");
 const nodeKeywordsList = document.getElementById("nodeKeywordsList");
+const addKeywordButton = document.getElementById("addKeywordButton");
+const editKeywordButton = document.getElementById("editKeywordButton");
+const removeKeywordButton = document.getElementById("removeKeywordButton");
+const keywordModal = document.getElementById("keywordModal");
+const keywordModalTitle = document.getElementById("keywordModalTitle");
+const keywordModalDescription = document.getElementById("keywordModalDescription");
+const keywordSelectLabel = document.getElementById("keywordSelectLabel");
+const keywordSelect = document.getElementById("keywordSelect");
+const keywordValueLabel = document.getElementById("keywordValueLabel");
+const keywordValueInput = document.getElementById("keywordValueInput");
+const closeKeywordModalButton = document.getElementById("closeKeywordModalButton");
+const confirmKeywordButton = document.getElementById("confirmKeywordButton");
 const panelSwitch = document.querySelector(".panel-switch");
 const detailsTabButton = document.getElementById("detailsTabButton");
 const formattingTabButton = document.getElementById("formattingTabButton");
@@ -797,6 +810,15 @@ outlineViewSelect.addEventListener("change", () => {
   renderDocumentOutline();
 });
 nodePrimaryTag.addEventListener("change", updateSelectedNodePrimaryTag);
+addKeywordButton.addEventListener("click", () => openKeywordModal("add"));
+editKeywordButton.addEventListener("click", () => openKeywordModal("edit"));
+removeKeywordButton.addEventListener("click", () => openKeywordModal("remove"));
+closeKeywordModalButton.addEventListener("click", closeKeywordModal);
+confirmKeywordButton.addEventListener("click", applyKeywordModalAction);
+keywordModal.addEventListener("click", (event) => {
+  if (event.target === keywordModal) closeKeywordModal();
+});
+keywordSelect.addEventListener("change", syncKeywordModalSelection);
 document.getElementById("saveButton").addEventListener("click", saveGraph);
 document.getElementById("exportButton").addEventListener("click", exportJson);
 document.getElementById("importButton").addEventListener("click", () => importFile.click());
@@ -10278,6 +10300,7 @@ function renderNodeKeywords(node, isPublication = true) {
   nodeKeywordsPanel.hidden = !isPublication;
   nodeKeywordsList.replaceChildren();
   if (!isPublication) {
+    updateKeywordActionButtons(false, false);
     return;
   }
   if (!keywords.length) {
@@ -10286,6 +10309,7 @@ function renderNodeKeywords(node, isPublication = true) {
     empty.textContent = "No keywords from Zotero";
     nodeKeywordsList.appendChild(empty);
     node.data({ keywords: [] });
+    updateKeywordActionButtons(true, false);
     return;
   }
   keywords.forEach((keyword) => {
@@ -10295,6 +10319,91 @@ function renderNodeKeywords(node, isPublication = true) {
     nodeKeywordsList.appendChild(chip);
   });
   node.data({ keywords });
+  updateKeywordActionButtons(true, true);
+}
+
+function updateKeywordActionButtons(isPublication = false, hasKeywords = false) {
+  addKeywordButton.disabled = !isPublication;
+  editKeywordButton.disabled = !isPublication || !hasKeywords;
+  removeKeywordButton.disabled = !isPublication || !hasKeywords;
+}
+
+function openKeywordModal(mode) {
+  if (!selectedNode || selectedNode.removed() || selectedNode.data("type") !== "Publication") return;
+  keywordModalMode = mode;
+  const keywords = normalizeKeywords(selectedNode.data("keywords") || []);
+  const needsSelection = mode === "edit" || mode === "remove";
+  if (needsSelection && !keywords.length) {
+    setStatus("No keywords to edit or remove.");
+    return;
+  }
+  keywordModalTitle.textContent = mode === "add" ? "Add keyword" : mode === "edit" ? "Edit keyword" : "Remove keyword";
+  keywordModalDescription.textContent = mode === "add"
+    ? "Add a keyword to this publication."
+    : mode === "edit"
+      ? "Choose a keyword and update its text."
+      : "Choose a keyword to remove from this publication.";
+  keywordSelectLabel.hidden = !needsSelection;
+  keywordValueLabel.hidden = mode === "remove";
+  keywordSelect.replaceChildren();
+  keywords.forEach((keyword) => {
+    const option = document.createElement("option");
+    option.value = keyword;
+    option.textContent = keyword;
+    keywordSelect.appendChild(option);
+  });
+  keywordValueInput.value = mode === "edit" ? keywords[0] || "" : "";
+  confirmKeywordButton.textContent = mode === "remove" ? "Remove" : "Apply";
+  keywordModal.hidden = false;
+  if (mode === "add" || mode === "edit") {
+    window.setTimeout(() => {
+      keywordValueInput.focus();
+      keywordValueInput.select();
+    }, 0);
+  } else {
+    keywordSelect.focus();
+  }
+}
+
+function closeKeywordModal() {
+  keywordModal.hidden = true;
+}
+
+function syncKeywordModalSelection() {
+  if (keywordModalMode !== "edit") return;
+  keywordValueInput.value = keywordSelect.value || "";
+  keywordValueInput.focus();
+  keywordValueInput.select();
+}
+
+function applyKeywordModalAction() {
+  if (!selectedNode || selectedNode.removed() || selectedNode.data("type") !== "Publication") {
+    closeKeywordModal();
+    return;
+  }
+  const currentKeywords = normalizeKeywords(selectedNode.data("keywords") || []);
+  let nextKeywords = currentKeywords;
+  if (keywordModalMode === "add") {
+    const keyword = keywordValueInput.value.trim();
+    if (!keyword) return;
+    nextKeywords = normalizeKeywords([...currentKeywords, keyword]);
+  } else if (keywordModalMode === "edit") {
+    const original = keywordSelect.value;
+    const keyword = keywordValueInput.value.trim();
+    if (!original || !keyword) return;
+    nextKeywords = normalizeKeywords(currentKeywords.map((item) => item === original ? keyword : item));
+  } else if (keywordModalMode === "remove") {
+    const removeValue = keywordSelect.value;
+    if (!removeValue) return;
+    nextKeywords = currentKeywords.filter((item) => item !== removeValue);
+  }
+  pushUndoState(`${keywordModalMode} keyword`);
+  selectedNode.data("keywords", nextKeywords);
+  renderNodeKeywords(selectedNode, true);
+  if (currentClusterMode === "keywords") applyClusterMode("keywords", { autosave: false });
+  scheduleAutosave("Autosaved publication keywords.");
+  setStatus("Updated publication keywords.");
+  closeKeywordModal();
 }
 
 function initializeTagAutocomplete(input) {
@@ -10540,6 +10649,8 @@ function clearForm() {
   nodePrimaryTag.disabled = true;
   nodeKeywordsPanel.hidden = true;
   nodeKeywordsList.replaceChildren();
+  updateKeywordActionButtons(false, false);
+  closeKeywordModal();
   fields.tags.value = "";
   fields.size.value = DEFAULT_NODE_SIZE;
   fields.sizeNumber.value = DEFAULT_NODE_SIZE;
