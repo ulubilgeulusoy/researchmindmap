@@ -97,7 +97,7 @@
     <section id="openalex">
       <h2>OpenAlex Discovery</h2>
       <p>OpenAlex is used as a discovery tool, not as the canonical publication library. The app can search OpenAlex works directly, or use selected publication nodes as seed papers to find related literature. OpenAlex results are shown with DOI, OpenAlex, source, PDF, and copy actions when those links are available.</p>
-      <p>The intended workflow is to discover papers with OpenAlex, open the DOI or source link, save useful papers into Zotero with Zotero Connector, then import those Zotero items into this app as publication nodes. This keeps Zotero as the source of truth for item metadata, local PDFs, and later PDF/GROBID workflows.</p>
+      <p>The intended workflow is to discover papers with OpenAlex, review the result metadata and relationship hints, then either open the DOI/source/PDF links manually or add selected results directly to Zotero and create map publication nodes from the new Zotero items. Zotero remains the source of truth for item metadata, local PDFs, and later PDF/GROBID workflows.</p>
       <h3>Finding Papers From Seed Publications</h3>
       <ol>
         <li>Import or create publication nodes on the map.</li>
@@ -105,10 +105,11 @@
         <li>Use the Seed Publications list to check one or more map publication nodes. The text filter and tag filter can narrow long publication lists.</li>
         <li>Choose one or more discovery modes: Related papers, Papers that cite selected, or Papers cited by selected.</li>
         <li>Optionally enable Only shared results to require every selected seed paper to match the returned result.</li>
-        <li>Click Find Similar and review the OpenAlex Results pane.</li>
-        <li>Open DOI, Source, OpenAlex, or PDF links for promising papers.</li>
-        <li>Use Zotero Connector in the browser to save the paper into Zotero.</li>
-        <li>Return to this app, open Sources, then Zotero, and import the newly saved Zotero items as publication nodes.</li>
+        <li>Click Find Similar. A processing dialog appears while the app checks Zotero targets and searches OpenAlex.</li>
+        <li>Review the OpenAlex Results pane. Use DOI, Source, OpenAlex, or PDF links when you want to inspect a paper before importing it.</li>
+        <li>Select one or more OpenAlex results.</li>
+        <li>Click Add to Zotero + Nodes. If Zotero API access is needed, the app opens a Zotero API Access dialog.</li>
+        <li>Choose a target Zotero library, choose an existing collection or enter a new collection name, enter the API key details, then click Add to Zotero + Nodes in the dialog.</li>
       </ol>
       <p>The seed picker supports up to eight selected publication nodes. Select All chooses only the first eight visible seed publications, and the interface prevents selecting more than eight.</p>
       <h3>Discovery Modes</h3>
@@ -120,7 +121,14 @@
       <p>By default, results from multiple selected seed papers are merged into one discovery list. With Only shared results enabled, the backend applies a strict intersection: a result must be found for every resolved selected seed. For citation-only searches, each selected seed must have an actual citation-direction relationship to the result.</p>
       <p>The app no longer applies a small 25- or 30-result cap to OpenAlex discovery. The backend pages OpenAlex responses and uses a local safety ceiling controlled by <code>OPENALEX_MAX_RESULTS</code>, defaulting to 1000 results. Very broad searches can take longer because OpenAlex returns paged results.</p>
       <p>For seed-based discovery, each result includes a relationship section comparing the found paper against each selected seed paper. It can say that the found paper cites the selected paper, that the selected paper cites the found paper, or that no direct citation relationship was found. OpenAlex reference coverage can be incomplete, so citation labels should be treated as metadata guidance rather than a final bibliographic audit.</p>
-      <p>You can also use the top OpenAlex search box for direct keyword search. Direct search results are discovery-only and are not automatically tied to selected seed papers.</p>
+      <h3>Adding OpenAlex Results to Zotero</h3>
+      <p>You can use the top OpenAlex search box for direct keyword search, or use seed-based discovery. Selected OpenAlex results can be added to an existing Zotero library and either an existing collection or a new collection, then created as Zotero-backed publication nodes. The app tries to avoid obvious duplicates by DOI or title; reused Zotero items are added to the selected collection when possible.</p>
+      <p>The Zotero API Access dialog contains the target library, target collection, new collection name, API key field, Show key toggle, and numeric user ID field when needed. The numeric user ID is required only when writing to My Library. Group libraries do not require the numeric user ID because the group ID comes from Zotero library metadata.</p>
+      <p>The API key is not saved in project JSON. It is kept only in the current browser session field while the app is open. If the key is missing, clicking Add to Zotero + Nodes opens the dialog automatically. Clicking Add to Zotero + Nodes inside the dialog continues the import directly and shows a processing animation while the app creates or reuses the Zotero collection and items.</p>
+      <p>OpenAlex-created nodes are placed as a batch in an open area near the existing map instead of directly on top of current nodes. Imported citations use Zotero's bibliography output when available, rather than the short in-text citation.</p>
+      <h3>Zotero API Key for OpenAlex Imports</h3>
+      <p>Direct OpenAlex-to-Zotero import writes through the Zotero web API, not the Zotero Desktop local API. Create a Zotero private key at <code>https://www.zotero.org/settings/keys</code>. For My Library imports, enable Personal Library access and write access, then enter your numeric Zotero user ID in the dialog. For group-library imports, give the key write access to the target group library.</p>
+      <p>Zotero's free file-storage limit mainly affects PDF and attachment syncing. OpenAlex imports create metadata-only Zotero items and collections, but Zotero Desktop still needs data sync enabled to pull web-created items down into the local desktop app. If a new My Library collection appears in Zotero Web but not Zotero Desktop, click Sync in Zotero Desktop and check for sync errors.</p>
     </section>
 
     <section id="zotero">
@@ -133,7 +141,7 @@ extensions.zotero.httpServer.localAPI.enabled = true
 extensions.zotero.httpServer.port = 23119</code></pre>
       <p>After changing these settings, restart Zotero Desktop and click <strong>Check Zotero</strong> in the app. A healthy live connection reports that the Zotero Desktop HTTP local API is reachable. If the app reports database fallback, Zotero is running but the live local API is unavailable.</p>
       <h3>Connection Indicator</h3>
-      <p>The Zotero import panel shows a compact connection badge. <strong>Live</strong> means the app is reading Zotero through the live Desktop local API. <strong>Backup</strong> means the app is using either its saved Zotero metadata cache or the read-only local database fallback. <strong>Cannot reach</strong> means the app cannot reach Zotero and has no usable backup for the requested data.</p>
+      <p>The Zotero import panel and OpenAlex panel show compact connection badges. <strong>Live</strong> means the app is reading Zotero through the live Desktop local API. <strong>Backup</strong> means the app is using either its saved Zotero metadata cache or the read-only local database fallback. <strong>Cannot reach</strong> means the app cannot reach Zotero and has no usable backup for the requested data. The OpenAlex panel automatically checks Zotero targets when opened and before Find Similar searches, so you do not need to open the Zotero panel first just to populate OpenAlex import targets.</p>
       <pre><code>Windows: C:\Users\&lt;your-username&gt;\Zotero
 macOS/Linux: ~/Zotero</code></pre>
       <p>You can set <code>ZOTERO_DATA_DIR</code> if your Zotero directory is custom and the app needs database fallback.</p>

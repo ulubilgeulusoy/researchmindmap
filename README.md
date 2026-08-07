@@ -78,6 +78,7 @@ For the full publication workflow:
 
 - Zotero requires Zotero Desktop installed and running locally. Zotero Connector in the browser is recommended for saving papers found through OpenAlex, DOI, or publisher pages into Zotero before importing them as nodes.
 - OpenAlex discovery does not require an API key or local install, but the FastAPI host must have internet access.
+- Adding OpenAlex results directly to Zotero requires a Zotero web API key with write access. Enter the key in the OpenAlex Zotero API Access dialog; My Library writes also require your numeric Zotero user ID, while group-library writes use the group ID from Zotero metadata.
 - GROBID requires a separate local service. Docker Desktop is recommended. With Docker running, use:
 
 ```sh

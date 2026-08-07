@@ -32,6 +32,7 @@ DOCUMENT_IMAGES_DELETED_DIR = ROOT / "document_images_deleted"
 AUTOSAVES_DIR = ROOT / "autosaves"
 DEMO_PROJECT_FILE = AUTOSAVES_DIR / "Demo" / "demo-save.json"
 ZOTERO_LOCAL_API = "http://localhost:23119/api"
+ZOTERO_WEB_API = "https://api.zotero.org"
 ZOTERO_CONNECTOR_PING = "http://localhost:23119/connector/ping"
 ZOTERO_HEADERS = {"Zotero-API-Version": "3"}
 GROBID_URL = "http://127.0.0.1:8070"
@@ -79,6 +80,31 @@ class OpenAlexSimilarRequest(BaseModel):
     modes: list[str] = ["related"]
     limit: int = 0
     strictIntersection: bool = False
+
+
+class OpenAlexImportItem(BaseModel):
+    id: str = ""
+    openalexId: str = ""
+    title: str = ""
+    authors: list[str] = []
+    year: str = ""
+    doi: str = ""
+    url: str = ""
+    openalexUrl: str = ""
+    landingPageUrl: str = ""
+    source: str = ""
+    type: str = ""
+    citedByCount: int = 0
+    abstract: str = ""
+
+
+class OpenAlexImportRequest(BaseModel):
+    library: str = "user:0"
+    collection: str = ""
+    newCollectionName: str = ""
+    zoteroApiKey: str = ""
+    zoteroUserId: str = ""
+    items: list[OpenAlexImportItem]
 
 
 class PdfPrepareRequest(BaseModel):
@@ -268,6 +294,114 @@ def zotero_get_all(path: str, params: Optional[dict[str, Any]] = None, max_items
             break
         start += page_size
     return collected[:max_items]
+
+
+def zotero_web_library_path(library_value: str, user_id_override: str = "") -> str:
+    library = parse_zotero_library(library_value)
+    if library["type"] == "group":
+        return library["path"]
+    user_id = (user_id_override or os.environ.get("ZOTERO_USER_ID", "")).strip()
+    if not user_id.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Set ZOTERO_USER_ID to your numeric Zotero user ID before writing to My Library.",
+        )
+    return f"/users/{user_id}"
+
+
+def zotero_write_headers(api_key_override: str = "") -> dict[str, str]:
+    api_key = (api_key_override or os.environ.get("ZOTERO_API_KEY", "")).strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Set ZOTERO_API_KEY with write access before adding OpenAlex results to Zotero.",
+        )
+    return {**ZOTERO_HEADERS, "Content-Type": "application/json", "Zotero-API-Key": api_key}
+
+
+def zotero_web_get(path: str, params: Optional[dict[str, Any]] = None, api_key: str = "") -> Any:
+    query = f"?{urlencode(params)}" if params else ""
+    request = Request(f"{ZOTERO_WEB_API}{path}{query}", headers=zotero_write_headers(api_key))
+    try:
+        with urlopen(request, timeout=12) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise HTTPException(status_code=exc.code, detail=f"Zotero web API request failed: {detail}") from exc
+    except URLError as exc:
+        raise HTTPException(status_code=503, detail="Could not reach Zotero web API for writes.") from exc
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=502, detail="Zotero web API returned invalid JSON.") from exc
+
+
+def zotero_web_get_all(path: str, params: Optional[dict[str, Any]] = None, max_items: int = 1000, api_key: str = "") -> list[Any]:
+    collected: list[Any] = []
+    start = 0
+    page_size = min(ZOTERO_PAGE_SIZE, max_items)
+    base_params = dict(params or {})
+    while len(collected) < max_items:
+        page_params = {**base_params, "limit": page_size, "start": start}
+        page = zotero_web_get(path, page_params, api_key)
+        if not isinstance(page, list):
+            break
+        collected.extend(page)
+        if len(page) < page_size:
+            break
+        start += page_size
+    return collected[:max_items]
+
+
+def zotero_post(path: str, payload: Any, api_key: str = "") -> Any:
+    request = Request(
+        f"{ZOTERO_WEB_API}{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers=zotero_write_headers(api_key),
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=12) as response:
+            body = response.read().decode("utf-8")
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise HTTPException(status_code=exc.code, detail=f"Zotero write failed: {detail}") from exc
+    except URLError as exc:
+        raise HTTPException(status_code=503, detail="Could not write to Zotero web API.") from exc
+
+    try:
+        return json.loads(body) if body else {}
+    except json.JSONDecodeError:
+        return body
+
+
+def zotero_put(path: str, payload: Any, api_key: str = "") -> Any:
+    request = Request(
+        f"{ZOTERO_WEB_API}{path}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers=zotero_write_headers(api_key),
+        method="PUT",
+    )
+    try:
+        with urlopen(request, timeout=12) as response:
+            body = response.read().decode("utf-8")
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:500]
+        raise HTTPException(status_code=exc.code, detail=f"Zotero update failed: {detail}") from exc
+    except URLError as exc:
+        raise HTTPException(status_code=503, detail="Could not update Zotero web API.") from exc
+
+    try:
+        return json.loads(body) if body else {}
+    except json.JSONDecodeError:
+        return body
+
+
+def zotero_success_keys(response: Any) -> list[str]:
+    if not isinstance(response, dict):
+        return []
+    success = response.get("success") or response.get("successful") or {}
+    if not isinstance(success, dict):
+        return []
+    return [str(success[key]) for key in sorted(success, key=lambda value: int(value) if str(value).isdigit() else str(value))]
 
 
 def strip_html(value: str) -> str:
@@ -1511,7 +1645,7 @@ def publication_from_item(item: dict[str, Any]) -> Optional[dict[str, Any]]:
     year = (data.get("date") or "")[:4]
     doi = data.get("DOI") or ""
     url = data.get("url") or (f"https://doi.org/{doi}" if doi else "")
-    citation = item.get("citation") or item.get("bib") or ""
+    citation = item.get("bib") or item.get("citation") or ""
 
     return {
         "zoteroKey": item.get("key"),
@@ -1604,6 +1738,136 @@ def zotero_api_items(
         publications.extend(publication for publication in (publication_from_item(item) for item in items) if publication)
 
     return unique_publications(publications)[:limit]
+
+
+def creator_from_openalex_author(name: str) -> dict[str, str]:
+    cleaned = re.sub(r"\s+", " ", name or "").strip()
+    if not cleaned:
+        return {}
+    parts = cleaned.split(" ")
+    if len(parts) == 1:
+        return {"creatorType": "author", "name": cleaned}
+    return {"creatorType": "author", "firstName": " ".join(parts[:-1]), "lastName": parts[-1]}
+
+
+def zotero_existing_item_by_openalex(library_value: str, item: OpenAlexImportItem) -> Optional[dict[str, Any]]:
+    query = normalize_doi(item.doi) or item.title.strip()
+    if not query:
+        return None
+    candidates = zotero_api_items(library_value, None, 20, query, "apa", False)
+    item_doi = normalize_doi(item.doi)
+    item_title = normalize_title(item.title)
+    for candidate in candidates:
+        candidate_doi = normalize_doi(candidate.get("doi", ""))
+        candidate_title = normalize_title(candidate.get("title", ""))
+        if item_doi and candidate_doi and item_doi == candidate_doi:
+            return candidate
+        if item_title and candidate_title and item_title == candidate_title:
+            return candidate
+    return None
+
+
+def zotero_collection_for_openalex_import(
+    library_value: str,
+    collection_key: str = "",
+    new_collection_name: str = "",
+    api_key: str = "",
+    user_id: str = "",
+) -> tuple[str, Optional[dict[str, Any]], bool]:
+    collection_key = collection_key.strip()
+    if collection_key:
+        return collection_key, None, False
+
+    name = re.sub(r"\s+", " ", new_collection_name or "").strip()
+    if not name:
+        return "", None, False
+
+    collections = zotero_api_collections(library_value)
+    for collection in collections:
+        if collection.get("name", "").strip().lower() == name.lower():
+            return collection.get("key", ""), collection, False
+
+    response = zotero_post(f"{zotero_web_library_path(library_value, user_id)}/collections", [{"name": name}], api_key)
+    keys = zotero_success_keys(response)
+    if not keys:
+        failed = response.get("failed") if isinstance(response, dict) else None
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Zotero did not create collection '{name}' at "
+                f"{zotero_web_library_path(library_value, user_id)}/collections. {failed or ''}"
+            ).strip(),
+        )
+    collection = {"key": keys[0], "name": name, "parentKey": ""}
+    return keys[0], collection, True
+
+
+def zotero_item_from_openalex(item: OpenAlexImportItem, collection_key: str = "") -> dict[str, Any]:
+    doi = normalize_doi(item.doi)
+    url = item.url or item.landingPageUrl or item.openalexUrl or (f"https://doi.org/{doi}" if doi else "")
+    extra_lines = []
+    openalex_url = item.openalexUrl or item.id
+    if openalex_url:
+        extra_lines.append(f"OpenAlex: {openalex_url}")
+    if item.openalexId:
+        extra_lines.append(f"OpenAlex ID: {item.openalexId}")
+    if item.citedByCount:
+        extra_lines.append(f"OpenAlex cited by count: {item.citedByCount}")
+    zotero_item = {
+        "itemType": "journalArticle",
+        "title": item.title or "Untitled OpenAlex work",
+        "creators": [
+            creator for creator in (creator_from_openalex_author(author) for author in item.authors)
+            if creator
+        ],
+        "abstractNote": item.abstract or "",
+        "publicationTitle": item.source or "",
+        "date": item.year or "",
+        "DOI": doi,
+        "url": url,
+        "extra": "\n".join(extra_lines),
+        "tags": [{"tag": "OpenAlex"}],
+        "collections": [collection_key] if collection_key else [],
+        "relations": {},
+    }
+    return zotero_item
+
+
+def zotero_items_by_keys(library_value: str, keys: list[str], api_key: str = "", user_id: str = "") -> list[dict[str, Any]]:
+    if not keys:
+        return []
+    items = zotero_web_get_all(
+        f"{zotero_web_library_path(library_value, user_id)}/items",
+        {
+            "itemKey": ",".join(keys),
+            "format": "json",
+            "include": "data,bib,citation",
+            "style": "apa",
+        },
+        max_items=len(keys),
+        api_key=api_key,
+    )
+    publications = [publication_from_item(item) for item in items]
+    by_key = {publication.get("zoteroKey"): publication for publication in publications if publication}
+    return [by_key[key] for key in keys if key in by_key]
+
+
+def zotero_add_item_to_collection(library_value: str, item_key: str, collection_key: str, api_key: str = "", user_id: str = "") -> str:
+    if not item_key or not collection_key:
+        return "skipped"
+    library_path = zotero_web_library_path(library_value, user_id)
+    item = zotero_web_get(f"{library_path}/items/{quote(item_key)}", api_key=api_key)
+    data = item.get("data") if isinstance(item, dict) else None
+    if not isinstance(data, dict):
+        return "skipped"
+    collections = data.get("collections")
+    if not isinstance(collections, list):
+        collections = []
+    if collection_key in collections:
+        return "already-present"
+    data["collections"] = [*collections, collection_key]
+    zotero_put(f"{library_path}/items/{quote(item_key)}", data, api_key)
+    return "added"
 
 
 def cached_zotero_libraries() -> list[dict[str, Any]]:
@@ -1853,6 +2117,77 @@ def openalex_similar(payload: OpenAlexSimilarRequest, response: Response) -> dic
         {"title": seed.get("title", ""), "openalexId": seed.get("openalexId", "")}
         for seed in resolved
     ], "modes": modes, "strictIntersection": payload.strictIntersection}
+
+
+@app.post("/api/openalex/import-to-zotero")
+def openalex_import_to_zotero(payload: OpenAlexImportRequest, response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No OpenAlex results were selected.")
+    if len(payload.items) > 50:
+        raise HTTPException(status_code=400, detail="Select 50 or fewer OpenAlex results at a time.")
+
+    library_path = zotero_web_library_path(payload.library, payload.zoteroUserId)
+    collection_key, collection, collection_created = zotero_collection_for_openalex_import(
+        payload.library,
+        payload.collection,
+        payload.newCollectionName,
+        payload.zoteroApiKey,
+        payload.zoteroUserId,
+    )
+
+    imported: list[dict[str, Any]] = []
+    existing: list[dict[str, Any]] = []
+    to_create: list[OpenAlexImportItem] = []
+    membership_results = {"added": 0, "already-present": 0, "skipped": 0}
+    for item in payload.items:
+        match = zotero_existing_item_by_openalex(payload.library, item)
+        if match:
+            membership_result = zotero_add_item_to_collection(
+                payload.library,
+                match.get("zoteroKey", ""),
+                collection_key,
+                payload.zoteroApiKey,
+                payload.zoteroUserId,
+            )
+            membership_results[membership_result] = membership_results.get(membership_result, 0) + 1
+            existing.append(match)
+        else:
+            to_create.append(item)
+
+    created_keys: list[str] = []
+    if to_create:
+        response_data = zotero_post(
+            f"{library_path}/items",
+            [zotero_item_from_openalex(item, collection_key) for item in to_create],
+            payload.zoteroApiKey,
+        )
+        created_keys = zotero_success_keys(response_data)
+        failed = response_data.get("failed") if isinstance(response_data, dict) else None
+        if len(created_keys) != len(to_create) and failed:
+            raise HTTPException(status_code=502, detail=f"Some Zotero items could not be created: {failed}")
+        imported = zotero_items_by_keys(payload.library, created_keys, payload.zoteroApiKey, payload.zoteroUserId)
+
+    items = unique_publications(existing + imported)
+    return {
+        "ok": True,
+        "items": items,
+        "createdCount": len(imported),
+        "existingCount": len(existing),
+        "collection": collection or ({"key": collection_key} if collection_key else None),
+        "collectionCreated": collection_created,
+        "diagnostics": {
+            "targetLibrary": payload.library,
+            "targetPath": library_path,
+            "collectionRequested": payload.collection or payload.newCollectionName or "",
+            "collectionKey": collection_key,
+            "collectionName": (collection or {}).get("name") or payload.newCollectionName or "",
+            "collectionAction": "created" if collection_created else "selected" if payload.collection else "reused" if collection_key else "none",
+            "createdItemKeys": created_keys,
+            "existingItemKeys": [item.get("zoteroKey", "") for item in existing],
+            "existingMembership": membership_results,
+        },
+    }
 
 
 @app.post("/api/pdf/prepare")

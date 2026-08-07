@@ -389,9 +389,21 @@ const openAlexPanel = document.getElementById("openAlexPanel");
 const openAlexPanelHeader = openAlexPanel.querySelector(".zotero-panel-header");
 const openAlexResizeHandle = document.getElementById("openAlexResizeHandle");
 const openAlexStatusText = document.getElementById("openAlexStatusText");
+const openAlexZoteroModeBadge = document.getElementById("openAlexZoteroModeBadge");
 const openAlexSearchInput = document.getElementById("openAlexSearchInput");
 const openAlexResultsList = document.getElementById("openAlexResultsList");
 const openAlexResultsCount = document.getElementById("openAlexResultsCount");
+const openAlexLoadingOverlay = document.getElementById("openAlexLoadingOverlay");
+const openAlexLoadingText = document.getElementById("openAlexLoadingText");
+const openAlexImportActions = document.getElementById("openAlexImportActions");
+const openAlexZoteroLibrarySelect = document.getElementById("openAlexZoteroLibrarySelect");
+const openAlexZoteroCollectionSelect = document.getElementById("openAlexZoteroCollectionSelect");
+const openAlexNewCollectionName = document.getElementById("openAlexNewCollectionName");
+const openAlexCredentialOverlay = document.getElementById("openAlexCredentialOverlay");
+const openAlexZoteroApiKey = document.getElementById("openAlexZoteroApiKey");
+const showOpenAlexZoteroApiKey = document.getElementById("showOpenAlexZoteroApiKey");
+const openAlexZoteroUserId = document.getElementById("openAlexZoteroUserId");
+const openAlexZoteroUserIdLabel = document.getElementById("openAlexZoteroUserIdLabel");
 const clearOpenAlexSearchButton = document.getElementById("clearOpenAlexSearchButton");
 const openAlexPublicationFilterInput = document.getElementById("openAlexPublicationFilterInput");
 const openAlexPublicationTagFilter = document.getElementById("openAlexPublicationTagFilter");
@@ -831,6 +843,27 @@ clearZoteroSearchButton.addEventListener("click", () => {
 document.getElementById("closeOpenAlexPanel").addEventListener("click", closeOpenAlexPanel);
 document.getElementById("findSimilarOpenAlexButton").addEventListener("click", findSimilarOpenAlexWorks);
 document.getElementById("searchOpenAlexButton").addEventListener("click", searchOpenAlexWorks);
+document.getElementById("selectAllOpenAlexResultsButton").addEventListener("click", () => setPanelCheckboxes(openAlexResultsList, true));
+document.getElementById("deselectAllOpenAlexResultsButton").addEventListener("click", () => setPanelCheckboxes(openAlexResultsList, false));
+document.getElementById("importOpenAlexToZoteroButton").addEventListener("click", importSelectedOpenAlexResultsToZotero);
+document.getElementById("closeOpenAlexCredentialsButton").addEventListener("click", hideOpenAlexCredentialDialog);
+document.getElementById("saveOpenAlexCredentialsButton").addEventListener("click", importSelectedOpenAlexResultsToZotero);
+openAlexZoteroLibrarySelect.addEventListener("change", syncOpenAlexCollectionTargets);
+openAlexZoteroCollectionSelect.addEventListener("change", () => {
+  openAlexNewCollectionName.disabled = Boolean(openAlexZoteroCollectionSelect.value);
+});
+openAlexNewCollectionName.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") importSelectedOpenAlexResultsToZotero();
+});
+openAlexZoteroApiKey.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") importSelectedOpenAlexResultsToZotero();
+});
+showOpenAlexZoteroApiKey.addEventListener("change", () => {
+  openAlexZoteroApiKey.type = showOpenAlexZoteroApiKey.checked ? "text" : "password";
+});
+openAlexZoteroUserId.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") importSelectedOpenAlexResultsToZotero();
+});
 document.getElementById("selectAllOpenAlexPublicationsButton").addEventListener("click", () => {
   setOpenAlexPublicationCheckboxes(true);
   updateOpenAlexPublicationCount();
@@ -1884,12 +1917,16 @@ function addNode(type) {
   scheduleAutosave("Autosaved after adding node.");
 }
 
-function addPublicationFromZotero(item, index = 0) {
+function addPublicationFromZotero(item, index = 0, batchOrigin = null) {
   const id = makeStableId("Publication");
   const extent = cy.extent();
+  const origin = batchOrigin || {
+    x: (extent.x1 + extent.x2) / 2,
+    y: (extent.y1 + extent.y2) / 2
+  };
   const position = {
-    x: (extent.x1 + extent.x2) / 2 + (index % 5) * 120,
-    y: (extent.y1 + extent.y2) / 2 + Math.floor(index / 5) * 120
+    x: origin.x + (index % 5) * 140,
+    y: origin.y + Math.floor(index / 5) * 140
   };
   const citation = item.citation || "";
   const url = item.url || "";
@@ -1927,6 +1964,65 @@ function addPublicationFromZotero(item, index = 0) {
     },
     position
   });
+}
+
+function findEmptyPublicationBatchOrigin(count) {
+  const columns = Math.min(5, Math.max(1, count));
+  const rows = Math.max(1, Math.ceil(count / columns));
+  const spacing = 140;
+  const nodeClearance = 112;
+  const batchWidth = (columns - 1) * spacing + nodeClearance;
+  const batchHeight = (rows - 1) * spacing + nodeClearance;
+  const extent = cy.elements().not(".tag-cluster-background").boundingBox();
+  const fallbackExtent = cy.extent();
+  const bounds = Number.isFinite(extent.x1)
+    ? extent
+    : { x1: fallbackExtent.x1, x2: fallbackExtent.x2, y1: fallbackExtent.y1, y2: fallbackExtent.y2 };
+  const baseCandidates = [
+    { x: bounds.x2 + 240, y: bounds.y1 },
+    { x: bounds.x2 + 240, y: bounds.y2 - batchHeight },
+    { x: bounds.x1, y: bounds.y2 + 240 },
+    { x: bounds.x2 - batchWidth, y: bounds.y2 + 240 },
+    { x: bounds.x1 - batchWidth - 240, y: bounds.y1 },
+    { x: bounds.x1 - batchWidth - 240, y: bounds.y2 - batchHeight }
+  ];
+  const candidates = [];
+  baseCandidates.forEach((candidate) => {
+    for (let row = 0; row < 4; row += 1) {
+      candidates.push({ x: candidate.x, y: candidate.y + row * (batchHeight + 120) });
+    }
+  });
+
+  const existingBoxes = cy.nodes()
+    .not(".tag-cluster-background")
+    .map((node) => {
+      const position = node.position();
+      const size = getNodeSize(node) || DEFAULT_NODE_SIZE;
+      const radius = size / 2 + 28;
+      return {
+        x1: position.x - radius,
+        x2: position.x + radius,
+        y1: position.y - radius,
+        y2: position.y + radius
+      };
+    });
+
+  const overlaps = (candidate) => {
+    const box = {
+      x1: candidate.x - nodeClearance / 2,
+      x2: candidate.x + batchWidth,
+      y1: candidate.y - nodeClearance / 2,
+      y2: candidate.y + batchHeight
+    };
+    return existingBoxes.some((existing) => !(
+      box.x2 < existing.x1 ||
+      box.x1 > existing.x2 ||
+      box.y2 < existing.y1 ||
+      box.y1 > existing.y2
+    ));
+  };
+
+  return candidates.find((candidate) => !overlaps(candidate)) || { x: bounds.x2 + 260, y: bounds.y1 };
 }
 
 function startConnectionMode() {
@@ -2619,6 +2715,7 @@ async function checkZotero() {
     const status = await fetchJson(`/api/zotero/status?_=${Date.now()}`);
     zoteroMode = status.mode || "";
     updateZoteroModeBadge(zoteroMode, status.ok);
+    updateOpenAlexZoteroModeBadge(zoteroMode, status.ok);
     zoteroStatusText.textContent = zoteroStatusMessage(status.message);
     if (status.ok) {
       await loadZoteroLibraries();
@@ -2626,7 +2723,53 @@ async function checkZotero() {
     }
   } catch (error) {
     updateZoteroModeBadge("error");
+    updateOpenAlexZoteroModeBadge("error");
     zoteroStatusText.textContent = error.message;
+  }
+}
+
+async function ensureZoteroTargetsForOpenAlex() {
+  if (zoteroLibrariesCache.length && zoteroCollectionSelect.dataset.loaded) {
+    syncOpenAlexZoteroTargets();
+    return true;
+  }
+
+  openAlexStatusText.textContent = "Checking Zotero libraries for import targets...";
+  updateZoteroModeBadge("");
+  updateOpenAlexZoteroModeBadge("");
+  zoteroItemsCache = [];
+  zoteroLibrariesCache = [];
+  zoteroCollectionsCache = [];
+  zoteroTopCollectionsCache = [];
+  zoteroMode = "";
+  zoteroItemsList.textContent = "";
+  zoteroListActions.hidden = true;
+  zoteroLibrarySelect.innerHTML = '<option value="user:0">My Library</option>';
+  resetZoteroFolderSelects("Load Zotero first");
+  zoteroCollectionSelect.dataset.loaded = "";
+
+  try {
+    const status = await fetchJson(`/api/zotero/status?_=${Date.now()}`);
+    zoteroMode = status.mode || "";
+    updateZoteroModeBadge(zoteroMode, status.ok);
+    updateOpenAlexZoteroModeBadge(zoteroMode, status.ok);
+    zoteroStatusText.textContent = zoteroStatusMessage(status.message);
+    if (!status.ok) {
+      openAlexStatusText.textContent = status.message || "Could not reach Zotero import targets.";
+      syncOpenAlexZoteroTargets();
+      return false;
+    }
+    await loadZoteroLibraries();
+    await loadZoteroCollections();
+    openAlexStatusText.textContent = "Loaded Zotero import targets.";
+    return true;
+  } catch (error) {
+    updateZoteroModeBadge("error");
+    updateOpenAlexZoteroModeBadge("error");
+    zoteroStatusText.textContent = error.message;
+    openAlexStatusText.textContent = error.message;
+    syncOpenAlexZoteroTargets();
+    return false;
   }
 }
 
@@ -2645,6 +2788,7 @@ async function loadZoteroLibraries() {
     zoteroLibrarySelect.appendChild(option);
   });
   zoteroLibrarySelect.value = seen.has(previousSelection) ? previousSelection : "user:0";
+  syncOpenAlexZoteroTargets();
 }
 
 async function loadZoteroCollections() {
@@ -2672,6 +2816,7 @@ async function loadZoteroCollections() {
     zoteroCollectionSelect.disabled = false;
     zoteroCollectionSelect.dataset.loaded = "true";
     renderZoteroSubcollectionOptions();
+    syncOpenAlexZoteroTargets();
     zoteroStatusText.textContent = `Loaded ${zoteroTopCollectionsCache.length} main Zotero folder(s).`;
   } catch (error) {
     zoteroStatusText.textContent = error.message;
@@ -2743,6 +2888,28 @@ function updateZoteroModeBadge(mode, ok = false) {
     zoteroModeBadge.textContent = "Checking...";
     zoteroModeBadge.classList.add("unknown");
   }
+}
+
+function updateOpenAlexZoteroModeBadge(mode, ok = false) {
+  openAlexZoteroModeBadge.classList.remove("live", "backup", "error", "unknown");
+  if (mode === "http") {
+    openAlexZoteroModeBadge.textContent = "Zotero Live";
+    openAlexZoteroModeBadge.classList.add("live");
+  } else if (mode === "sqlite" || mode === "cache") {
+    openAlexZoteroModeBadge.textContent = "Zotero Backup";
+    openAlexZoteroModeBadge.classList.add("backup");
+  } else if (mode === "error" || ok === false && mode) {
+    openAlexZoteroModeBadge.textContent = "Zotero Cannot Reach";
+    openAlexZoteroModeBadge.classList.add("error");
+  } else {
+    openAlexZoteroModeBadge.textContent = "Zotero Checking";
+    openAlexZoteroModeBadge.classList.add("unknown");
+  }
+}
+
+function setOpenAlexLoading(active, text = "Searching OpenAlex...") {
+  openAlexLoadingOverlay.hidden = !active;
+  openAlexLoadingText.textContent = text;
 }
 
 async function loadZoteroItems() {
@@ -2855,13 +3022,77 @@ function importSelectedZoteroItems() {
 
 function openOpenAlexPanel() {
   openAlexPanel.hidden = false;
+  syncOpenAlexZoteroTargets();
   renderOpenAlexPublicationTagFilter();
   renderOpenAlexPublicationList();
   renderOpenAlexResults();
+  ensureZoteroTargetsForOpenAlex();
 }
 
 function closeOpenAlexPanel() {
   openAlexPanel.hidden = true;
+}
+
+function syncOpenAlexZoteroTargets() {
+  const previousLibrary = openAlexZoteroLibrarySelect.value || zoteroLibrarySelect.value || "user:0";
+  const libraries = zoteroLibrariesCache.length
+    ? zoteroLibrariesCache
+    : [{ key: "user:0", type: "user", id: 0, name: "My Library" }];
+  openAlexZoteroLibrarySelect.innerHTML = "";
+  const seen = new Set();
+  libraries.forEach((library) => {
+    if (!library.key || seen.has(library.key)) return;
+    seen.add(library.key);
+    const option = document.createElement("option");
+    option.value = library.key;
+    option.textContent = library.name || library.key;
+    openAlexZoteroLibrarySelect.appendChild(option);
+  });
+  openAlexZoteroLibrarySelect.value = seen.has(previousLibrary) ? previousLibrary : "user:0";
+  syncOpenAlexCollectionTargets();
+}
+
+function syncOpenAlexCollectionTargets() {
+  const library = openAlexZoteroLibrarySelect.value || "user:0";
+  const previousCollection = openAlexZoteroCollectionSelect.value;
+  const collections = zoteroCollectionsCache.filter((collection) => {
+    const collectionLibrary = collection.libraryType && collection.libraryId !== undefined
+      ? `${collection.libraryType}:${collection.libraryId}`
+      : "user:0";
+    return collectionLibrary === library || !collection.libraryType;
+  });
+  openAlexZoteroCollectionSelect.innerHTML = '<option value="">New collection</option>';
+  collections
+    .slice()
+    .sort((left, right) => (left.name || "").localeCompare(right.name || ""))
+    .forEach((collection) => {
+      if (!collection.key) return;
+      const option = document.createElement("option");
+      option.value = collection.key;
+      option.textContent = collection.name || collection.key;
+      openAlexZoteroCollectionSelect.appendChild(option);
+    });
+  openAlexZoteroCollectionSelect.value = Array.from(openAlexZoteroCollectionSelect.options).some((option) => option.value === previousCollection)
+    ? previousCollection
+    : "";
+  openAlexNewCollectionName.disabled = Boolean(openAlexZoteroCollectionSelect.value);
+  updateOpenAlexCredentialFields();
+}
+
+function updateOpenAlexCredentialFields(show = !openAlexCredentialOverlay.hidden) {
+  const isUserLibrary = (openAlexZoteroLibrarySelect.value || "user:0").startsWith("user:");
+  openAlexCredentialOverlay.hidden = !show;
+  openAlexZoteroUserIdLabel.hidden = !isUserLibrary;
+  openAlexZoteroUserId.disabled = !isUserLibrary;
+}
+
+function showOpenAlexCredentialDialog() {
+  updateOpenAlexCredentialFields(true);
+  openAlexZoteroApiKey.focus();
+}
+
+function hideOpenAlexCredentialDialog() {
+  updateOpenAlexCredentialFields(false);
 }
 
 function selectedOpenAlexSeedPublications() {
@@ -3025,6 +3256,9 @@ async function findSimilarOpenAlexWorks() {
     openAlexStatusText.textContent = "Select at least one OpenAlex discovery mode.";
     return;
   }
+  setOpenAlexLoading(true, "Checking Zotero targets...");
+  await ensureZoteroTargetsForOpenAlex();
+  setOpenAlexLoading(true, `Searching OpenAlex for ${publications.length} selected publication(s)...`);
   openAlexStatusText.textContent = `Finding papers for ${publications.length} selected publication(s)...`;
   openAlexResultsList.textContent = "";
   openAlexResultsCount.textContent = "Searching...";
@@ -3043,12 +3277,15 @@ async function findSimilarOpenAlexWorks() {
       : `Found ${openAlexResultsCache.length} paper(s) from ${resolvedCount} OpenAlex match(es).`;
   } catch (error) {
     openAlexStatusText.textContent = error.message;
+  } finally {
+    setOpenAlexLoading(false);
   }
 }
 
 function renderOpenAlexResults() {
   openAlexResultsList.innerHTML = "";
   if (!openAlexResultsCache.length) {
+    openAlexImportActions.hidden = true;
     openAlexResultsCount.textContent = "No results loaded";
     const empty = document.createElement("div");
     empty.className = "openalex-empty-state";
@@ -3060,13 +3297,17 @@ function renderOpenAlexResults() {
     return;
   }
 
+  openAlexImportActions.hidden = false;
   openAlexResultsCount.textContent = `${openAlexResultsCache.length} result${openAlexResultsCache.length === 1 ? "" : "s"}`;
   openAlexResultsCache.forEach((item, index) => {
     const row = document.createElement("div");
     row.className = "zotero-item-row openalex-result-row";
     const meta = [item.authors?.slice(0, 4).join(", "), item.year, item.source, item.type].filter(Boolean).join(" - ");
     row.innerHTML = `
-      <div class="openalex-result-index">${index + 1}</div>
+      <label class="openalex-result-select">
+        <input type="checkbox" value="${index}">
+        <span class="openalex-result-index">${index + 1}</span>
+      </label>
       <span>
         <strong>${escapeHtml(item.title || "Untitled")}</strong>
         <span>${escapeHtml(meta)}</span>
@@ -3084,6 +3325,103 @@ function renderOpenAlexResults() {
     renderOpenAlexRelationships(row.querySelector(".openalex-relationship-list"), item.relationships || []);
     openAlexResultsList.appendChild(row);
   });
+}
+
+async function importSelectedOpenAlexResultsToZotero() {
+  const selectedIndexes = Array.from(openAlexResultsList.querySelectorAll("input:checked"))
+    .map((input) => Number.parseInt(input.value, 10))
+    .filter(Number.isFinite);
+  if (!selectedIndexes.length) {
+    openAlexStatusText.textContent = "Select at least one OpenAlex result.";
+    return;
+  }
+  if (selectedIndexes.length > 50) {
+    openAlexStatusText.textContent = "Select 50 or fewer OpenAlex results at a time.";
+    return;
+  }
+
+  const collection = openAlexZoteroCollectionSelect.value;
+  const newCollectionName = collection ? "" : openAlexNewCollectionName.value.trim();
+  if (!collection && !newCollectionName) {
+    showOpenAlexCredentialDialog();
+    openAlexStatusText.textContent = "Enter a new Zotero collection name or choose an existing collection.";
+    openAlexNewCollectionName.focus();
+    return;
+  }
+
+  const library = openAlexZoteroLibrarySelect.value || "user:0";
+  const zoteroApiKey = openAlexZoteroApiKey.value.trim();
+  const zoteroUserId = openAlexZoteroUserId.value.trim();
+  const needsUserId = library.startsWith("user:");
+  if (!zoteroApiKey) {
+    updateOpenAlexCredentialFields(true);
+    openAlexStatusText.textContent = "Enter a Zotero API key with write access.";
+    openAlexZoteroApiKey.focus();
+    return;
+  }
+  if (needsUserId && !zoteroUserId) {
+    updateOpenAlexCredentialFields(true);
+    openAlexStatusText.textContent = "Enter your numeric Zotero user ID for My Library writes.";
+    openAlexZoteroUserId.focus();
+    return;
+  }
+
+  openAlexStatusText.textContent = "Adding OpenAlex results to Zotero...";
+  hideOpenAlexCredentialDialog();
+  setOpenAlexLoading(true, "Creating Zotero collection and items...");
+  try {
+    const data = await postJson("/api/openalex/import-to-zotero", {
+      library,
+      collection,
+      newCollectionName,
+      zoteroApiKey,
+      zoteroUserId,
+      items: selectedIndexes.map((index) => openAlexResultsCache[index]).filter(Boolean)
+    });
+    const items = data.items || [];
+    if (!items.length) {
+      openAlexStatusText.textContent = "Zotero accepted the request, but no importable items were returned.";
+      return;
+    }
+
+    setOpenAlexLoading(true, "Adding publication nodes to an open area of the map...");
+    pushUndoState("import OpenAlex results");
+    let lastNode = null;
+    const batchOrigin = findEmptyPublicationBatchOrigin(items.length);
+    items.forEach((item, index) => {
+      lastNode = addPublicationFromZotero(item, index, batchOrigin);
+    });
+    if (lastNode) {
+      cy.$(":selected").unselect();
+      lastNode.select();
+      selectedEdge = null;
+      hideEdgeNotesPanel();
+      selectNode(lastNode);
+      setActiveDocumentNode(lastNode);
+    }
+    renderDocumentOutline();
+    renderMapLegend();
+    cy.fit(undefined, 70);
+    scheduleAutosave("Autosaved OpenAlex imports.");
+    if (data.collectionCreated) await loadZoteroCollections();
+    openAlexStatusText.textContent = `Created ${data.createdCount || 0} Zotero item(s), reused ${data.existingCount || 0}, and added ${items.length} publication node(s). ${openAlexImportDiagnosticsText(data.diagnostics)}`;
+  } catch (error) {
+    openAlexStatusText.textContent = error.message;
+  } finally {
+    setOpenAlexLoading(false);
+  }
+}
+
+function openAlexImportDiagnosticsText(diagnostics) {
+  if (!diagnostics) return "";
+  const collectionAction = diagnostics.collectionAction || "unknown";
+  const collectionName = diagnostics.collectionName || diagnostics.collectionKey || "No collection";
+  const targetPath = diagnostics.targetPath || diagnostics.targetLibrary || "unknown target";
+  const membership = diagnostics.existingMembership || {};
+  const existingDetail = Number(diagnostics.existingItemKeys?.length || 0)
+    ? ` Existing item collection updates: ${membership.added || 0} added, ${membership["already-present"] || 0} already present, ${membership.skipped || 0} skipped.`
+    : "";
+  return `Zotero target ${targetPath}; collection ${collectionAction}: ${collectionName}${diagnostics.collectionKey ? ` (${diagnostics.collectionKey})` : ""}.${existingDetail}`;
 }
 
 function renderOpenAlexRelationships(container, relationships) {
@@ -9997,7 +10335,7 @@ function isTypingTarget(target) {
 function shouldLetBrowserHandleClipboard(target) {
   if (!target || !target.matches) return false;
   if (isInsideDocumentEditor(target)) return true;
-  return target.matches("input[type='text'], input[type='url'], input[type='number'], textarea, [contenteditable='true']");
+  return target.matches("input[type='text'], input[type='url'], input[type='number'], input[type='password'], input[type='search'], textarea, [contenteditable='true']");
 }
 
 function getEditedNodeSize(options = {}) {

@@ -739,7 +739,10 @@
           <h2>OpenAlex Discovery</h2>
           <p id="openAlexStatusText">Find papers, then add them to Zotero before importing nodes.</p>
         </div>
-        <button type="button" id="closeOpenAlexPanel">Close</button>
+        <div class="zotero-header-actions">
+          <span id="openAlexZoteroModeBadge" class="zotero-mode-badge unknown">Zotero not checked</span>
+          <button type="button" id="closeOpenAlexPanel">Close</button>
+        </div>
       </div>
 
       <div class="openalex-search-controls">
@@ -787,14 +790,71 @@
           <div id="openAlexPublicationList" class="openalex-publication-list"></div>
         </div>
 
-        <div class="openalex-results-pane">
-          <div class="openalex-pane-header">
-            <div>
-              <strong>OpenAlex Results</strong>
-              <span id="openAlexResultsCount">No results loaded</span>
+          <div class="openalex-results-pane">
+            <div class="openalex-pane-header">
+              <div>
+                <strong>OpenAlex Results</strong>
+                <span id="openAlexResultsCount">No results loaded</span>
+              </div>
+            </div>
+            <div id="openAlexImportActions" class="openalex-import-actions" hidden>
+              <div class="openalex-selection-actions">
+                <button type="button" id="selectAllOpenAlexResultsButton">Select All</button>
+                <button type="button" id="deselectAllOpenAlexResultsButton">Deselect All</button>
+              </div>
+              <button type="button" id="importOpenAlexToZoteroButton" class="openalex-import-primary">Add to Zotero + Nodes</button>
+            </div>
+            <div id="openAlexResultsList" class="zotero-items-list openalex-results-list"></div>
+          </div>
+      </div>
+      <div id="openAlexLoadingOverlay" class="openalex-loading-overlay" hidden>
+        <div class="openalex-loading-dialog">
+          <strong>Finding similar papers</strong>
+          <div class="grobid-progress running">
+            <div class="grobid-progress-track">
+              <div class="grobid-progress-bar"></div>
             </div>
           </div>
-          <div id="openAlexResultsList" class="zotero-items-list openalex-results-list"></div>
+          <p id="openAlexLoadingText">Checking Zotero targets and searching OpenAlex...</p>
+        </div>
+      </div>
+      <div id="openAlexCredentialOverlay" class="openalex-loading-overlay" hidden>
+        <div class="openalex-credential-dialog">
+          <div class="openalex-credential-header">
+            <strong>Zotero API Access</strong>
+            <button type="button" id="closeOpenAlexCredentialsButton">Close</button>
+          </div>
+          <label>
+            Target library
+            <select id="openAlexZoteroLibrarySelect" aria-label="Target Zotero library">
+              <option value="user:0">My Library</option>
+            </select>
+          </label>
+          <label>
+            Target collection
+            <select id="openAlexZoteroCollectionSelect" aria-label="Target Zotero collection">
+              <option value="">New collection</option>
+            </select>
+          </label>
+          <label>
+            New collection name
+            <input id="openAlexNewCollectionName" type="text" value="OpenAlex Imports" aria-label="New Zotero collection name">
+          </label>
+          <label>
+            API key
+            <input id="openAlexZoteroApiKey" type="password" placeholder="Zotero API key" autocomplete="off" aria-label="Zotero API key">
+          </label>
+          <label class="openalex-api-key-toggle">
+            <input id="showOpenAlexZoteroApiKey" type="checkbox">
+            <span>Show key</span>
+          </label>
+          <label id="openAlexZoteroUserIdLabel">
+            Numeric user ID
+            <input id="openAlexZoteroUserId" type="text" placeholder="Required for My Library" autocomplete="off" aria-label="Zotero numeric user ID">
+          </label>
+          <div class="openalex-credential-actions">
+            <button type="button" id="saveOpenAlexCredentialsButton">Add to Zotero + Nodes</button>
+          </div>
         </div>
       </div>
       <div id="openAlexResizeHandle" class="openalex-resize-handle" aria-hidden="true"></div>

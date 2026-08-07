@@ -2870,6 +2870,7 @@ button:disabled {
   height: min(720px, calc(100vh - 96px));
   display: flex;
   flex-direction: column;
+  position: fixed;
 }
 
 #openAlexPanel[hidden] {
@@ -3213,12 +3214,191 @@ button:disabled {
   border-bottom: 1px solid var(--line);
 }
 
+.openalex-import-actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px 10px;
+  align-items: center;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #f8fafc;
+}
+
+.openalex-import-actions[hidden] {
+  display: none;
+}
+
+.openalex-selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.openalex-import-actions button,
+.openalex-import-actions select,
+.openalex-import-actions input {
+  min-width: 0;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 9px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.openalex-import-actions button {
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.openalex-import-actions .openalex-import-primary {
+  grid-column: 3;
+  justify-self: end;
+  min-width: 168px;
+  height: 38px;
+  background: var(--button);
+  color: #ffffff;
+}
+
+.openalex-import-actions .openalex-import-primary:hover,
+.openalex-import-actions .openalex-import-primary:focus {
+  background: var(--button-hover);
+}
+
 .openalex-results-list {
   min-height: 0;
   max-height: none;
   flex: 1 1 auto;
   overflow-y: auto;
   padding-bottom: 28px;
+}
+
+.openalex-loading-overlay {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.openalex-loading-overlay[hidden] {
+  display: none;
+}
+
+.openalex-loading-dialog {
+  width: min(420px, calc(100% - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(32, 38, 50, 0.18);
+}
+
+.openalex-loading-dialog strong {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.openalex-loading-dialog .grobid-progress {
+  padding: 0;
+}
+
+.openalex-loading-dialog p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.openalex-credential-dialog {
+  display: grid;
+  gap: 12px;
+  width: min(430px, calc(100% - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(32, 38, 50, 0.2);
+}
+
+.openalex-credential-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.openalex-credential-header strong {
+  color: var(--text);
+  font-size: 17px;
+}
+
+.openalex-credential-header button,
+.openalex-credential-actions button {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 11px;
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.openalex-credential-actions button {
+  background: var(--button);
+  color: #ffffff;
+}
+
+.openalex-credential-dialog label {
+  display: grid;
+  gap: 5px;
+  color: #394253;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.openalex-credential-dialog input[type="text"],
+.openalex-credential-dialog input[type="password"],
+.openalex-credential-dialog select {
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.openalex-api-key-toggle {
+  display: inline-flex;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: start;
+  gap: 7px;
+  min-height: 28px;
+  color: #394253;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.openalex-api-key-toggle input {
+  margin: 0;
+}
+
+.openalex-credential-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .openalex-empty-state {
@@ -3415,6 +3595,16 @@ button:disabled {
   grid-template-columns: 40px minmax(0, 1fr);
 }
 
+.openalex-result-select {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+
+.openalex-result-select input {
+  margin: 0;
+}
+
 .openalex-result-index {
   display: grid;
   place-items: center;
@@ -3531,6 +3721,21 @@ button:disabled {
   .openalex-discovery-layout {
     grid-template-columns: 1fr;
     overflow-y: auto;
+  }
+
+  .openalex-import-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .openalex-selection-actions {
+    width: 100%;
+  }
+
+  .openalex-import-actions .openalex-import-primary {
+    grid-row: auto;
+    grid-column: auto;
+    justify-self: stretch;
+    width: 100%;
   }
 
   .openalex-publication-picker {
