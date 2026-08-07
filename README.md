@@ -101,6 +101,14 @@ Health endpoint: GET /api/isalive
 Reference endpoint: POST /api/processReferences
 ```
 
+The app-side GROBID usage is the same on Windows, macOS, and Ubuntu: the FastAPI backend calls the local HTTP service above. Only the GROBID/Docker runtime setup differs by operating system:
+
+- Windows: install Docker Desktop, start it first, then run the same Docker commands in PowerShell or a terminal. CPU mode is fine; do not depend on GPU support for this workflow.
+- macOS: install Docker Desktop, then run the same Docker commands. On Apple Silicon, the full image is large and can be slower or more resource-heavy; `grobid/grobid:0.9.0-crf` is a smaller CPU-only alternative if needed.
+- Ubuntu/Linux: install Docker Engine or Docker Desktop. The same Docker commands work; GPU use is only relevant if NVIDIA drivers and container GPU support are configured.
+
+`127.0.0.1:8070` assumes `server.py` and GROBID run in the same host environment. If FastAPI is moved into Docker, WSL, a VM, or a remote host, adjust the GROBID service address in `server.py`.
+
 ## Core Features
 
 - Visual research mind map with typed, colored nodes and directed connections.

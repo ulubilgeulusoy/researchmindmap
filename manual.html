@@ -166,6 +166,14 @@ Reference endpoint: POST /api/processReferences</code></pre>
       <pre><code>curl http://127.0.0.1:8070/api/isalive</code></pre>
       <p>On Windows PowerShell, use:</p>
       <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8070/api/isalive"</code></pre>
+      <h3>Windows, macOS, and Ubuntu Notes</h3>
+      <p>The app-side GROBID usage is the same on Windows, macOS, and Ubuntu. The FastAPI backend calls the local HTTP service at <code>http://127.0.0.1:8070</code>; only the GROBID and Docker runtime setup differs by operating system.</p>
+      <ul>
+        <li>Windows: install Docker Desktop, start it first, then run the same Docker commands in PowerShell or a terminal. CPU mode is fine; do not depend on GPU support for this workflow.</li>
+        <li>macOS: install Docker Desktop, then run the same Docker commands. On Apple Silicon, the full image is large and can be slower or more resource-heavy; <code>grobid/grobid:0.9.0-crf</code> is a smaller CPU-only alternative if needed.</li>
+        <li>Ubuntu/Linux: install Docker Engine or Docker Desktop. The same Docker commands work; GPU use is only relevant if NVIDIA drivers and container GPU support are configured.</li>
+      </ul>
+      <p><code>127.0.0.1:8070</code> assumes <code>server.py</code> and GROBID run in the same host environment. If FastAPI is moved into Docker, WSL, a VM, or a remote host, adjust the GROBID service address in <code>server.py</code>.</p>
       <h3>App Workflow</h3>
       <p>Import publications from Zotero, make sure they have local PDF attachments, open the GROBID panel, click Check GROBID, analyze all publications, review suggestions, and add selected citation links. The app does not automatically create citation edges without review.</p>
       <p>Added citation edges include citation and GROBID tags, connection notes, confidence metadata, and match reasoning. Existing citation connections are filtered out to avoid duplicate edges.</p>
