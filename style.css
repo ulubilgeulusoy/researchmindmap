@@ -333,6 +333,10 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+#keywordClusterSettingsButton[hidden] {
+  display: none;
+}
+
 .presence-inline {
   align-self: center;
   flex: 0 0 auto;
@@ -2559,6 +2563,11 @@ button:disabled {
   padding: 16px;
   background: #ffffff;
   box-shadow: 0 18px 45px rgba(32, 38, 50, 0.2);
+  overflow: hidden;
+}
+
+.keyword-cluster-dialog {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
 }
 
 .tag-editor-toolbar,
@@ -2571,9 +2580,47 @@ button:disabled {
   grid-template-columns: minmax(180px, 1fr) 170px 170px;
 }
 
+.keyword-cluster-toolbar {
+  grid-template-columns: minmax(180px, 1fr);
+}
+
+.keyword-cluster-view-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, auto);
+  width: fit-content;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.keyword-cluster-view-toggle button {
+  min-height: 32px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.keyword-cluster-view-toggle button.active {
+  background: #ffffff;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
 .tag-editor-actions {
   grid-template-columns: auto auto minmax(220px, 1fr) auto auto auto auto;
   align-items: center;
+}
+
+.keyword-cluster-actions {
+  grid-template-columns: auto auto minmax(220px, 1fr) auto auto auto;
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
 }
 
 .tag-editor-toolbar input,
@@ -2601,6 +2648,10 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f8fafc;
+}
+
+.keyword-cluster-dialog .tag-editor-list {
+  min-height: 0;
 }
 
 .tag-editor-row {

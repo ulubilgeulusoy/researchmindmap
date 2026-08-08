@@ -189,6 +189,9 @@ let presenceTimer = null;
 let presenceLeaveSent = false;
 let keywordModalMode = "add";
 let tagEditorSelectedIds = new Set();
+let keywordClusterSelectedKeys = new Set();
+let keywordClusterSelectedNodeIds = new Set();
+let keywordClusterView = "keywords";
 const presenceClientId = getPresenceClientId();
 
 const fields = {
@@ -272,6 +275,7 @@ const clusterModeSelect = document.getElementById("clusterModeSelect");
 const clusterSpacingSlider = document.getElementById("clusterSpacingSlider");
 const clusterSpacingValue = document.getElementById("clusterSpacingValue");
 const clusterSettingsButton = document.getElementById("clusterSettingsButton");
+const keywordClusterSettingsButton = document.getElementById("keywordClusterSettingsButton");
 const clusterSettingsPanel = document.getElementById("clusterSettingsPanel");
 const closeClusterSettingsButton = document.getElementById("closeClusterSettingsButton");
 const clusterCircleColor = document.getElementById("clusterCircleColor");
@@ -413,6 +417,19 @@ const tagEditorRemoveButton = document.getElementById("tagEditorRemoveButton");
 const tagEditorRenameButton = document.getElementById("tagEditorRenameButton");
 const tagEditorClearButton = document.getElementById("tagEditorClearButton");
 const tagEditorList = document.getElementById("tagEditorList");
+const keywordClusterPanel = document.getElementById("keywordClusterPanel");
+const closeKeywordClusterButton = document.getElementById("closeKeywordClusterButton");
+const keywordClusterStatus = document.getElementById("keywordClusterStatus");
+const keywordClusterKeywordViewButton = document.getElementById("keywordClusterKeywordViewButton");
+const keywordClusterNodeViewButton = document.getElementById("keywordClusterNodeViewButton");
+const keywordClusterSearch = document.getElementById("keywordClusterSearch");
+const keywordClusterSelectAllButton = document.getElementById("keywordClusterSelectAllButton");
+const keywordClusterDeselectAllButton = document.getElementById("keywordClusterDeselectAllButton");
+const keywordClusterLabelInput = document.getElementById("keywordClusterLabelInput");
+const keywordClusterAssignButton = document.getElementById("keywordClusterAssignButton");
+const keywordClusterRenameButton = document.getElementById("keywordClusterRenameButton");
+const keywordClusterResetButton = document.getElementById("keywordClusterResetButton");
+const keywordClusterList = document.getElementById("keywordClusterList");
 const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
 const zoteroSortSelect = document.getElementById("zoteroSortSelect");
@@ -757,6 +774,7 @@ searchPanel.addEventListener("click", (event) => {
 });
 appSearchInput.addEventListener("input", renderSearchResults);
 clusterSettingsButton.addEventListener("click", openClusterSettings);
+keywordClusterSettingsButton.addEventListener("click", openKeywordClusterEditor);
 closeClusterSettingsButton.addEventListener("click", closeClusterSettings);
 clusterSettingsPanel.addEventListener("click", (event) => {
   if (event.target === clusterSettingsPanel) closeClusterSettings();
@@ -867,6 +885,22 @@ tagEditorAddButton.addEventListener("click", () => applyTagEditorAction("add"));
 tagEditorRemoveButton.addEventListener("click", () => applyTagEditorAction("remove"));
 tagEditorRenameButton.addEventListener("click", () => applyTagEditorAction("rename"));
 tagEditorClearButton.addEventListener("click", () => applyTagEditorAction("clear"));
+closeKeywordClusterButton.addEventListener("click", closeKeywordClusterEditor);
+keywordClusterPanel.addEventListener("click", (event) => {
+  if (event.target === keywordClusterPanel) closeKeywordClusterEditor();
+});
+keywordClusterKeywordViewButton.addEventListener("click", () => setKeywordClusterView("keywords"));
+keywordClusterNodeViewButton.addEventListener("click", () => setKeywordClusterView("nodes"));
+keywordClusterSearch.addEventListener("input", renderKeywordClusterEditor);
+keywordClusterSelectAllButton.addEventListener("click", selectVisibleKeywordClusterRows);
+keywordClusterDeselectAllButton.addEventListener("click", () => {
+  keywordClusterSelectedKeys.clear();
+  keywordClusterSelectedNodeIds.clear();
+  renderKeywordClusterEditor();
+});
+keywordClusterAssignButton.addEventListener("click", () => applyKeywordClusterEditorAction("add"));
+keywordClusterRenameButton.addEventListener("click", () => applyKeywordClusterEditorAction("rename"));
+keywordClusterResetButton.addEventListener("click", () => applyKeywordClusterEditorAction("remove"));
 zoteroLibrarySelect.addEventListener("change", () => {
   zoteroSearchInput.value = "";
   zoteroItemsCache = [];
@@ -4627,6 +4661,7 @@ function applyClusterMode(mode, options = {}) {
   clusterSpacingSlider.value = String(clusterSpacingFactor);
   updateClusterSpacingValue();
   clusterModeSelect.value = nextMode;
+  syncKeywordClusterSettingsButton(nextMode);
   if (nextMode === "none") {
     currentClusterMode = "none";
     clusterBasePositions = null;
@@ -4677,6 +4712,10 @@ function readClusterViewState() {
   }
 }
 
+function syncKeywordClusterSettingsButton(mode = currentClusterMode) {
+  keywordClusterSettingsButton.hidden = mode !== "keywords";
+}
+
 function getValidClusterMode(mode) {
   return ["none", "tags", "keywords", "authors", "connections"].includes(mode) ? mode : "none";
 }
@@ -4703,6 +4742,7 @@ function restoreClusterViewState() {
     console.warn("Could not restore cluster view. Turning clustering off.", error);
     currentClusterMode = "none";
     clusterModeSelect.value = "none";
+    syncKeywordClusterSettingsButton("none");
     clusterBasePositions = null;
     clusterSpacingAnchors = null;
     removeClusterBackgrounds();
@@ -5265,7 +5305,17 @@ function renderEllipseTagClusterBackgrounds(positions = captureCurrentNodePositi
 }
 
 function getRenderableTagBackgroundGroups(groups, positions, useIntersectionMode) {
-  return groups.map((group) => ({ ...group, componentIndex: 0 }));
+  const assignedNodeIds = new Set();
+  return groups
+    .map((group) => {
+      const nodes = group.nodes.filter((node) => {
+        if (assignedNodeIds.has(node.id())) return false;
+        assignedNodeIds.add(node.id());
+        return true;
+      });
+      return { ...group, nodes, componentIndex: 0 };
+    })
+    .filter((group) => group.nodes.length);
 }
 
 function splitTagGroupIntoSpatialComponents(nodes, positions) {
@@ -5908,7 +5958,7 @@ function getGlobalKeywordCounts() {
   const counts = new Map();
   getRealNodes().forEach((node) => {
     if (node.data("type") !== "Publication") return;
-    normalizeKeywords(node.data("keywords") || []).forEach((keyword) => {
+    getMappedKeywordLabelsForNode(node).forEach((keyword) => {
       const label = normalizeClusterLabel(keyword);
       if (!label) return;
       counts.set(label, (counts.get(label) || 0) + 1);
@@ -5919,19 +5969,30 @@ function getGlobalKeywordCounts() {
 
 function getKeywordClusterKey(node, keywordCounts, grouped) {
   if (node.data("type") !== "Publication") return "Other clusters";
-  const keywords = Array.from(new Set(
-    normalizeKeywords(node.data("keywords") || [])
-      .map(normalizeClusterLabel)
-      .filter(Boolean)
-  ));
+  const keywords = getMappedKeywordLabelsForNode(node);
   if (!keywords.length) return "No keyword";
   const highestCount = Math.max(...keywords.map((keyword) => keywordCounts.get(keyword) || 0));
+  if (highestCount <= 1) return keywords[0];
   let candidates = keywords.filter((keyword) => (keywordCounts.get(keyword) || 0) === highestCount);
   if (candidates.length === 1) return candidates[0];
   const highestAssigned = Math.max(...candidates.map((keyword) => grouped.get(keyword)?.length || 0));
   candidates = candidates.filter((keyword) => (grouped.get(keyword)?.length || 0) === highestAssigned);
   if (candidates.length === 1) return candidates[0];
-  return candidates[Math.floor(Math.random() * candidates.length)] || "No keyword";
+  const earliestKeyword = keywords.find((keyword) => candidates.includes(keyword));
+  if (earliestKeyword) return earliestKeyword;
+  return candidates.sort((a, b) => a.localeCompare(b))[0] || "No keyword";
+}
+
+function getMappedKeywordLabelsForNode(node) {
+  return Array.from(new Set(
+    normalizeKeywords(node.data("keywords") || [])
+      .map(normalizeClusterLabel)
+      .filter(Boolean)
+  ));
+}
+
+function normalizeKeywordMapKey(keyword) {
+  return String(keyword || "").trim().toLowerCase();
 }
 
 function getTagClusterKeys(node, options = {}) {
@@ -10557,6 +10618,262 @@ function applyTagEditorAction(action) {
   scheduleAutosave("Autosaved tag editor changes.");
   tagEditorStatus.textContent = `Updated ${changed} node(s).`;
   setStatus(`Updated tags for ${changed} node(s).`);
+}
+
+function openKeywordClusterEditor() {
+  keywordClusterSelectedKeys = new Set();
+  keywordClusterSelectedNodeIds = new Set();
+  keywordClusterView = "keywords";
+  syncKeywordClusterViewControls();
+  keywordClusterPanel.hidden = false;
+  renderKeywordClusterEditor();
+  keywordClusterSearch.focus();
+}
+
+function closeKeywordClusterEditor() {
+  keywordClusterPanel.hidden = true;
+}
+
+function getKeywordClusterRows() {
+  const counts = new Map();
+  getRealNodes().forEach((node) => {
+    if (node.data("type") !== "Publication") return;
+    normalizeKeywords(node.data("keywords") || []).forEach((keyword) => {
+      const key = normalizeKeywordMapKey(keyword);
+      const existing = counts.get(key) || { key, keyword, count: 0 };
+      existing.count += 1;
+      counts.set(key, existing);
+    });
+  });
+  return Array.from(counts.values())
+    .sort((a, b) => b.count - a.count || a.keyword.localeCompare(b.keyword));
+}
+
+function getVisibleKeywordClusterRows() {
+  const query = keywordClusterSearch.value.trim().toLowerCase();
+  return getKeywordClusterRows().filter((row) => {
+    if (!query) return true;
+    return row.keyword.toLowerCase().includes(query);
+  });
+}
+
+function getKeywordClusterNodeRows() {
+  return getRealNodes()
+    .filter((node) => node.data("type") === "Publication")
+    .map((node) => ({
+      id: node.id(),
+      label: node.data("label") || "Untitled",
+      citation: normalizePublicationNotes(node.data("publicationNotes")).citation || node.data("citation") || "",
+      keywords: normalizeKeywords(node.data("keywords") || [])
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+function getVisibleKeywordClusterNodeRows() {
+  const query = keywordClusterSearch.value.trim().toLowerCase();
+  return getKeywordClusterNodeRows().filter((row) => {
+    if (!query) return true;
+    return [
+      row.label,
+      row.citation,
+      row.keywords.join(" ")
+    ].join(" ").toLowerCase().includes(query);
+  });
+}
+
+function setKeywordClusterView(view) {
+  keywordClusterView = view === "nodes" ? "nodes" : "keywords";
+  syncKeywordClusterViewControls();
+  renderKeywordClusterEditor();
+  keywordClusterSearch.focus();
+}
+
+function syncKeywordClusterViewControls() {
+  keywordClusterKeywordViewButton.classList.toggle("active", keywordClusterView === "keywords");
+  keywordClusterNodeViewButton.classList.toggle("active", keywordClusterView === "nodes");
+  keywordClusterSearch.placeholder = keywordClusterView === "nodes" ? "Search publication nodes or keywords" : "Search keywords";
+}
+
+function renderKeywordClusterEditor() {
+  if (keywordClusterView === "nodes") {
+    renderKeywordClusterNodeEditor();
+    return;
+  }
+  const rows = getVisibleKeywordClusterRows();
+  keywordClusterList.innerHTML = "";
+  keywordClusterStatus.textContent = `${rows.length} visible keyword(s), ${keywordClusterSelectedKeys.size} selected.`;
+  if (!rows.length) {
+    keywordClusterList.textContent = "No publication keywords match the current filters.";
+    return;
+  }
+  rows.forEach((row) => {
+    const label = document.createElement("label");
+    label.className = "tag-editor-row keyword-cluster-row";
+    label.innerHTML = `
+      <input type="checkbox" value="${escapeHtml(row.key)}" ${keywordClusterSelectedKeys.has(row.key) ? "checked" : ""}>
+      <span class="tag-editor-node-main">
+        <strong>${escapeHtml(row.keyword)}</strong>
+        <span>${row.count} publication${row.count === 1 ? "" : "s"}</span>
+      </span>
+      <span class="tag-editor-tags"><span>Keyword</span></span>
+    `;
+    const checkbox = label.querySelector("input");
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) keywordClusterSelectedKeys.add(row.key);
+      else keywordClusterSelectedKeys.delete(row.key);
+      keywordClusterStatus.textContent = `${getVisibleKeywordClusterRows().length} visible keyword(s), ${keywordClusterSelectedKeys.size} selected.`;
+    });
+    keywordClusterList.appendChild(label);
+  });
+}
+
+function renderKeywordClusterNodeEditor() {
+  const rows = getVisibleKeywordClusterNodeRows();
+  keywordClusterList.innerHTML = "";
+  keywordClusterStatus.textContent = `${rows.length} visible publication node(s), ${keywordClusterSelectedNodeIds.size} selected.`;
+  if (!rows.length) {
+    keywordClusterList.textContent = "No publication nodes match the current filters.";
+    return;
+  }
+  rows.forEach((row) => {
+    const label = document.createElement("label");
+    label.className = "tag-editor-row keyword-cluster-row";
+    label.innerHTML = `
+      <input type="checkbox" value="${escapeHtml(row.id)}" ${keywordClusterSelectedNodeIds.has(row.id) ? "checked" : ""}>
+      <span class="tag-editor-node-main">
+        <strong>${escapeHtml(row.label)}</strong>
+        <span>${escapeHtml(row.citation || "No citation")}</span>
+      </span>
+      <span class="tag-editor-tags">${row.keywords.length ? row.keywords.map((keyword) => `<span>${escapeHtml(keyword)}</span>`).join("") : "<em>No keywords</em>"}</span>
+    `;
+    const checkbox = label.querySelector("input");
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) keywordClusterSelectedNodeIds.add(row.id);
+      else keywordClusterSelectedNodeIds.delete(row.id);
+      keywordClusterStatus.textContent = `${getVisibleKeywordClusterNodeRows().length} visible publication node(s), ${keywordClusterSelectedNodeIds.size} selected.`;
+    });
+    keywordClusterList.appendChild(label);
+  });
+}
+
+function selectVisibleKeywordClusterRows() {
+  if (keywordClusterView === "nodes") {
+    getVisibleKeywordClusterNodeRows().forEach((row) => keywordClusterSelectedNodeIds.add(row.id));
+  } else {
+    getVisibleKeywordClusterRows().forEach((row) => keywordClusterSelectedKeys.add(row.key));
+  }
+  renderKeywordClusterEditor();
+}
+
+function applyKeywordClusterEditorAction(action) {
+  if (keywordClusterView === "nodes") {
+    applyKeywordClusterNodeEditorAction(action);
+    return;
+  }
+  if (!keywordClusterSelectedKeys.size) {
+    keywordClusterStatus.textContent = "Select at least one keyword.";
+    return;
+  }
+  const keywordText = keywordClusterLabelInput.value.trim();
+  if ((action === "add" || action === "rename") && !keywordText) {
+    keywordClusterStatus.textContent = "Enter keyword text.";
+    return;
+  }
+  const selectedKeys = new Set(keywordClusterSelectedKeys);
+  const affectedNodes = getRealNodes().filter((node) => {
+    if (node.data("type") !== "Publication") return false;
+    return normalizeKeywords(node.data("keywords") || [])
+      .some((keyword) => selectedKeys.has(normalizeKeywordMapKey(keyword)));
+  });
+  if (!affectedNodes.length) {
+    keywordClusterStatus.textContent = "No publication nodes contain the selected keyword(s).";
+    return;
+  }
+  pushUndoState("keyword editor");
+  let changed = 0;
+  affectedNodes.forEach((node) => {
+    const currentKeywords = normalizeKeywords(node.data("keywords") || []);
+    let nextKeywords = currentKeywords;
+    if (action === "add") {
+      nextKeywords = normalizeKeywords([...currentKeywords, keywordText]);
+    } else if (action === "rename") {
+      nextKeywords = normalizeKeywords(currentKeywords.map((keyword) => (
+        selectedKeys.has(normalizeKeywordMapKey(keyword)) ? keywordText : keyword
+      )));
+    } else if (action === "remove") {
+      nextKeywords = currentKeywords.filter((keyword) => !selectedKeys.has(normalizeKeywordMapKey(keyword)));
+    }
+    if (nextKeywords.join("\u0001") === currentKeywords.join("\u0001")) return;
+    node.data("keywords", nextKeywords);
+    changed += 1;
+  });
+  keywordClusterSelectedKeys = new Set(
+    Array.from(keywordClusterSelectedKeys).filter((key) => getKeywordClusterRows().some((row) => row.key === key))
+  );
+  if (selectedNode && !selectedNode.removed()) {
+    renderNodeKeywords(selectedNode, selectedNode.data("type") === "Publication");
+  }
+  renderKeywordClusterEditor();
+  refreshKeywordClusterLayoutAfterKeywordEdit();
+  const actionLabel = action === "add" ? "Added keyword to" : action === "rename" ? "Renamed keywords for" : "Removed keywords from";
+  keywordClusterStatus.textContent = `${actionLabel} ${changed} publication node(s).`;
+  setStatus(`${actionLabel} ${changed} publication node(s).`);
+}
+
+function applyKeywordClusterNodeEditorAction(action) {
+  if (!keywordClusterSelectedNodeIds.size) {
+    keywordClusterStatus.textContent = "Select at least one publication node.";
+    return;
+  }
+  const keywordText = keywordClusterLabelInput.value.trim();
+  const targetKeyword = keywordClusterSearch.value.trim();
+  if ((action === "add" || action === "rename") && !keywordText) {
+    keywordClusterStatus.textContent = "Enter keyword text.";
+    return;
+  }
+  if ((action === "remove" || action === "rename") && !targetKeyword) {
+    keywordClusterStatus.textContent = "Search for the exact keyword to remove or rename.";
+    return;
+  }
+  const selectedIds = new Set(keywordClusterSelectedNodeIds);
+  const affectedNodes = getRealNodes().filter((node) => node.data("type") === "Publication" && selectedIds.has(node.id()));
+  if (!affectedNodes.length) {
+    keywordClusterStatus.textContent = "No selected publication nodes found.";
+    return;
+  }
+  pushUndoState("keyword editor");
+  let changed = 0;
+  affectedNodes.forEach((node) => {
+    const currentKeywords = normalizeKeywords(node.data("keywords") || []);
+    let nextKeywords = currentKeywords;
+    if (action === "add") {
+      nextKeywords = normalizeKeywords([...currentKeywords, keywordText]);
+    } else if (action === "rename") {
+      nextKeywords = normalizeKeywords(currentKeywords.map((keyword) => (
+        normalizeKeywordMapKey(keyword) === normalizeKeywordMapKey(targetKeyword) ? keywordText : keyword
+      )));
+    } else if (action === "remove") {
+      nextKeywords = currentKeywords.filter((keyword) => normalizeKeywordMapKey(keyword) !== normalizeKeywordMapKey(targetKeyword));
+    }
+    if (nextKeywords.join("\u0001") === currentKeywords.join("\u0001")) return;
+    node.data("keywords", nextKeywords);
+    changed += 1;
+  });
+  if (selectedNode && !selectedNode.removed()) {
+    renderNodeKeywords(selectedNode, selectedNode.data("type") === "Publication");
+  }
+  renderKeywordClusterEditor();
+  refreshKeywordClusterLayoutAfterKeywordEdit();
+  const actionLabel = action === "add" ? "Added keyword to" : action === "rename" ? "Renamed keyword for" : "Removed keyword from";
+  keywordClusterStatus.textContent = `${actionLabel} ${changed} publication node(s).`;
+  setStatus(`${actionLabel} ${changed} publication node(s).`);
+}
+
+function refreshKeywordClusterLayoutAfterKeywordEdit() {
+  if (currentClusterMode === "keywords") {
+    applyClusterMode("keywords", { autosave: false, suppressEditor: true });
+  }
+  scheduleAutosave("Autosaved keyword editor changes.");
 }
 
 function normalizeKeywords(value) {

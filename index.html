@@ -70,6 +70,7 @@
             <output id="clusterSpacingValue" for="clusterSpacingSlider">1.0x</output>
           </label>
           <button type="button" id="clusterSettingsButton" title="Cluster background settings" aria-label="Cluster background settings">Cluster Settings</button>
+          <button type="button" id="keywordClusterSettingsButton" title="Open keyword cluster menu" aria-label="Open keyword cluster menu" hidden>Keywords Cluster Menu</button>
         </div>
       </details>
 
@@ -966,6 +967,34 @@
           <button type="button" id="tagEditorClearButton">Clear</button>
         </div>
         <div id="tagEditorList" class="tag-editor-list"></div>
+      </div>
+    </section>
+
+    <section id="keywordClusterPanel" class="node-type-settings-panel" hidden>
+      <div class="tag-editor-dialog keyword-cluster-dialog" role="dialog" aria-modal="true" aria-labelledby="keywordClusterTitle">
+        <div class="node-type-settings-header">
+          <div>
+            <h2 id="keywordClusterTitle">Keyword Clustering</h2>
+            <p id="keywordClusterStatus">Edit publication keywords used for keyword clustering.</p>
+          </div>
+          <button type="button" id="closeKeywordClusterButton">Close</button>
+        </div>
+        <div class="keyword-cluster-view-toggle" role="group" aria-label="Keyword editor view">
+          <button type="button" id="keywordClusterKeywordViewButton" class="active">Keyword View</button>
+          <button type="button" id="keywordClusterNodeViewButton">Node View</button>
+        </div>
+        <div class="tag-editor-toolbar keyword-cluster-toolbar">
+          <input id="keywordClusterSearch" type="search" placeholder="Search keywords" autocomplete="off">
+        </div>
+        <div class="tag-editor-actions keyword-cluster-actions">
+          <button type="button" id="keywordClusterSelectAllButton">Select All</button>
+          <button type="button" id="keywordClusterDeselectAllButton">Deselect All</button>
+          <input id="keywordClusterLabelInput" type="text" placeholder="Keyword text for add or rename">
+          <button type="button" id="keywordClusterAssignButton">Add</button>
+          <button type="button" id="keywordClusterRenameButton">Rename</button>
+          <button type="button" id="keywordClusterResetButton">Remove</button>
+        </div>
+        <div id="keywordClusterList" class="tag-editor-list"></div>
       </div>
     </section>
 
