@@ -488,7 +488,7 @@ const cy = cytoscape({
   layout: { name: "preset", fit: true, padding: 70 },
   wheelSensitivity: 0.22,
   minZoom: 0.05,
-  maxZoom: 3,
+  maxZoom: 5,
   userZoomingEnabled: false,
   boxSelectionEnabled: true,
   selectionType: "additive",
