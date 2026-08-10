@@ -44,6 +44,96 @@
         <p>Open the existing manual page for workflows, integrations, autosaves, projects, Zotero, PDFs, GROBID, and troubleshooting.</p>
       </a>
     </section>
+
+    <section class="glossary" aria-labelledby="glossary-title">
+      <div class="section-heading">
+        <p class="eyebrow">Glossary</p>
+        <h2 id="glossary-title">Terms Used in This Project</h2>
+      </div>
+
+      <dl class="glossary-grid">
+        <div>
+          <dt>Research Mind Map</dt>
+          <dd>The local app in this repository. It helps organize publications, ideas, notes, citations, and writing structure as a visual map.</dd>
+        </div>
+        <div>
+          <dt>Node</dt>
+          <dd>A map item, such as a publication or idea. Nodes can have notes, tags, keywords, links, and formatting.</dd>
+        </div>
+        <div>
+          <dt>Edge / Connection</dt>
+          <dd>A line between two nodes. Connections can represent conceptual links, citation links, or other relationships.</dd>
+        </div>
+        <div>
+          <dt>Project</dt>
+          <dd>A separate workspace with its own map, autosaves, snapshots, copied PDFs, and note images.</dd>
+        </div>
+        <div>
+          <dt>Autosave</dt>
+          <dd>The app's continuously updated working save stored under the active project folder.</dd>
+        </div>
+        <div>
+          <dt>Snapshot</dt>
+          <dd>A timestamped manual save point created by the Save button. Use snapshots as recovery points.</dd>
+        </div>
+        <div>
+          <dt>VS Code</dt>
+          <dd>Visual Studio Code, the editor used in the beginner guide to open the repository and run terminal commands.</dd>
+        </div>
+        <div>
+          <dt>Git</dt>
+          <dd>The version-control tool used to clone the repository from GitHub and track project files.</dd>
+        </div>
+        <div>
+          <dt>Virtual Environment</dt>
+          <dd>A project-specific Python environment that keeps this app's dependencies separate from other Python projects.</dd>
+        </div>
+        <div>
+          <dt>FastAPI</dt>
+          <dd>The Python backend framework used by <code>server.py</code> to serve the app and local API endpoints.</dd>
+        </div>
+        <div>
+          <dt>Uvicorn</dt>
+          <dd>The local server command used to run the FastAPI backend on an address like <code>http://127.0.0.1:8000</code>.</dd>
+        </div>
+        <div>
+          <dt>Cytoscape.js</dt>
+          <dd>The JavaScript graph library used to display and interact with the visual mind map.</dd>
+        </div>
+        <div>
+          <dt>Jodit</dt>
+          <dd>The rich-text editor used in the document workspace for notes, formatting, links, images, and tables.</dd>
+        </div>
+        <div>
+          <dt>OpenAlex</dt>
+          <dd>An open scholarly metadata service used by the app to discover related papers and citation-direction results.</dd>
+        </div>
+        <div>
+          <dt>Zotero</dt>
+          <dd>A reference manager used by the app to import publication metadata and access local PDF attachments.</dd>
+        </div>
+        <div>
+          <dt>GROBID</dt>
+          <dd>A local citation-analysis service that extracts references from PDFs so the app can suggest citation links.</dd>
+        </div>
+        <div>
+          <dt>Docker</dt>
+          <dd>A container tool used to run GROBID without installing GROBID directly into the Python environment.</dd>
+        </div>
+        <div>
+          <dt>Docker Desktop</dt>
+          <dd>The Windows and macOS app for running Docker and managing containers such as the reusable <code>grobid</code> container.</dd>
+        </div>
+        <div>
+          <dt>PDF Annotation Extraction</dt>
+          <dd>The workflow that reads highlights, comments, and notes from local PDFs and appends selected annotations to publication notes.</dd>
+        </div>
+        <div>
+          <dt>Tailscale</dt>
+          <dd>A private networking tool that can expose the local app to trusted devices without making the backend public.</dd>
+        </div>
+      </dl>
+    </section>
   </main>
 </body>
 </html>

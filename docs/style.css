@@ -129,6 +129,44 @@ main {
   color: var(--muted);
 }
 
+.section-heading {
+  margin-bottom: 18px;
+}
+
+.section-heading h2 {
+  margin: 0;
+}
+
+.glossary {
+  padding: 0 0 72px;
+}
+
+.glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.glossary-grid div {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.glossary-grid dt {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.glossary-grid dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .doc-page {
   width: min(900px, calc(100% - 40px));
 }
@@ -304,6 +342,10 @@ kbd {
   }
 
   .path-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .glossary-grid {
     grid-template-columns: 1fr;
   }
 }
