@@ -53,6 +53,28 @@ const DEFAULT_NODE_TYPES = [
   { name: "Idea", color: "#2f9d68" },
   { name: "Unassigned", color: "#9ca3af" }
 ];
+function createEmptyGraphPayload(project = activeProject) {
+  return {
+    savedAt: new Date().toISOString(),
+    project,
+    nodeTypes,
+    elements: []
+  };
+}
+
+function createStarterGraphPayload(project = activeProject) {
+  if (project === "Demo") {
+    return {
+      savedAt: new Date().toISOString(),
+      project,
+      nodeTypes,
+      clusterView: DEMO_CLUSTER_VIEW,
+      elements: cloneElements(demoElements)
+    };
+  }
+  return createEmptyGraphPayload(project);
+}
+
 const TEXT_COLOR_PRESETS = [
   "#111827",
   "#374151",
@@ -2205,7 +2227,7 @@ function safeStartupStep(label, fn) {
 
 function loadInitialElements() {
   const saved = localStorage.getItem(projectStorageKey(activeProject));
-  if (!saved) return normalizeElements(cloneElements(demoElements));
+  if (!saved) return normalizeElements(createStarterGraphPayload(activeProject).elements);
 
   try {
     const parsed = JSON.parse(saved);
@@ -2215,8 +2237,8 @@ function loadInitialElements() {
     }
     return normalizeElements(getElementsFromGraphPayload(parsed));
   } catch (error) {
-    console.warn("Could not load saved graph. Falling back to demo.", error);
-    return normalizeElements(cloneElements(demoElements));
+    console.warn("Could not load saved graph. Falling back to starter graph.", error);
+    return normalizeElements(createStarterGraphPayload(activeProject).elements);
   }
 }
 
@@ -2397,11 +2419,20 @@ async function createNewProject() {
     const projects = await fetchProjects();
     setActiveProject(result.project);
     renderProjectSelect(projects);
+    if (!result.created) {
+      await loadLatestServerAutosave();
+      setStatus(`Project ${activeProject} already exists. Loaded existing project.`);
+      return;
+    }
     pushUndoState("create project");
-    restoreGraphPayload({ nodeTypes, elements: cloneElements(demoElements) });
+    const emptyPayload = createEmptyGraphPayload(activeProject);
+    localStorage.removeItem(projectStorageKey(activeProject));
+    restoreGraphPayload(emptyPayload);
     clearDocumentEditor();
-    scheduleAutosave(`Autosaved new project ${activeProject}.`);
-    setStatus(`Created project ${activeProject}.`);
+    writeGraphToLocalStorage(activeProject, emptyPayload);
+    await writeGraphToAutosaveFolder(activeProject, { throwOnError: true, payload: emptyPayload });
+    setAutosaveMessage(`Autosaved new project ${activeProject}. ${formatSaveTime(new Date())}`);
+    setStatus(`Created empty project ${activeProject}.`);
   } catch (error) {
     console.error("Could not create project.", error);
     setStatus(error?.message || "Could not create project.");
@@ -2413,11 +2444,11 @@ async function loadLatestServerAutosave(options = {}) {
     const latest = await fetchJson(`/api/projects/${encodeURIComponent(activeProject)}/latest`);
     const localLatest = readGraphFromLocalStorage(activeProject);
     if (!latest.found || !Array.isArray(latest.elements)) {
-      const fallbackPayload = localLatest || { savedAt: new Date().toISOString(), project: activeProject, nodeTypes, clusterView: activeProject === "Demo" ? DEMO_CLUSTER_VIEW : undefined, elements: cloneElements(demoElements) };
+      const fallbackPayload = localLatest || createStarterGraphPayload(activeProject);
       restoreGraphPayload(fallbackPayload);
       writeGraphToLocalStorage(activeProject, fallbackPayload);
       await runDocumentImageMaintenance();
-      setStatus(`Project ${activeProject} has no autosave yet. Loaded starter demo.`);
+      setStatus(activeProject === "Demo" ? "Demo project has no autosave yet. Loaded starter demo." : `Project ${activeProject} has no autosave yet. Loaded empty project.`);
       return;
     }
 
