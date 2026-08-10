@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beginner Setup Guide - Research Mind Map</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Research Mind Map</a>
+    <nav aria-label="Documentation navigation">
+      <a href="beginner-guide.html" aria-current="page">Beginner Guide</a>
+      <a href="../manual.html">Manual</a>
+      <a href="../README.md">README</a>
+    </nav>
+  </header>
+
+  <main class="doc-page">
+    <header class="doc-intro">
+      <p class="eyebrow">Beginner Guide</p>
+      <h1>Run the app for the first time</h1>
+      <p class="lead">This guide assumes you are new to VS Code, Git, Python environments, and running a local web app.</p>
+    </header>
+
+    <nav class="toc" aria-label="Page sections">
+      <a href="#what-you-are-setting-up">What You Are Setting Up</a>
+      <a href="#install-tools">Install Tools</a>
+      <a href="#clone-repository">Clone the Repository</a>
+      <a href="#open-vscode">Open in VS Code</a>
+      <a href="#virtual-environment">Create a Virtual Environment</a>
+      <a href="#install-dependencies">Install Dependencies</a>
+      <a href="#run-app">Run the App</a>
+      <a href="#stop-app">Stop the App</a>
+      <a href="#next-steps">Next Steps</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+    </nav>
+
+    <section id="what-you-are-setting-up">
+      <h2>What You Are Setting Up</h2>
+      <p>Research Mind Map is a local web application. The page opens in your browser, but the app is served by a small Python backend running on your own computer.</p>
+      <p>You will use Git to download the project, VS Code to open the folder, Python to run the backend, and a virtual environment to keep this app's Python packages separate from other projects.</p>
+    </section>
+
+    <section id="install-tools">
+      <h2>Install Tools</h2>
+      <p>Install these first:</p>
+      <ul>
+        <li><strong>Visual Studio Code</strong>: code editor used to open the project folder.</li>
+        <li><strong>Git</strong>: command line tool used to clone the repository from GitHub.</li>
+        <li><strong>Python 3</strong>: programming language used by the local backend.</li>
+        <li><strong>A modern browser</strong>: Chrome, Edge, Firefox, or Safari.</li>
+      </ul>
+      <p>After installing Python, open a new terminal and check that Python is available:</p>
+      <pre><code>python --version</code></pre>
+      <p>On some systems the command is:</p>
+      <pre><code>python3 --version</code></pre>
+      <p>Check Git the same way:</p>
+      <pre><code>git --version</code></pre>
+    </section>
+
+    <section id="clone-repository">
+      <h2>Clone the Repository</h2>
+      <p>Cloning means downloading a copy of the GitHub repository to your computer.</p>
+      <p>Open a terminal in the folder where you keep software projects, then run:</p>
+      <pre><code>git clone https://github.com/ulubilgeulusoy/researchmindmap.git
+cd researchmindmap</code></pre>
+    </section>
+
+    <section id="open-vscode">
+      <h2>Open in VS Code</h2>
+      <p>From the same terminal, run:</p>
+      <pre><code>code .</code></pre>
+      <p>If that command is not available, open VS Code manually, choose <strong>File</strong>, then <strong>Open Folder</strong>, and select the <code>researchmindmap</code> folder.</p>
+      <p>In VS Code, open the integrated terminal from <strong>Terminal</strong>, then <strong>New Terminal</strong>.</p>
+    </section>
+
+    <section id="virtual-environment">
+      <h2>Create a Virtual Environment</h2>
+      <p>A virtual environment is a project-specific Python workspace. It keeps this app's dependencies isolated from other Python projects.</p>
+      <p>In the VS Code terminal, run:</p>
+      <pre><code>python -m venv mindmapenv</code></pre>
+      <p>Activate it on Windows PowerShell:</p>
+      <pre><code>mindmapenv\Scripts\Activate.ps1</code></pre>
+      <p>Activate it on macOS or Linux:</p>
+      <pre><code>source mindmapenv/bin/activate</code></pre>
+      <p>When activation works, the terminal prompt usually starts with <code>(mindmapenv)</code>.</p>
+    </section>
+
+    <section id="install-dependencies">
+      <h2>Install Dependencies</h2>
+      <p>Dependencies are Python packages the backend needs. Install them inside the activated environment:</p>
+      <pre><code>python -m pip install -r requirements.txt</code></pre>
+    </section>
+
+    <section id="run-app">
+      <h2>Run the App</h2>
+      <p>Start the local backend:</p>
+      <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8000</code></pre>
+      <p>Leave that terminal running. Open this address in your browser:</p>
+      <pre><code>http://127.0.0.1:8000</code></pre>
+      <p>The app should open with the included Demo project.</p>
+    </section>
+
+    <section id="stop-app">
+      <h2>Stop the App</h2>
+      <p>Go back to the terminal running Uvicorn and press <kbd>Ctrl</kbd> + <kbd>C</kbd>. The browser page will stop working until you start the backend again.</p>
+    </section>
+
+    <section id="next-steps">
+      <h2>Next Steps</h2>
+      <p>After the app is running, use the manual for app workflows:</p>
+      <p><a class="text-link" href="../manual.html">Open the application manual</a></p>
+    </section>
+
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+      <h3><code>python</code> is not recognized</h3>
+      <p>Python is not installed, or it was not added to your system path. Install Python again and choose the option to add it to PATH, or try <code>python3</code>.</p>
+
+      <h3>PowerShell blocks activation</h3>
+      <p>If Windows blocks <code>Activate.ps1</code>, open PowerShell as your normal user and run:</p>
+      <pre><code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code></pre>
+      <p>Then close and reopen the terminal.</p>
+
+      <h3>Port 8000 is already in use</h3>
+      <p>Another app is using the same port. Run the backend on a different port:</p>
+      <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8001</code></pre>
+      <p>Then open <code>http://127.0.0.1:8001</code>.</p>
+
+      <h3>The page looks outdated after a change</h3>
+      <p>Use a hard refresh in the browser. On Windows and Linux, press <kbd>Ctrl</kbd> + <kbd>F5</kbd>. On macOS, press <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>.</p>
+    </section>
+  </main>
+</body>
+</html>

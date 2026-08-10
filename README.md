@@ -133,6 +133,12 @@ The app-side GROBID usage is the same on Windows, macOS, and Ubuntu: the FastAPI
 
 ## Full Documentation
 
+Beginner-friendly setup docs are in:
+
+```text
+docs/index.html
+```
+
 The detailed user guide, integration notes, storage model, Tailscale sharing notes, troubleshooting commands, security limitations, file layout, maturity notes, and roadmap have moved into the in-app documentation page:
 
 ```text
