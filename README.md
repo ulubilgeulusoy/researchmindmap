@@ -59,10 +59,15 @@ mindmapenv\Scripts\Activate.ps1
 source mindmapenv/bin/activate
 ```
 
-Install dependencies and start the local backend:
+Install dependencies:
 
 ```sh
 python -m pip install -r requirements.txt
+```
+
+Start the local backend:
+
+```sh
 python -m uvicorn server:app --host 127.0.0.1 --port 8000
 ```
 
