@@ -23,6 +23,7 @@
       <a href="#document-editor">Jodit</a>
       <a href="#openalex">OpenAlex</a>
       <a href="#zotero">Zotero</a>
+      <a href="#map-to-zotero">Map to Zotero</a>
       <a href="#grobid">GROBID</a>
       <a href="#pdfs">PDFs</a>
       <a href="#pdf-annotations">PDF Annotations</a>
@@ -161,6 +162,15 @@ macOS/Linux: ~/Zotero</code></pre>
       <p>The Zotero import panel has separate selectors for library, main folder, and subfolder. The library selector includes <strong>My Library</strong> and available Zotero group libraries. After selecting a library, the main-folder selector loads only top-level collections from that library. After selecting a main folder, the subfolder selector lists its nested subfolders. Choose <strong>All subfolders</strong> to load items from the selected main folder and its descendants, or choose one subfolder to load only that subfolder. Load Items shows the same processing dialog pattern used by OpenAlex and keyword recovery.</p>
       <p>Imported publication nodes can store Zotero library type, library ID, library name, item key, title, authors, year, DOI, citation, URL, abstract, keywords, and bibliographic notes. Keeping library metadata matters because group-library item keys can overlap with personal-library item keys.</p>
       <p>Zotero item tags, Zotero keyword/subject-style metadata, and <code>Extra: Keywords:</code> lines are imported into the app's publication Keywords area. Normal Zotero imports do not populate the app Tags field. Tags are reserved for app-side organization. OpenAlex imports are the exception: OpenAlex-created publication nodes receive the app tag <strong>OpenAlex</strong> while their topic terms are stored as keywords.</p>
+    </section>
+
+    <section id="map-to-zotero">
+      <h2>Map to Zotero</h2>
+      <p>The Tools menu includes <strong>Map to Zotero</strong> for sending publication nodes from the current map into Zotero. This is useful when you receive a project JSON from someone else and want to create matching Zotero items in your own library.</p>
+      <p>The Map Publications to Zotero panel lets you check Zotero, choose My Library or a group library, choose an existing collection or enter a new collection name, filter the map's publication nodes, and select only the publications you want to export. Click <strong>Export Selected</strong> after choosing the target and selected publications.</p>
+      <p>After clicking Export Selected, the app opens a Zotero API Access popup for the API key. My Library exports also require the numeric Zotero user ID; group-library exports use the group ID from Zotero metadata. The API key is not saved in the project JSON.</p>
+      <p>The export tries to avoid duplicates by DOI and normalized title. If a matching Zotero item already exists, the app reuses it and adds it to the selected collection when needed. If no matching item exists, the app creates a new Zotero metadata item and places it in the target collection.</p>
+      <p>The Map Publications to Zotero panel is movable and resizable. Drag its header to move it around the map, and use the bottom-right resize handle to make the publication list larger or smaller.</p>
     </section>
 
     <section id="grobid">
@@ -315,12 +325,10 @@ Reference endpoint: POST /api/processReferences</code></pre>
       <h2>Potential Improvements</h2>
       <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Jodit editor assets are already vendored locally under <code>vendor/jodit-4.2.47/</code>. Zotero and GROBID integrations are local-first, OpenAlex requires internet access from the FastAPI host, and Cytoscape can later be vendored locally for more offline use.</p>
       <ul>
-        <li>Add WebSocket update notifications for trusted shared sessions.</li>
         <li>Add optional edit locks or read-only viewer mode.</li>
         <li>Add local LLM support through Ollama or LM Studio for summaries, tag suggestions, and drafted connection notes.</li>
         <li>Add safer collaboration conflict handling and per-user edit history.</li>
         <li>Add optional browser-based PDF viewing/download for remote Tailscale users.</li>
-        <li>Expand OpenAlex discovery with additional filters, paging, and local citation-network-style exploration.</li>
       </ul>
     </section>
   </main>
