@@ -1,5 +1,5 @@
 {
-  "savedAt": "2026-08-05T10:57:16.212827-06:00",
+  "savedAt": "2026-08-10T11:24:23.610732-06:00",
   "project": "Demo",
   "nodeTypes": [
     {
@@ -43,7 +43,8 @@
         },
         "zIndex": 1,
         "primaryTag": "",
-        "documentHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>"
+        "documentHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>",
+        "keywords": []
       },
       "position": {
         "x": 697.0631594483035,
@@ -77,7 +78,8 @@
           "citation": "",
           "url": "",
           "abstract": ""
-        }
+        },
+        "keywords": []
       },
       "position": {
         "x": 549.2453770112455,

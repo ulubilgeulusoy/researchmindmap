@@ -172,6 +172,7 @@ let zoomControlHideTimer = null;
 let mapZoomBase = 1;
 let currentClusterMode = "none";
 let clusterSpacingFactor = 1;
+let clusterGroupSpacingFactor = 1;
 let clusterBasePositions = null;
 let clusterSpacingAnchors = null;
 let clusterSpacingEditStarted = false;
@@ -274,6 +275,8 @@ const zoomInButton = document.getElementById("zoomInButton");
 const clusterModeSelect = document.getElementById("clusterModeSelect");
 const clusterSpacingSlider = document.getElementById("clusterSpacingSlider");
 const clusterSpacingValue = document.getElementById("clusterSpacingValue");
+const clusterGroupSpacingSlider = document.getElementById("clusterGroupSpacingSlider");
+const clusterGroupSpacingValue = document.getElementById("clusterGroupSpacingValue");
 const clusterSettingsButton = document.getElementById("clusterSettingsButton");
 const keywordClusterSettingsButton = document.getElementById("keywordClusterSettingsButton");
 const clusterSettingsPanel = document.getElementById("clusterSettingsPanel");
@@ -825,7 +828,7 @@ clusterSpacingSlider.addEventListener("input", () => {
   updateClusterSpacingValue();
   if (currentClusterMode !== "none") {
     applyClusterSpacing({ animate: false, autosave: false });
-    setStatus(`Cluster spacing ${clusterSpacingFactor.toFixed(2)}x.`);
+    setStatus(`Node spacing ${clusterSpacingFactor.toFixed(2)}x.`);
   }
 });
 clusterSpacingSlider.addEventListener("change", () => {
@@ -835,6 +838,28 @@ clusterSpacingSlider.addEventListener("change", () => {
     if (!clusterSpacingEditStarted) pushUndoState("cluster spacing");
     if (!clusterSpacingEditStarted) prepareClusterSpacingLayout();
     applyClusterSpacing({ animate: true, autosave: true });
+    clusterSpacingEditStarted = false;
+  }
+});
+clusterGroupSpacingSlider.addEventListener("pointerdown", () => {
+  if (currentClusterMode === "none") return;
+  pushUndoState("cluster group spacing");
+  clusterSpacingEditStarted = true;
+});
+clusterGroupSpacingSlider.addEventListener("input", () => {
+  clusterGroupSpacingFactor = clampClusterGroupSpacing(clusterGroupSpacingSlider.value);
+  updateClusterGroupSpacingValue();
+  if (currentClusterMode !== "none") {
+    applyClusterGroupSpacing({ animate: false, autosave: false });
+    setStatus(`Cluster spacing ${clusterGroupSpacingFactor.toFixed(2)}x.`);
+  }
+});
+clusterGroupSpacingSlider.addEventListener("change", () => {
+  clusterGroupSpacingFactor = clampClusterGroupSpacing(clusterGroupSpacingSlider.value);
+  updateClusterGroupSpacingValue();
+  if (currentClusterMode !== "none") {
+    if (!clusterSpacingEditStarted) pushUndoState("cluster group spacing");
+    applyClusterGroupSpacing({ animate: true, autosave: true });
     clusterSpacingEditStarted = false;
   }
 });
@@ -4658,8 +4683,11 @@ function applyClusterMode(mode, options = {}) {
     clusterSpacingFactor = 1.1;
   }
   clusterSpacingFactor = clampClusterSpacing(clusterSpacingFactor);
+  clusterGroupSpacingFactor = clampClusterGroupSpacing(clusterGroupSpacingFactor);
   clusterSpacingSlider.value = String(clusterSpacingFactor);
+  clusterGroupSpacingSlider.value = String(clusterGroupSpacingFactor);
   updateClusterSpacingValue();
+  updateClusterGroupSpacingValue();
   clusterModeSelect.value = nextMode;
   syncKeywordClusterSettingsButton(nextMode);
   if (nextMode === "none") {
@@ -4685,7 +4713,7 @@ function applyClusterMode(mode, options = {}) {
     window.setTimeout(() => renderTagClusterBackgrounds(), 520);
   }
   const label = nextMode === "tags" ? "tags" : nextMode === "keywords" ? "keywords" : nextMode === "authors" ? "authors" : "connection count";
-  setStatus(`Clustered by ${label}. Spacing ${clusterSpacingFactor.toFixed(2)}x.`);
+  setStatus(`Clustered by ${label}. Node spacing ${clusterSpacingFactor.toFixed(2)}x. Cluster spacing ${clusterGroupSpacingFactor.toFixed(2)}x.`);
   if (!restore) writeClusterViewState();
   if (autosave) scheduleAutosave("Autosaved clustered layout.");
 }
@@ -4700,15 +4728,26 @@ function updateClusterSpacingValue() {
   clusterSpacingValue.textContent = `${clusterSpacingFactor.toFixed(2)}x`;
 }
 
+function clampClusterGroupSpacing(value) {
+  const min = Number(clusterGroupSpacingSlider.min) || 0.5;
+  const max = Number(clusterGroupSpacingSlider.max) || 5;
+  return clamp(Number(value) || 1, min, max);
+}
+
+function updateClusterGroupSpacingValue() {
+  clusterGroupSpacingValue.textContent = `${clusterGroupSpacingFactor.toFixed(2)}x`;
+}
+
 function readClusterViewState() {
   try {
     const saved = JSON.parse(localStorage.getItem(CLUSTER_VIEW_KEY) || "{}");
     return {
       mode: getValidClusterMode(saved.mode),
-      spacing: clampClusterSpacing(saved.spacing || 1)
+      spacing: clampClusterSpacing(saved.spacing || 1),
+      groupSpacing: clampClusterGroupSpacing(saved.groupSpacing || 1)
     };
   } catch (error) {
-    return { mode: "none", spacing: 1 };
+    return { mode: "none", spacing: 1, groupSpacing: 1 };
   }
 }
 
@@ -4727,15 +4766,19 @@ function isClusterBackgroundMode(mode) {
 function writeClusterViewState() {
   localStorage.setItem(CLUSTER_VIEW_KEY, JSON.stringify({
     mode: currentClusterMode,
-    spacing: clusterSpacingFactor
+    spacing: clusterSpacingFactor,
+    groupSpacing: clusterGroupSpacingFactor
   }));
 }
 
 function restoreClusterViewState() {
   const state = readClusterViewState();
   clusterSpacingFactor = state.spacing;
+  clusterGroupSpacingFactor = state.groupSpacing;
   clusterSpacingSlider.value = String(clusterSpacingFactor);
+  clusterGroupSpacingSlider.value = String(clusterGroupSpacingFactor);
   updateClusterSpacingValue();
+  updateClusterGroupSpacingValue();
   try {
     applyClusterMode(state.mode, { autosave: false, restore: true });
   } catch (error) {
@@ -4831,7 +4874,7 @@ function applyClusterStyleToBackgrounds(style = readClusterStyle()) {
   });
 }
 
-function applyClusterSpacing({ animate = false, autosave = false } = {}) {
+function applyClusterSpacing({ animate = false, autosave = false, message = "Autosaved cluster spacing." } = {}) {
   if (currentClusterMode !== "none" && !clusterBasePositions) {
     prepareClusterSpacingLayout();
   } else if (!clusterBasePositions) {
@@ -4855,7 +4898,32 @@ function applyClusterSpacing({ animate = false, autosave = false } = {}) {
     restoreMapViewport(viewport);
     if (isClusterBackgroundMode(currentClusterMode)) renderTagClusterBackgrounds();
   }
-  if (autosave) scheduleAutosave("Autosaved cluster spacing.");
+  if (autosave) scheduleAutosave(message);
+  writeClusterViewState();
+}
+
+function applyClusterGroupSpacing({ animate = false, autosave = false } = {}) {
+  if (currentClusterMode === "none") return;
+  const viewport = captureMapViewport();
+  const layout = getLayoutForClusterMode(currentClusterMode);
+  clusterBasePositions = layout.positions;
+  clusterSpacingAnchors = layout.anchors;
+  const positions = getScaledClusterPositions();
+  if (animate) {
+    animateNodesToPositions(positions);
+    restoreMapViewport(viewport);
+    if (isClusterBackgroundMode(currentClusterMode)) {
+      window.setTimeout(() => {
+        restoreMapViewport(viewport);
+        renderTagClusterBackgrounds();
+      }, 520);
+    }
+  } else {
+    setNodesToPositions(positions);
+    restoreMapViewport(viewport);
+    if (isClusterBackgroundMode(currentClusterMode)) renderTagClusterBackgrounds();
+  }
+  if (autosave) scheduleAutosave("Autosaved cluster group spacing.");
   writeClusterViewState();
 }
 
@@ -6113,14 +6181,16 @@ function makeSlug(value) {
 
 function getClusterCenters(count) {
   const extent = cy.extent();
-  const width = Math.max(900, extent.x2 - extent.x1);
-  const height = Math.max(640, extent.y2 - extent.y1);
+  const center = {
+    x: (extent.x1 + extent.x2) / 2,
+    y: (extent.y1 + extent.y2) / 2
+  };
   const columns = Math.max(1, Math.ceil(Math.sqrt(count)));
   const rows = Math.max(1, Math.ceil(count / columns));
-  const xGap = width / columns;
-  const yGap = height / rows;
-  const startX = extent.x1 + xGap / 2;
-  const startY = extent.y1 + yGap / 2;
+  const xGap = 1320 * clusterGroupSpacingFactor;
+  const yGap = 1080 * clusterGroupSpacingFactor;
+  const startX = center.x - ((columns - 1) * xGap) / 2;
+  const startY = center.y - ((rows - 1) * yGap) / 2;
 
   return Array.from({ length: count }, (_, index) => ({
     x: startX + (index % columns) * xGap,
