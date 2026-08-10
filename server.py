@@ -36,7 +36,7 @@ ZOTERO_WEB_API = "https://api.zotero.org"
 ZOTERO_CONNECTOR_PING = "http://localhost:23119/connector/ping"
 ZOTERO_HEADERS = {"Zotero-API-Version": "3"}
 GROBID_URL = "http://127.0.0.1:8070"
-DEFAULT_PROJECT_NAME = "MMEA"
+DEFAULT_PROJECT_NAME = "Demo"
 ZOTERO_PAGE_SIZE = 100
 ZOTERO_CACHE_FILE = AUTOSAVES_DIR / "zotero-metadata-cache.json"
 
@@ -2813,17 +2813,17 @@ def resolve_document_image_path(relative_path: str, project: str = DEFAULT_PROJE
 
 @app.post("/api/autosave")
 def autosave_map(payload: AutosaveRequest) -> dict[str, Any]:
-    return write_project_autosave("MMEA", payload)
+    return write_project_autosave(DEFAULT_PROJECT_NAME, payload)
 
 
 @app.get("/api/autosave/latest")
 def latest_autosave() -> dict[str, Any]:
-    return read_project_latest("MMEA")
+    return read_project_latest(DEFAULT_PROJECT_NAME)
 
 
 @app.post("/api/snapshot")
 def snapshot_map(payload: AutosaveRequest) -> dict[str, Any]:
-    return write_project_snapshot("MMEA", payload)
+    return write_project_snapshot(DEFAULT_PROJECT_NAME, payload)
 
 
 @app.get("/api/projects")
