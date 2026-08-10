@@ -3219,6 +3219,37 @@ button:disabled {
   padding: 0 10px;
 }
 
+#grobidPanel .zotero-controls {
+  grid-template-columns: auto auto minmax(220px, 0.8fr);
+}
+
+.grobid-toggle-button.start {
+  background: #15803d;
+}
+
+.grobid-toggle-button.start:hover:not(:disabled),
+.grobid-toggle-button.start:focus:not(:disabled) {
+  background: #166534;
+}
+
+.grobid-toggle-button.stop {
+  background: #dc2626;
+}
+
+.grobid-toggle-button.stop:hover:not(:disabled),
+.grobid-toggle-button.stop:focus:not(:disabled) {
+  background: #b91c1c;
+}
+
+.grobid-toggle-button.checking,
+.grobid-toggle-button.checking:hover,
+.grobid-toggle-button.checking:focus {
+  background: #6b7280;
+  color: #ffffff;
+  cursor: wait;
+  opacity: 0.88;
+}
+
 .openalex-search-controls {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

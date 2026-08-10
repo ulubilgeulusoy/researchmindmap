@@ -1158,6 +1158,9 @@ const openAlexModeCitedBy = document.getElementById("openAlexModeCitedBy");
 const openAlexStrictIntersection = document.getElementById("openAlexStrictIntersection");
 const grobidPanel = document.getElementById("grobidPanel");
 const grobidStatusText = document.getElementById("grobidStatusText");
+const checkGrobidButton = document.getElementById("checkGrobidButton");
+const toggleGrobidDockerButton = document.getElementById("toggleGrobidDockerButton");
+const analyzeGrobidButton = document.getElementById("analyzeGrobidButton");
 const grobidSuggestionsList = document.getElementById("grobidSuggestionsList");
 const grobidListActions = document.getElementById("grobidListActions");
 const grobidProgress = document.getElementById("grobidProgress");
@@ -1740,8 +1743,9 @@ clearOpenAlexSearchButton.addEventListener("click", () => {
   openAlexStatusText.textContent = "Find papers, then add them to Zotero before importing nodes.";
 });
 document.getElementById("closeGrobidPanel").addEventListener("click", closeGrobidPanel);
-document.getElementById("checkGrobidButton").addEventListener("click", checkGrobid);
-document.getElementById("analyzeGrobidButton").addEventListener("click", analyzeGrobidReferences);
+checkGrobidButton.addEventListener("click", checkGrobid);
+toggleGrobidDockerButton.addEventListener("click", toggleGrobidDocker);
+analyzeGrobidButton.addEventListener("click", analyzeGrobidReferences);
 document.getElementById("selectAllGrobidSuggestionsButton").addEventListener("click", () => setPanelCheckboxes(grobidSuggestionsList, true));
 document.getElementById("deselectAllGrobidSuggestionsButton").addEventListener("click", () => setPanelCheckboxes(grobidSuggestionsList, false));
 document.getElementById("addGrobidConnectionsButton").addEventListener("click", addSelectedGrobidConnections);
@@ -4803,6 +4807,7 @@ function appendOpenAlexCopyAction(container, value) {
 
 function openGrobidPanel() {
   grobidPanel.hidden = false;
+  checkGrobid({ silent: true });
   if (!grobidSuggestionsCache.length) {
     grobidProgress.hidden = true;
     renderGrobidSuggestions();
@@ -4813,14 +4818,92 @@ function closeGrobidPanel() {
   grobidPanel.hidden = true;
 }
 
-async function checkGrobid() {
-  grobidStatusText.textContent = "Checking GROBID...";
+async function checkGrobid(options = {}) {
+  if (!options.silent) grobidStatusText.textContent = "Checking GROBID...";
+  if (!options.skipBusy) setGrobidDockerButtonState("checking");
   try {
     const status = await fetchJson("/api/grobid/status");
-    grobidStatusText.textContent = status.ok ? `${status.message} ${status.version || ""}` : status.message;
+    const dockerMessage = status.docker?.message ? ` Docker: ${status.docker.message}` : "";
+    grobidStatusText.textContent = status.ok ? `${status.message} ${status.version || ""}` : `${status.message}${dockerMessage}`;
+    updateGrobidDockerButton(status);
+    return status;
   } catch (error) {
     grobidStatusText.textContent = error.message;
+    setGrobidDockerButtonState("unavailable");
+    return null;
+  } finally {
+    if (!options.skipBusy && toggleGrobidDockerButton.dataset.mode === "checking") {
+      updateGrobidDockerButton({ ok: false, docker: { running: false } });
+    }
   }
+}
+
+function updateGrobidDockerButton(status = {}) {
+  const docker = status.docker || {};
+  const running = Boolean(status.ok || docker.running);
+  setGrobidDockerButtonState(running ? "running" : "stopped");
+}
+
+function setGrobidDockerButtonState(mode) {
+  toggleGrobidDockerButton.dataset.mode = mode;
+  toggleGrobidDockerButton.dataset.running = mode === "running" ? "true" : "false";
+  toggleGrobidDockerButton.classList.toggle("start", mode === "stopped");
+  toggleGrobidDockerButton.classList.toggle("stop", mode === "running");
+  toggleGrobidDockerButton.classList.toggle("checking", ["checking", "starting", "stopping", "unavailable"].includes(mode));
+  const labels = {
+    checking: "Checking...",
+    starting: "Starting...",
+    stopping: "Stopping...",
+    running: "Stop GROBID",
+    stopped: "Start GROBID",
+    unavailable: "Start GROBID"
+  };
+  toggleGrobidDockerButton.textContent = labels[mode] || "Start GROBID";
+  toggleGrobidDockerButton.disabled = ["checking", "starting", "stopping", "unavailable"].includes(mode);
+  checkGrobidButton.disabled = ["checking", "starting", "stopping"].includes(mode);
+  analyzeGrobidButton.disabled = mode !== "running";
+  toggleGrobidDockerButton.title = mode === "running"
+    ? "Stop the local Docker GROBID container."
+    : "Start the local Docker GROBID container.";
+}
+
+async function toggleGrobidDocker() {
+  const running = toggleGrobidDockerButton.dataset.running === "true";
+  const action = running ? "stop" : "start";
+  setGrobidDockerButtonState(running ? "stopping" : "starting");
+  grobidStatusText.textContent = running ? "Stopping GROBID Docker container..." : "Starting GROBID Docker container...";
+  try {
+    const result = await postJson(`/api/grobid/docker/${action}`, {});
+    grobidStatusText.textContent = result.message || (running ? "GROBID stopped." : "GROBID started.");
+    if (action === "start") {
+      await waitForGrobidReady();
+    } else {
+      updateGrobidDockerButton({ ok: false, docker: { running: false } });
+    }
+  } catch (error) {
+    grobidStatusText.textContent = error.message;
+    await checkGrobid({ silent: true, skipBusy: true });
+  } finally {
+    if (toggleGrobidDockerButton.dataset.mode === "starting" || toggleGrobidDockerButton.dataset.mode === "stopping") {
+      await checkGrobid({ silent: true, skipBusy: true });
+    }
+  }
+}
+
+async function waitForGrobidReady() {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const status = await checkGrobid({ silent: true, skipBusy: true });
+    if (status?.ok) return status;
+    grobidStatusText.textContent = "GROBID container started. Waiting for service to finish loading...";
+    await waitForGrobidDelay(1500);
+  }
+  grobidStatusText.textContent = "GROBID container started, but the service is still loading. Try Check GROBID again in a moment.";
+  updateGrobidDockerButton({ ok: false, docker: { running: true } });
+  return null;
+}
+
+function waitForGrobidDelay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function getPublicationPayload() {

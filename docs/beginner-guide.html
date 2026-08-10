@@ -11,8 +11,8 @@
     <a class="brand" href="index.html">Research Mind Map</a>
     <nav aria-label="Documentation navigation">
       <a href="beginner-guide.html" aria-current="page">Beginner Guide</a>
-      <a href="../manual.html">Manual</a>
-      <a href="../README.md">README</a>
+      <a href="grobid-docker-guide.html">Docker + GROBID</a>
+      <a href="manual.html">Manual</a>
     </nav>
   </header>
 
@@ -62,14 +62,53 @@
     <section id="clone-repository">
       <h2>Clone the Repository</h2>
       <p>Cloning means downloading a copy of the GitHub repository to your computer.</p>
-      <p>Open a terminal in the folder where you keep software projects, then run:</p>
+
+      <h3>Option 1: Clone with VS Code</h3>
+      <p>Use this option if you prefer clicking through the VS Code interface instead of typing Git commands.</p>
+      <ol>
+        <li>Open Visual Studio Code.</li>
+        <li>Open the Command Palette with <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> on Windows/Linux, or <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> on macOS.</li>
+        <li>Type <strong>Git: Clone</strong> and select it.</li>
+        <li>Paste this repository URL:</li>
+      </ol>
+      <pre><code>https://github.com/ulubilgeulusoy/researchmindmap.git</code></pre>
+      <ol start="5">
+        <li>Choose the folder where you keep software projects.</li>
+        <li>When VS Code asks whether to open the cloned repository, choose <strong>Open</strong>.</li>
+      </ol>
+      <p>If VS Code says Git is not installed, install Git first, restart VS Code, and try again.</p>
+
+      <h3>Option 2: Clone with the Terminal</h3>
+      <p>Use this option if you are comfortable running commands. On Windows, use <strong>PowerShell</strong> or <strong>Command Prompt</strong>. PowerShell is recommended because it is the default terminal in VS Code.</p>
+      <p>First, choose a parent folder where you want to keep software projects. For example, you might create or use one of these folders:</p>
+      <pre><code>C:\Users\YourName\Documents\Software Applications
+C:\Users\YourName\Documents\GitHub
+C:\Users\YourName\Desktop\Software Applications</code></pre>
+      <p>Replace <code>YourName</code> with your Windows username. If the folder path has spaces, put quotes around it when using <code>cd</code>.</p>
+      <p>PowerShell example:</p>
+      <pre><code>cd "C:\Users\YourName\Documents\Software Applications"
+git clone https://github.com/ulubilgeulusoy/researchmindmap.git
+cd researchmindmap</code></pre>
+      <p>Command Prompt example:</p>
+      <pre><code>cd /d "C:\Users\YourName\Documents\Software Applications"
+git clone https://github.com/ulubilgeulusoy/researchmindmap.git
+cd researchmindmap</code></pre>
+      <p>macOS/Linux example:</p>
+      <pre><code>cd ~/Documents/software-applications
+git clone https://github.com/ulubilgeulusoy/researchmindmap.git
+cd researchmindmap</code></pre>
+      <p>If your parent folder does not exist yet, create it first. On Windows PowerShell, this example creates a folder in Documents:</p>
+      <pre><code>mkdir "$HOME\Documents\Software Applications"</code></pre>
+      <p>Then move into it and clone the repository:</p>
       <pre><code>git clone https://github.com/ulubilgeulusoy/researchmindmap.git
 cd researchmindmap</code></pre>
+      <p>The first command downloads the repository. The second command moves your terminal into the new project folder.</p>
     </section>
 
     <section id="open-vscode">
       <h2>Open in VS Code</h2>
-      <p>From the same terminal, run:</p>
+      <p>If you cloned with VS Code and chose <strong>Open</strong>, you can skip this step.</p>
+      <p>If you cloned with the terminal, open the project in VS Code from inside the <code>researchmindmap</code> folder:</p>
       <pre><code>code .</code></pre>
       <p>If that command is not available, open VS Code manually, choose <strong>File</strong>, then <strong>Open Folder</strong>, and select the <code>researchmindmap</code> folder.</p>
       <p>In VS Code, open the integrated terminal from <strong>Terminal</strong>, then <strong>New Terminal</strong>.</p>
@@ -110,7 +149,7 @@ cd researchmindmap</code></pre>
     <section id="next-steps">
       <h2>Next Steps</h2>
       <p>After the app is running, use the manual for app workflows:</p>
-      <p><a class="text-link" href="../manual.html">Open the application manual</a></p>
+      <p><a class="text-link" href="manual.html">Open the application manual</a></p>
     </section>
 
     <section id="troubleshooting">

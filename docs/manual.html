@@ -4,12 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Manual</title>
-  <link rel="stylesheet" href="style.css?v=20260804-about-docs">
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="about-page">
+<body class="about-page docs-manual-page">
+  <header class="site-header">
+    <a class="brand" href="index.html">Research Mind Map</a>
+    <nav aria-label="Documentation navigation">
+      <a href="beginner-guide.html">Beginner Guide</a>
+      <a href="grobid-docker-guide.html">Docker + GROBID</a>
+      <a href="manual.html" aria-current="page">Manual</a>
+    </nav>
+  </header>
+
   <main class="about-doc">
     <header class="about-hero">
-      <a class="about-back-link" href="index.html">Back to app</a>
       <h1>Research Mind Map Manual</h1>
       <p>Detailed guide for the local research mapping prototype, including workflows, integrations, storage, sharing, troubleshooting, and roadmap notes.</p>
     </header>
@@ -18,13 +26,17 @@
   </main>
 
   <script>
-    fetch("manual-content.html")
+    fetch("../manual-content.html")
       .then((response) => {
         if (!response.ok) throw new Error("Could not load manual content.");
         return response.text();
       })
       .then((html) => {
-        document.getElementById("manualContent").innerHTML = html;
+        const manualContent = document.getElementById("manualContent");
+        manualContent.innerHTML = html;
+        manualContent.querySelectorAll('a[href^="docs/"]').forEach((link) => {
+          link.setAttribute("href", link.getAttribute("href").replace(/^docs\//, ""));
+        });
         if (window.location.hash) {
           document.querySelector(window.location.hash)?.scrollIntoView();
         }

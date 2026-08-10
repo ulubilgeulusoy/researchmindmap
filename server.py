@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shutil
+import socket
 import sqlite3
 import subprocess
 import sys
@@ -12,6 +13,7 @@ import uuid
 import xml.etree.ElementTree as ET
 import base64
 from datetime import datetime, timedelta
+from http.client import RemoteDisconnected
 from html import unescape
 from pathlib import Path
 from typing import Any, Optional
@@ -36,6 +38,8 @@ ZOTERO_WEB_API = "https://api.zotero.org"
 ZOTERO_CONNECTOR_PING = "http://localhost:23119/connector/ping"
 ZOTERO_HEADERS = {"Zotero-API-Version": "3"}
 GROBID_URL = "http://127.0.0.1:8070"
+GROBID_DOCKER_IMAGE = "grobid/grobid:0.9.0-full"
+GROBID_DOCKER_CONTAINER = "grobid"
 DEFAULT_PROJECT_NAME = "Demo"
 ZOTERO_PAGE_SIZE = 100
 ZOTERO_CACHE_FILE = AUTOSAVES_DIR / "zotero-metadata-cache.json"
@@ -1418,10 +1422,50 @@ def extract_pdf_highlights(pdf_path: Path) -> list[dict[str, Any]]:
 
 def grobid_get(path: str) -> str:
     try:
-        with urlopen(f"{GROBID_URL}{path}", timeout=8) as response:
+        with urlopen(f"{GROBID_URL}{path}", timeout=3) as response:
             return response.read().decode("utf-8", errors="replace")
+    except socket.timeout as exc:
+        raise HTTPException(status_code=503, detail="Timed out while checking local GROBID at http://127.0.0.1:8070. It may still be starting.") from exc
+    except RemoteDisconnected as exc:
+        raise HTTPException(status_code=503, detail="Local GROBID closed the health-check connection. It may still be starting.") from exc
     except URLError as exc:
         raise HTTPException(status_code=503, detail="Could not reach local GROBID at http://127.0.0.1:8070.") from exc
+
+
+def run_docker_command(args: list[str], timeout: int = 30) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            ["docker", *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=503, detail="Docker command was not found. Install Docker Desktop or Docker Engine, then restart the terminal/server.") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise HTTPException(status_code=504, detail="Docker command timed out.") from exc
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail=f"Could not run Docker: {exc}") from exc
+
+
+def docker_container_exists(name: str = GROBID_DOCKER_CONTAINER) -> bool:
+    result = run_docker_command(["ps", "-a", "--filter", f"name=^{name}$", "--format", "{{.Names}}"])
+    if result.returncode != 0:
+        raise HTTPException(status_code=503, detail=docker_error_message(result, "Could not inspect Docker containers."))
+    return name in {line.strip() for line in result.stdout.splitlines()}
+
+
+def docker_container_running(name: str = GROBID_DOCKER_CONTAINER) -> bool:
+    result = run_docker_command(["ps", "--filter", f"name=^{name}$", "--format", "{{.Names}}"])
+    if result.returncode != 0:
+        raise HTTPException(status_code=503, detail=docker_error_message(result, "Could not inspect running Docker containers."))
+    return name in {line.strip() for line in result.stdout.splitlines()}
+
+
+def docker_error_message(result: subprocess.CompletedProcess[str], fallback: str) -> str:
+    detail = (result.stderr or result.stdout or "").strip()
+    return f"{fallback} {detail}".strip()
 
 
 OPENALEX_API = "https://api.openalex.org"
@@ -2315,12 +2359,64 @@ def openalex_enrich_keywords(payload: OpenAlexKeywordEnrichRequest, response: Re
 
 @app.get("/api/grobid/status")
 def grobid_status() -> dict[str, Any]:
+    docker = {
+        "available": shutil.which("docker") is not None,
+        "container": GROBID_DOCKER_CONTAINER,
+        "image": GROBID_DOCKER_IMAGE,
+        "exists": False,
+        "running": False,
+        "message": "",
+    }
+    if docker["available"]:
+        try:
+            docker["exists"] = docker_container_exists()
+            docker["running"] = docker_container_running()
+        except HTTPException as exc:
+            docker["message"] = str(exc.detail)
     try:
         alive = grobid_get("/api/isalive").strip()
         version = grobid_get("/api/version").strip()
     except HTTPException as exc:
-        return {"ok": False, "message": exc.detail}
-    return {"ok": True, "message": f"GROBID is reachable: {alive}", "version": version}
+        return {"ok": False, "message": exc.detail, "docker": docker}
+    docker["running"] = True
+    return {"ok": True, "message": f"GROBID is reachable: {alive}", "version": version, "docker": docker}
+
+
+@app.post("/api/grobid/docker/start")
+def grobid_docker_start() -> dict[str, Any]:
+    if docker_container_running():
+        return {"ok": True, "message": "GROBID container is already running.", "running": True}
+
+    if docker_container_exists():
+        result = run_docker_command(["start", GROBID_DOCKER_CONTAINER], timeout=20)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=docker_error_message(result, "Could not start existing GROBID container."))
+        return {"ok": True, "message": "Started existing GROBID container.", "running": True}
+
+    result = run_docker_command([
+        "run",
+        "--name",
+        GROBID_DOCKER_CONTAINER,
+        "-d",
+        "-p",
+        "8070:8070",
+        GROBID_DOCKER_IMAGE,
+    ], timeout=180)
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=docker_error_message(result, "Could not create and start GROBID container."))
+    return {"ok": True, "message": "Created and started GROBID container.", "running": True}
+
+
+@app.post("/api/grobid/docker/stop")
+def grobid_docker_stop() -> dict[str, Any]:
+    if not docker_container_exists():
+        return {"ok": True, "message": "GROBID container does not exist.", "running": False}
+    if not docker_container_running():
+        return {"ok": True, "message": "GROBID container is already stopped.", "running": False}
+    result = run_docker_command(["stop", GROBID_DOCKER_CONTAINER], timeout=30)
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=docker_error_message(result, "Could not stop GROBID container."))
+    return {"ok": True, "message": "Stopped GROBID container.", "running": False}
 
 
 @app.get("/api/openalex/search")

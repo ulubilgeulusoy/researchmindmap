@@ -1,0 +1,298 @@
+﻿    <nav class="about-toc" aria-label="Documentation sections">
+      <a href="#overview">Overview</a>
+      <a href="#getting-started">Getting Started</a>
+      <a href="#views">Views</a>
+      <a href="#clustering">Clustering</a>
+      <a href="#details">Details Panel</a>
+      <a href="#document-editor">Jodit</a>
+      <a href="#openalex">OpenAlex</a>
+      <a href="#zotero">Zotero</a>
+      <a href="#map-to-zotero">Map to Zotero</a>
+      <a href="#grobid">GROBID</a>
+      <a href="#pdfs">PDFs</a>
+      <a href="#pdf-annotations">PDF Annotations</a>
+      <a href="#images">Images</a>
+      <a href="#saving">Saving</a>
+      <a href="#recovery">Recovery</a>
+      <a href="#sharing">Sharing</a>
+      <a href="#files">Files</a>
+      <a href="#roadmap">Potential Improvements</a>
+    </nav>
+
+    <section id="overview">
+      <h2>Overview</h2>
+      <p>The app is a local browser-based research mapping and literature-review prototype. The frontend is plain HTML, CSS, and JavaScript. The backend is FastAPI and enables local-only features such as OpenAlex discovery, Zotero, PDF opening and annotation extraction, image saving, GROBID analysis, file autosaves, snapshots, and project workspaces.</p>
+      <h3>Current Feature Summary</h3>
+      <ul>
+        <li>Visual mind map with typed nodes and directed connections.</li>
+        <li>Configurable node types with editable colors.</li>
+        <li>Protected default node types: Publication, Idea, and Unassigned.</li>
+        <li>Right-click node actions for editing, connecting, duplicating, links, ordering, type changes, style copy/paste, and deletion.</li>
+        <li>Undo for graph edits with Ctrl+Z or Command+Z.</li>
+        <li>Application-wide search for nodes, connections, notes, citations, URLs, tags, keywords, and metadata.</li>
+        <li>Project workspaces with server autosaves, snapshots, and JSON backup/import.</li>
+        <li>OpenAlex discovery for related papers and citation-direction searches.</li>
+        <li>Local integrations for Zotero, PDFs, note images, and GROBID.</li>
+      </ul>
+    </section>
+
+    <section id="getting-started">
+      <h2>Getting Started</h2>
+      <p>A typical first-use workflow is:</p>
+      <ol>
+        <li>Create a new project or select an existing project from the Project control.</li>
+        <li>Add an Idea node manually to capture a concept, question, theme, or hypothesis.</li>
+        <li>Add a Publication node manually, or import publications from Zotero if Zotero Desktop is available.</li>
+        <li>Use OpenAlex discovery to find related papers, papers that cite selected publications, or papers cited by selected publications.</li>
+        <li>Connect related ideas and publications on the map.</li>
+        <li>Open Document or Multi View to write notes linked to the selected node or connection.</li>
+        <li>Click Save when you want to create a timestamped recovery snapshot.</li>
+        <li>Use Export periodically to download a separate JSON backup.</li>
+      </ol>
+      <p>OpenAlex, Zotero, and GROBID are central to the publication workflow: OpenAlex supports discovery, Zotero manages the research library and publication-node import, and GROBID helps identify citation links from local PDFs.</p>
+    </section>
+
+    <section id="views">
+      <h2>Views and Projects</h2>
+      <p>The toolbar has three workspace modes: Map, Document, and Multi View. Map shows the visual mind map with the right-side details panel. Document shows a writing workspace linked to map nodes and connections. Multi View shows map and document side by side.</p>
+      <p>The map view has floating zoom controls with minus and plus buttons, a slider, and a numeric percent field. Zoom can be adjusted from 5% to 500%. Reset View refits the visible map and resets the zoom baseline used by the percent control.</p>
+      <p>The project selector switches between project folders. Each project has its own latest autosave, snapshots, copied PDFs, note images, and deleted-image archive. Switching projects loads that project's latest server autosave when the FastAPI backend is running.</p>
+      <p>The document outline can group by currently used node types or by connections. Ideas and publications are grouped by the cluster tag selected in the Details panel, falling back to the first tag when no cluster tag is selected. Connections are grouped by first tag and are shown with short labels such as Connection 1, Connection 2, or Citation connection.</p>
+    </section>
+
+    <section id="clustering">
+      <h2>Clustering</h2>
+      <p>The map can cluster by tags, keywords, authors, or number of connections. Tag clustering uses each node's selected cluster tag from the Details panel, falling back to the first tag when no cluster tag is selected. Tag clusters can draw configurable background circles with tag labels. In single-tag mode, connected nodes from other clusters are nudged toward relevant cluster edges to make cross-cluster links easier to read.</p>
+      <p>The Cluster menu has separate spacing controls. <strong>Node spacing</strong> changes how far nodes sit from the center of their own cluster, which makes individual clusters tighter or looser. <strong>Cluster spacing</strong> changes the distance between cluster centers, which moves the pink cluster circles closer together or farther apart without changing the per-cluster node radius. Cluster spacing ranges from 0.5x to 5x, with 1x calibrated as the normal separated cluster layout.</p>
+      <p>Keyword clustering is automatic and publication-focused. The app counts all keywords across publication nodes, then assigns each publication to the most common keyword among that publication's own keywords. Keyword order is ignored. If multiple keywords tie, the app chooses the keyword whose cluster already has more assigned nodes; if that is also tied, one of the tied keywords is chosen randomly. Non-publication nodes are placed in an Other clusters area, and publications without keywords are placed in No keyword.</p>
+      <p>When keyword clustering is active, the <strong>Keywords Cluster Menu</strong> opens a bulk keyword editor. <strong>Keyword View</strong> groups existing keywords and lets you select one or more keyword rows, then add a keyword to every matching publication, rename selected keywords, or remove selected keywords. <strong>Node View</strong> lists publication nodes with their current keywords; use the search field to find nodes or an exact keyword, select the affected publications, then add, rename, or remove keywords for those nodes. Changes are autosaved and the keyword-cluster layout refreshes immediately when keyword clustering is active.</p>
+      <p>Author clustering counts every listed publication author, normalizes names by first and last name, and uses an author-frequency threshold to avoid one-paper author clusters. Low-frequency papers are placed into an Other authors area.</p>
+      <p>Connection-count clustering groups nodes by how many map connections they have, which helps identify central and isolated nodes.</p>
+    </section>
+
+    <section id="details">
+      <h2>Map Details Panel</h2>
+      <p>Selecting a node opens details for title, type, URL, publication citation, editable app tags, the selected cluster tag, publication keywords, notes, links, PDF opening, and PDF annotation import. The formatting tab supports node size, font size, font family, font style, and style copy/paste. Multi-select formatting is supported for node size and text style changes.</p>
+      <p>Tags and keywords are separate. Tags are editable app labels used for manual organization and tag clustering. The Cluster tag dropdown lets you choose which tag should group that node, or First tag to follow the first tag in the tag field. Publication keywords are bibliographic/topic metadata imported from Zotero/OpenAlex or managed manually. The Keywords area has Add, Edit, and Remove buttons that open small dialogs for changing a publication's keyword list. Keyword clustering uses all keywords automatically; there is no per-node cluster keyword selector.</p>
+      <p>Selecting a connection opens connection details: label, source node, target node, notes, tags, global arrow color, and global arrow thickness. When a connection is selected, both endpoint nodes are highlighted on the map.</p>
+    </section>
+
+    <section id="document-editor">
+      <h2>Jodit</h2>
+      <p>The document workspace uses the vendored Jodit rich-text editor as its main editing surface. It supports font family, font size, paragraph style, bold, italic, underline, strikethrough, text color, lists, alignment, hyperlinks, node links, images, tables, undo/redo, and URL auto-linking.</p>
+      <p>Publication pages include notes plus citation and URL metadata. Idea pages are plain note pages. Connection pages show compact From and To metadata above the editable connection note. Node links are grouped by tag in the node-link picker and can be filtered by search and node type.</p>
+      <p>Jodit assets are stored locally under <code>vendor/jodit-4.2.47/</code>, so the editor does not depend on a Jodit CDN at runtime.</p>
+    </section>
+
+    <section id="openalex">
+      <h2>OpenAlex Discovery</h2>
+      <p>OpenAlex is used as a discovery tool, not as the canonical publication library. The app can search OpenAlex works directly, or use selected publication nodes as seed papers to find related literature. OpenAlex results are shown with DOI, OpenAlex, source, PDF, and copy actions when those links are available.</p>
+      <p>The intended workflow is to discover papers with OpenAlex, review the result metadata and relationship hints, then either open the DOI/source/PDF links manually or add selected results directly to Zotero and create map publication nodes from the new Zotero items. Zotero remains the source of truth for item metadata, local PDFs, and later PDF/GROBID workflows. OpenAlex concepts are imported as publication keywords in the app, while OpenAlex-created map nodes keep the app tag <strong>OpenAlex</strong>.</p>
+      <h3>Finding Papers From Seed Publications</h3>
+      <ol>
+        <li>Import or create publication nodes on the map.</li>
+        <li>Open Sources, then OpenAlex.</li>
+        <li>Use the Seed Publications list to check one or more map publication nodes. The text filter and tag filter can narrow long publication lists.</li>
+        <li>Choose one or more discovery modes: Related papers, Papers that cite selected, or Papers cited by selected.</li>
+        <li>Optionally enable Only shared results to require every selected seed paper to match the returned result.</li>
+        <li>Click Find Similar. A processing dialog appears while the app checks Zotero targets and searches OpenAlex.</li>
+        <li>Review the OpenAlex Results pane. Use DOI, Source, OpenAlex, or PDF links when you want to inspect a paper before importing it.</li>
+        <li>Select one or more OpenAlex results.</li>
+        <li>Click Add to Zotero + Nodes. If Zotero API access is needed, the app opens a Zotero API Access dialog.</li>
+        <li>Choose a target Zotero library, choose an existing collection or enter a new collection name, enter the API key details, then click Add to Zotero + Nodes in the dialog.</li>
+      </ol>
+      <p>The seed picker supports up to eight selected publication nodes. Select All chooses only the first eight visible seed publications, and the interface prevents selecting more than eight.</p>
+      <h3>Discovery Modes</h3>
+      <ul>
+        <li><strong>Related papers</strong> uses OpenAlex's broader related-work relationship. These results may be topically relevant without a direct citation relationship, and OpenAlex often returns a small curated set for an individual work, commonly around 9-10 papers.</li>
+        <li><strong>Papers that cite selected</strong> finds downstream papers whose references include the selected seed paper.</li>
+        <li><strong>Papers cited by selected</strong> finds papers listed in the selected seed paper's references.</li>
+      </ul>
+      <p>By default, results from multiple selected seed papers are merged into one discovery list. With Only shared results enabled, the backend applies a strict intersection: a result must be found for every resolved selected seed. For citation-only searches, each selected seed must have an actual citation-direction relationship to the result.</p>
+      <p>The app no longer applies a small 25- or 30-result cap to OpenAlex discovery. The backend pages OpenAlex responses and uses a local safety ceiling controlled by <code>OPENALEX_MAX_RESULTS</code>, defaulting to 1000 results. Very broad searches can take longer because OpenAlex returns paged results.</p>
+      <p>For seed-based discovery, each result includes a relationship section comparing the found paper against each selected seed paper. It can say that the found paper cites the selected paper, that the selected paper cites the found paper, or that no direct citation relationship was found. OpenAlex reference coverage can be incomplete, so citation labels should be treated as metadata guidance rather than a final bibliographic audit.</p>
+      <h3>Adding OpenAlex Results to Zotero</h3>
+      <p>You can use the top OpenAlex search box for direct keyword search, or use seed-based discovery. Selected OpenAlex results can be added to an existing Zotero library and either an existing collection or a new collection, then created as Zotero-backed publication nodes. The app tries to avoid obvious duplicates by DOI or title; reused Zotero items are added to the selected collection when possible.</p>
+      <p>The Zotero API Access dialog contains the target library, target collection, new collection name, API key field, Show key toggle, and numeric user ID field when needed. The numeric user ID is required only when writing to My Library. Group libraries do not require the numeric user ID because the group ID comes from Zotero library metadata.</p>
+      <p>The API key is not saved in project JSON. It is kept only in the current browser session field while the app is open. If the key is missing, clicking Add to Zotero + Nodes opens the dialog automatically. Clicking Add to Zotero + Nodes inside the dialog continues the import directly and shows a processing animation while the app creates or reuses the Zotero collection and items.</p>
+      <p>OpenAlex-created nodes are placed as a batch in an open area near the existing map instead of directly on top of current nodes. Imported citations use Zotero's bibliography output when available, rather than the short in-text citation. OpenAlex keywords are written to Zotero metadata through the item's Extra field as a <code>Keywords:</code> line when the app creates the Zotero item, then restored into the app's keyword list when the item is read back.</p>
+      <p>Direct OpenAlex imports create Zotero metadata items and map nodes, but they do not guarantee local PDFs. If you want to use those new nodes in GROBID citation analysis, open the generated Zotero collection in Zotero Desktop and use Zotero's <strong>Find Available PDF</strong> or <strong>Find Full Text</strong> action where available. If Zotero cannot retrieve a PDF automatically, attach the PDF manually to the Zotero item. Sync Zotero Desktop after web/API-created items appear, then confirm each needed item has a local PDF attachment before running GROBID.</p>
+      <h3>Zotero API Key for OpenAlex Imports</h3>
+      <p>Direct OpenAlex-to-Zotero import writes through the Zotero web API, not the Zotero Desktop local API. Create a Zotero private key at <code>https://www.zotero.org/settings/keys</code>. For My Library imports, enable Personal Library access and write access, then enter your numeric Zotero user ID in the dialog. For group-library imports, give the key write access to the target group library.</p>
+      <p>Zotero's free file-storage limit mainly affects PDF and attachment syncing. OpenAlex imports create metadata-only Zotero items and collections, but Zotero Desktop still needs data sync enabled to pull web-created items down into the local desktop app. If a new My Library collection appears in Zotero Web but not Zotero Desktop, click Sync in Zotero Desktop and check for sync errors.</p>
+      <h3>Keyword Recovery and Enrichment</h3>
+      <p>The Sources menu includes <strong>Keyword Recover</strong>. This scans all Zotero-backed publication nodes on the map, pulls topic terms from Zotero metadata, and updates the app's publication keywords. The action shows a processing dialog while it runs and reports how many nodes were scanned, how many Zotero items were returned, how many had keywords, and how many were missing or empty.</p>
+      <p>If Zotero does not return keywords for a publication, the same button then tries OpenAlex enrichment using DOI first and title as a fallback. OpenAlex concept terms found this way are added to the node's keyword list. This does not overwrite app tags.</p>
+    </section>
+
+    <section id="zotero">
+      <h2>Zotero Integration</h2>
+      <p>Zotero integration requires the FastAPI backend and Zotero Desktop running locally. The backend first tries Zotero Desktop's live local API at <code>http://localhost:23119/api/</code>. If the live API is not reachable, the app can fall back to a read-only copy of the local Zotero database, but recent Zotero edits may not appear immediately in fallback mode.</p>
+      <h3>Local API Setup</h3>
+      <p>In Zotero Desktop, enable local communication from <strong>Edit</strong>, <strong>Settings</strong>, <strong>Advanced</strong>. The setting may be shown as allowing other applications on this computer to communicate with Zotero. In Zotero 9, the advanced Config Editor can also be used to confirm these preferences:</p>
+      <pre><code>extensions.zotero.httpServer.enabled = true
+extensions.zotero.httpServer.localAPI.enabled = true
+extensions.zotero.httpServer.port = 23119</code></pre>
+      <p>After changing these settings, restart Zotero Desktop and click <strong>Check Zotero</strong> in the app. A healthy live connection reports that the Zotero Desktop HTTP local API is reachable. If the app reports database fallback, Zotero is running but the live local API is unavailable.</p>
+      <h3>Connection Indicator</h3>
+      <p>The Zotero import panel and OpenAlex panel show compact connection badges. <strong>Live</strong> means the app is reading Zotero through the live Desktop local API. <strong>Backup</strong> means the app is using either its saved Zotero metadata cache or the read-only local database fallback. <strong>Cannot reach</strong> means the app cannot reach Zotero and has no usable backup for the requested data. The OpenAlex panel automatically checks Zotero targets when opened and before Find Similar searches, so you do not need to open the Zotero panel first just to populate OpenAlex import targets.</p>
+      <pre><code>Windows: C:\Users\&lt;your-username&gt;\Zotero
+macOS/Linux: ~/Zotero</code></pre>
+      <p>You can set <code>ZOTERO_DATA_DIR</code> if your Zotero directory is custom and the app needs database fallback.</p>
+      <h3>Metadata Backup</h3>
+      <p>When the live Zotero API is working, the backend saves a local metadata backup at <code>autosaves/zotero-metadata-cache.json</code>. This cache stores normalized library, collection, and item metadata that has been loaded through the Zotero panel. If the live API later becomes unavailable, the app tries this metadata backup before falling back to direct SQLite database reads.</p>
+      <p>The metadata backup is for browsing and importing Zotero item metadata. Local PDF attachment resolution still depends on Zotero's local files and database information.</p>
+      <h3>Import Workflow</h3>
+      <p>The Zotero import panel has separate selectors for library, main folder, and subfolder. The library selector includes <strong>My Library</strong> and available Zotero group libraries. After selecting a library, the main-folder selector loads only top-level collections from that library. After selecting a main folder, the subfolder selector lists its nested subfolders. Choose <strong>All subfolders</strong> to load items from the selected main folder and its descendants, or choose one subfolder to load only that subfolder. Load Items shows the same processing dialog pattern used by OpenAlex and keyword recovery.</p>
+      <p>Imported publication nodes can store Zotero library type, library ID, library name, item key, title, authors, year, DOI, citation, URL, abstract, keywords, and bibliographic notes. Keeping library metadata matters because group-library item keys can overlap with personal-library item keys.</p>
+      <p>Zotero item tags, Zotero keyword/subject-style metadata, and <code>Extra: Keywords:</code> lines are imported into the app's publication Keywords area. Normal Zotero imports do not populate the app Tags field. Tags are reserved for app-side organization. OpenAlex imports are the exception: OpenAlex-created publication nodes receive the app tag <strong>OpenAlex</strong> while their topic terms are stored as keywords.</p>
+    </section>
+
+    <section id="map-to-zotero">
+      <h2>Map to Zotero</h2>
+      <p>The Tools menu includes <strong>Map to Zotero</strong> for sending publication nodes from the current map into Zotero. This is useful when you receive a project JSON from someone else and want to create matching Zotero items in your own library.</p>
+      <p>The Map Publications to Zotero panel lets you check Zotero, choose My Library or a group library, choose an existing collection or enter a new collection name, filter the map's publication nodes, and select only the publications you want to export. Click <strong>Export Selected</strong> after choosing the target and selected publications.</p>
+      <p>After clicking Export Selected, the app opens a Zotero API Access popup for the API key. My Library exports also require the numeric Zotero user ID; group-library exports use the group ID from Zotero metadata. The API key is not saved in the project JSON.</p>
+      <p>The export tries to avoid duplicates by DOI and normalized title. If a matching Zotero item already exists, the app reuses it and adds it to the selected collection when needed. If no matching item exists, the app creates a new Zotero metadata item and places it in the target collection.</p>
+      <p>The Map Publications to Zotero panel is movable and resizable. Drag its header to move it around the map, and use the bottom-right resize handle to make the publication list larger or smaller.</p>
+    </section>
+
+    <section id="grobid">
+      <h2>GROBID Citation Analysis</h2>
+      <p>GROBID is used to find citation relationships between publications already in the map. It runs as a separate local service, usually through Docker, and this app calls it at <code>http://127.0.0.1:8070</code>.</p>
+      <h3>Setup</h3>
+      <p>Docker and GROBID installation details are covered in the documentation site's <a href="docs/grobid-docker-guide.html">Docker + GROBID guide</a>. In the app, you only need to start GROBID before citation analysis and stop it when you are done.</p>
+      <h3>Starting and Stopping</h3>
+      <p>Open the GROBID panel from the Sources menu. Click <strong>Check GROBID</strong> to test whether the local service is reachable. If GROBID is stopped, the adjacent button appears as green <strong>Start GROBID</strong>. If GROBID is running, it appears as red <strong>Stop GROBID</strong>.</p>
+      <p><strong>Start GROBID</strong> starts the local Docker container named <code>grobid</code>. <strong>Stop GROBID</strong> stops that container. During checking, starting, or stopping, the button is grey and temporarily disabled.</p>
+      <p>You do not need to keep GROBID running all the time. Start it when you plan to use citation analysis, and stop it when you are finished. You can also start, stop, restart, pause, or resume the same container from Docker Desktop's Containers view.</p>
+      <h3>App Workflow</h3>
+      <p>Import publications from Zotero, make sure they have local PDF attachments, open the GROBID panel, click Check GROBID, analyze all publications, review suggestions, and add selected citation links. The app does not automatically create citation edges without review.</p>
+      <p>For newly added OpenAlex results, run Zotero's full-text retrieval first. In Zotero Desktop, select the generated OpenAlex import collection or the relevant items, then use Zotero's PDF/full-text lookup action. If Zotero cannot find a PDF, manually attach the PDF to the item. GROBID can only analyze publications whose Zotero items resolve to local PDF attachments on the machine running FastAPI.</p>
+      <p>Added citation edges include citation and GROBID tags, connection notes, confidence metadata, and match reasoning. Existing citation connections are filtered out to avoid duplicate edges.</p>
+      <h3>Common Issues</h3>
+      <ul>
+        <li>If Check GROBID fails, confirm Docker is running and port <code>8070</code> is not blocked or already used by another service.</li>
+        <li>The first GROBID startup can take time because the full service loads models before it is ready.</li>
+        <li>Citation suggestions depend on PDF quality. Scanned PDFs or malformed references may produce few or no matches.</li>
+        <li>GROBID analysis runs on the machine hosting FastAPI. A remote browser user does not run GROBID on their own computer.</li>
+      </ul>
+    </section>
+
+    <section id="pdfs">
+      <h2>Local PDF Workflow</h2>
+      <p>For Zotero-backed publication nodes, PDFs are copied from Zotero into <code>autosaves/{project}/library_pdfs/</code>. The copy is done once. If a copied PDF already exists, the app opens the existing copy and does not overwrite it, protecting annotations and notes.</p>
+      <p>OpenAlex-to-Zotero imports usually start as metadata-only Zotero items. To make those papers available for Open PDF, PDF annotation import, or GROBID analysis, use Zotero Desktop's Find Available PDF/Find Full Text workflow or manually attach PDFs to the Zotero items. The app reads local attachments through Zotero; it does not automatically download PDFs from OpenAlex result links into Zotero.</p>
+      <p>PDF actions include opening the project copy in the system default PDF viewer, opening the project PDF folder, and importing annotations. Annotation import is covered in the PDF Annotations section.</p>
+    </section>
+
+    <section id="pdf-annotations">
+      <h2>PDF Annotations</h2>
+      <p>Use <strong>Import PDF Annotations</strong> from a Zotero-backed publication node to review annotations from its local PDF and append selected items into publication notes. Annotation extraction uses PyMuPDF and can extract highlights, highlight comments, standalone comments, and free-text annotations. Adobe-style annotations usually work best.</p>
+      <p>The PDF Annotations popup is wider than the basic dialogs and can be moved by dragging its header. The list shows each annotation with a checkbox, page/type label, extraction-method dropdown, and editable text box. You can select or deselect annotations before appending them.</p>
+      <h3>Annotation Extraction Variants</h3>
+      <p>For highlighted text, the app tries multiple extraction methods and shows them in the annotation review dropdown. <strong>Strict</strong> uses word-level geometry and usually gives the cleanest text when the PDF stores accurate highlight coordinates. <strong>Balanced</strong> and <strong>Loose</strong> allow progressively wider word matching. <strong>Textbox</strong> reads the rectangular highlight area directly and is kept as a fallback because it can recover text when geometry matching fails, but it may pull neighboring words, line fragments, or cramped text from complex PDF layouts.</p>
+      <p>The default selection prefers strict or balanced text when they produce usable output. If the selected default looks wrong, use the dropdown to compare variants before appending annotations to notes.</p>
+      <h3>Append Formatting</h3>
+      <p>Before appending selected annotations, use the formatting controls at the top of the popup to choose the page/type prefix, quote style, list style, and whether imported comments should be included. A live preview under the controls shows a sample highlight using the selected format.</p>
+      <p>Built-in prefix formats include <code>Page X [Type]:</code>, <code>p. X [Type]:</code>, <code>Page X - Type:</code>, <code>p. X - Type:</code>, <code>Page X:</code>, <code>p. X</code>, and no prefix. Use the plus button to add a custom prefix. Custom prefixes can use <code>X</code> or <code>{page}</code> for the page number and <code>Type</code> or <code>{type}</code> for the annotation type. Custom prefixes can be removed with the minus button when a custom prefix is selected.</p>
+      <p>Use <strong>Save as default</strong> to remember the current prefix options, quote style, list style, and comment setting after a page refresh. These settings change how annotations are written into notes; they do not change the underlying text extraction method selected for each annotation.</p>
+    </section>
+
+    <section id="images">
+      <h2>Images in Notes</h2>
+      <p>Images inserted into document notes are saved through the backend into <code>autosaves/{project}/document_images/</code>. The document stores links to saved image files instead of keeping large base64 images in browser storage. Pasted and dropped images use the same save path.</p>
+      <p>When a project loads, the backend reconciles note images by saving embedded base64 images as files, migrating old root-level references into the active project when possible, reporting stale unused images, and reporting missing references. Deleted note images are archived under <code>autosaves/{project}/document_images_deleted/</code>.</p>
+    </section>
+
+    <section id="saving">
+      <h2>Saving and Backups</h2>
+      <p>The app uses browser localStorage for lightweight fallback state, project-specific latest autosaves, manual snapshots, JSON export, and JSON import. Server-side folder autosave is the main working save path and avoids browser quota issues when notes include images.</p>
+      <p><strong>Autosave</strong> continuously updates <code>autosaves/{project}/research-map-latest.json</code>. This is the main working file that the app reloads when you open or switch to a project.</p>
+      <p><strong>Save</strong> does not replace autosave. The Save button creates an additional timestamped snapshot under <code>autosaves/{project}/snapshots/</code> so you have a recovery point from that moment.</p>
+      <pre><code>autosaves/{project}/
+  research-map-latest.json
+  snapshots/
+  document_images/
+  document_images_deleted/
+  library_pdfs/</code></pre>
+      <p>Use Export periodically to download a separate JSON backup outside the autosave folder. Use Reset View only to refit the visible workspace; it does not delete data.</p>
+    </section>
+
+    <section id="recovery">
+      <h2>Recovery Options</h2>
+      <ol>
+        <li>Use Import to restore a previously exported JSON backup through the app interface.</li>
+        <li>Use a manual snapshot from <code>autosaves/{project}/snapshots/</code> as a recovery point.</li>
+        <li>To recover from a snapshot directly, stop the FastAPI server first so autosave cannot overwrite files while you are replacing them.</li>
+        <li>Copy the selected snapshot JSON and rename the copy to <code>research-map-latest.json</code> in the relevant project folder.</li>
+        <li>Restart the FastAPI server, reload the app, and select the project.</li>
+      </ol>
+      <p>Direct snapshot replacement is supported because manual snapshots and latest autosaves use the same JSON structure: saved timestamp, project name, node types, and graph elements.</p>
+    </section>
+
+    <section id="sharing">
+      <h2>Private Sharing and Presence</h2>
+      <p>The app can be shared privately across trusted devices through Tailscale. Tailscale is not configured inside the repo and no secrets should be committed.</p>
+      <h3>Recommended Tailscale Flow</h3>
+      <ol>
+        <li>Install Tailscale on the host machine and sign in.</li>
+        <li>Start this app's FastAPI backend from the project folder on the host machine:
+          <pre><code>python -m uvicorn server:app --host 127.0.0.1 --port 8000</code></pre>
+          The host machine is the computer that runs <code>server.py</code> and stores the local project files, OpenAlex/Zotero/PDF/GROBID access, image saves, autosaves, and presence state.
+        </li>
+        <li>Expose that local FastAPI app through Tailscale Serve:
+          <pre><code>tailscale serve http://127.0.0.1:8000</code></pre>
+        </li>
+        <li>Open the private HTTPS URL that Tailscale prints from another trusted device in the same Tailnet or an explicitly shared device/user:
+          <pre><code>https://your-device.your-tailnet.ts.net/</code></pre>
+        </li>
+      </ol>
+      <p>Keep Uvicorn bound to <code>127.0.0.1</code>. Tailscale Serve can safely forward the private HTTPS endpoint to that local-only backend without making FastAPI listen on the public network.</p>
+      <h3>Access-Control Guidance</h3>
+      <p>If you share the host machine with an external collaborator, restrict their Tailscale access to the app endpoint instead of granting broad access to the whole machine. Tailscale Serve exposes HTTPS on TCP <code>443</code>, then forwards internally to <code>127.0.0.1:8000</code>.</p>
+      <pre><code>{
+  "src": ["autogroup:shared"],
+  "dst": ["YOUR_DEVICE_TAILSCALE_IP_OR_DEVICE_SELECTOR"],
+  "ip": ["tcp:443"]
+}</code></pre>
+      <p>Use your host device's Tailscale IP or the device selector accepted by the Tailscale policy editor. You can find the host Tailscale IPv4 address with:</p>
+      <pre><code>tailscale ip -4</code></pre>
+      <p>Avoid granting shared users access to all ports and protocols unless you intentionally want them to reach other services on the host machine.</p>
+      <p>The toolbar presence indicator shows how many browser sessions have the same project open. Each tab gets a temporary client ID in sessionStorage and sends a heartbeat about every 15 seconds. The backend keeps recent viewers for about 45 seconds, and the browser also sends a best-effort leave signal when a tab closes.</p>
+      <h3>Security Notes</h3>
+      <ul>
+        <li>Tailscale is private networking, not app-level authentication.</li>
+        <li>The prototype has no login, roles, read-only mode, edit locks, or conflict resolution.</li>
+        <li>A trusted collaborator can edit and delete project data reachable through the app.</li>
+        <li>OpenAlex, Zotero, GROBID, and PDF actions run on the host machine where FastAPI is running.</li>
+        <li>Simultaneous editing is last-save-wins. Create a snapshot before a shared session.</li>
+        <li>Keep Uvicorn bound to <code>127.0.0.1:8000</code> unless you intentionally choose a broader network setup.</li>
+      </ul>
+    </section>
+
+    <section id="files">
+      <h2>Files and Repository Data</h2>
+      <ul>
+        <li><code>index.html</code> - page structure, toolbar, panels, document workspace, and modals.</li>
+        <li><code>style.css</code> - layout and visual styling.</li>
+        <li><code>app.js</code> - graph behavior, document editor, autosave, import/export, and frontend integration logic.</li>
+        <li><code>server.py</code> - FastAPI backend for serving the app, OpenAlex, Zotero, PDFs, images, autosaves, snapshots, and GROBID analysis.</li>
+        <li><code>requirements.txt</code> - backend Python dependencies.</li>
+        <li><code>autosaves/</code> - project folders with latest autosaves, snapshots, copied PDFs, note images, and deleted-image archives.</li>
+        <li><code>vendor/jodit-4.2.47/</code> - local Jodit rich-text editor assets used by the document workspace.</li>
+      </ul>
+      <p>The repo keeps folder placeholders and the committed Demo starter save, but ignores private project autosaves, snapshots, copied PDFs, note images, exported JSON files, logs, and local environment files.</p>
+    </section>
+
+    <section id="roadmap">
+      <h2>Potential Improvements</h2>
+      <p>The app currently loads Cytoscape.js from a CDN at <code>https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js</code>. Jodit editor assets are already vendored locally under <code>vendor/jodit-4.2.47/</code>. Zotero and GROBID integrations are local-first, OpenAlex requires internet access from the FastAPI host, and Cytoscape can later be vendored locally for more offline use.</p>
+      <ul>
+        <li>Add optional edit locks or read-only viewer mode.</li>
+        <li>Add local LLM support through Ollama or LM Studio for summaries, tag suggestions, and drafted connection notes.</li>
+        <li>Add safer collaboration conflict handling and per-user edit history.</li>
+        <li>Add optional browser-based PDF viewing/download for remote Tailscale users.</li>
+      </ul>
+    </section>
+

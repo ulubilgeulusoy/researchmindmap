@@ -2,6 +2,14 @@
 
 Local browser-based research mapping and literature-review prototype. It combines a Cytoscape.js mind map, Jodit-powered writing notes, OpenAlex paper discovery and keyword enrichment, Zotero import, local PDF annotation extraction, GROBID citation-link suggestions, project autosaves, and JSON backup/export.
 
+## Documentation Website
+
+Start here for beginner setup, Docker/GROBID setup, and the application manual:
+
+```text
+https://ulubilgeulusoy.github.io/researchmindmap/
+```
+
 ## Project Status
 
 **Current stage: Beta testing**
@@ -92,11 +100,17 @@ For the full publication workflow:
 - Adding OpenAlex results directly to Zotero requires a Zotero web API key with write access. Enter the key in the OpenAlex Zotero API Access dialog; My Library writes also require your numeric Zotero user ID, while group-library writes use the group ID from Zotero metadata.
 - Zotero tags and keyword-style metadata are imported into the app's publication Keywords area. Normal Zotero imports leave app Tags empty; OpenAlex-created nodes keep the app tag `OpenAlex`.
 - OpenAlex-to-Zotero imports are metadata-first. To use those nodes with Open PDF, PDF annotations, or GROBID citation analysis, use Zotero Desktop's Find Available PDF/Find Full Text action or manually attach PDFs to the Zotero items.
-- GROBID requires a separate local service. Docker Desktop is recommended. With Docker running, use:
+- GROBID citation analysis requires a separate local GROBID service. Docker Desktop is recommended. The beginner-friendly Docker and GROBID setup guide is in:
+
+```text
+docs/grobid-docker-guide.html
+```
+
+Core commands:
 
 ```sh
 docker pull grobid/grobid:0.9.0-full
-docker run --name grobid --rm -p 8070:8070 grobid/grobid:0.9.0-full
+docker run --name grobid -p 8070:8070 grobid/grobid:0.9.0-full
 ```
 
 The app expects GROBID at:
@@ -104,22 +118,6 @@ The app expects GROBID at:
 ```text
 http://127.0.0.1:8070
 ```
-
-Expected GROBID service details:
-
-```text
-Docker image: grobid/grobid:0.9.0-full
-Container name: grobid
-Service URL: http://127.0.0.1:8070
-Health endpoint: GET /api/isalive
-Reference endpoint: POST /api/processReferences
-```
-
-The app-side GROBID usage is the same on Windows, macOS, and Ubuntu: the FastAPI backend calls the local HTTP service above. Only the GROBID/Docker runtime setup differs by operating system:
-
-- Windows: install Docker Desktop, start it first, then run the same Docker commands in PowerShell or a terminal. CPU mode is fine; do not depend on GPU support for this workflow.
-- macOS: install Docker Desktop, then run the same Docker commands. On Apple Silicon, the full image is large and can be slower or more resource-heavy; `grobid/grobid:0.9.0-crf` is a smaller CPU-only alternative if needed.
-- Ubuntu/Linux: install Docker Engine or Docker Desktop. The same Docker commands work; GPU use is only relevant if NVIDIA drivers and container GPU support are configured.
 
 `127.0.0.1:8070` assumes `server.py` and GROBID run in the same host environment. If FastAPI is moved into Docker, WSL, a VM, or a remote host, adjust the GROBID service address in `server.py`.
 
@@ -144,7 +142,19 @@ Beginner-friendly setup docs are in:
 docs/index.html
 ```
 
-The detailed user guide, integration notes, storage model, Tailscale sharing notes, troubleshooting commands, security limitations, file layout, maturity notes, and roadmap have moved into the in-app documentation page:
+Docker and GROBID setup docs are in:
+
+```text
+docs/grobid-docker-guide.html
+```
+
+The detailed user guide, integration notes, storage model, Tailscale sharing notes, troubleshooting commands, security limitations, file layout, maturity notes, and roadmap are available in the documentation manual:
+
+```text
+docs/manual.html
+```
+
+When the app is running locally, the application manual is also available at:
 
 ```text
 http://127.0.0.1:8000/manual.html

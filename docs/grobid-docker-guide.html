@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docker and GROBID Guide - Research Mind Map</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Research Mind Map</a>
+    <nav aria-label="Documentation navigation">
+      <a href="beginner-guide.html">Beginner Guide</a>
+      <a href="grobid-docker-guide.html" aria-current="page">Docker + GROBID</a>
+      <a href="manual.html">Manual</a>
+    </nav>
+  </header>
+
+  <main class="doc-page">
+    <header class="doc-intro">
+      <p class="eyebrow">Citation Analysis Setup</p>
+      <h1>Install Docker and run GROBID</h1>
+      <p class="lead">GROBID is required for citation-link suggestions. Research Mind Map can run without it, but the GROBID citation-analysis workflow needs this local service.</p>
+    </header>
+
+    <nav class="toc" aria-label="Page sections">
+      <a href="#what-grobid-does">What GROBID Does</a>
+      <a href="#install-docker">Install Docker</a>
+      <a href="#start-docker">Start Docker</a>
+      <a href="#run-grobid">Run GROBID</a>
+      <a href="#manage-grobid">Manage GROBID</a>
+      <a href="#app-start-stop">App Start/Stop</a>
+      <a href="#check-service">Check the Service</a>
+      <a href="#use-in-app">Use It in the App</a>
+      <a href="#stop-grobid">Stop GROBID</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+    </nav>
+
+    <section id="what-grobid-does">
+      <h2>What GROBID Does</h2>
+      <p>GROBID reads scholarly PDFs and extracts structured reference information. In this app, it helps identify citation relationships between publications that are already on your map.</p>
+      <p>You can use the basic mind map, OpenAlex discovery, Zotero imports, notes, PDFs, and autosaves without GROBID. For citation-link suggestions from local PDFs, Docker and GROBID are required.</p>
+    </section>
+
+    <section id="install-docker">
+      <h2>Install Docker</h2>
+      <p>Docker runs GROBID in a container, which avoids installing GROBID directly into your Python environment.</p>
+      <ul>
+        <li><strong>Windows</strong>: install Docker Desktop. You can run the commands below in Windows PowerShell, Command Prompt, or the VS Code integrated terminal.</li>
+        <li><strong>macOS</strong>: install Docker Desktop. You can run the commands below in the macOS Terminal app or the VS Code integrated terminal.</li>
+        <li><strong>Ubuntu</strong>: install Docker Engine or Docker Desktop. You can run the commands below in Ubuntu Terminal or the VS Code integrated terminal.</li>
+      </ul>
+      <p>After installation, open the terminal for your operating system and check Docker.</p>
+      <p>Windows PowerShell:</p>
+      <pre><code>docker --version</code></pre>
+      <p>Windows Command Prompt:</p>
+      <pre><code>docker --version</code></pre>
+      <p>macOS Terminal:</p>
+      <pre><code>docker --version</code></pre>
+      <p>Ubuntu Terminal:</p>
+      <pre><code>docker --version</code></pre>
+      <p>If Docker is installed and running, this should print a Docker version number.</p>
+    </section>
+
+    <section id="start-docker">
+      <h2>Start Docker</h2>
+      <p>On Windows and macOS, open Docker Desktop and wait until it says Docker is running. On Ubuntu, start Docker Desktop or make sure the Docker Engine service is running.</p>
+      <p>Check that Docker can list containers.</p>
+      <p>Windows PowerShell:</p>
+      <pre><code>docker ps</code></pre>
+      <p>Windows Command Prompt:</p>
+      <pre><code>docker ps</code></pre>
+      <p>macOS Terminal:</p>
+      <pre><code>docker ps</code></pre>
+      <p>Ubuntu Terminal:</p>
+      <pre><code>docker ps</code></pre>
+      <p>If Docker is running, this prints a container list. The list can be empty.</p>
+    </section>
+
+    <section id="run-grobid">
+      <h2>Run GROBID</h2>
+      <p>The commands are the same across operating systems. Choose the terminal that matches your setup.</p>
+      <p>You do not need to keep GROBID running all the time. Start it before citation analysis, and stop it when you are done.</p>
+
+      <h3>Windows PowerShell</h3>
+      <p>Pull the recommended GROBID image:</p>
+      <pre><code>docker pull grobid/grobid:0.9.0-full</code></pre>
+      <p>Create and start a reusable GROBID container:</p>
+      <pre><code>docker run --name grobid -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+
+      <h3>Windows Command Prompt</h3>
+      <p>Run the same Docker commands:</p>
+      <pre><code>docker pull grobid/grobid:0.9.0-full
+docker run --name grobid -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+
+      <h3>macOS Terminal</h3>
+      <p>Run the same Docker commands:</p>
+      <pre><code>docker pull grobid/grobid:0.9.0-full
+docker run --name grobid -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+      <p>On Apple Silicon, the full image can be large and slower to start. If needed, <code>grobid/grobid:0.9.0-crf</code> is a smaller CPU-only alternative.</p>
+
+      <h3>Ubuntu Terminal</h3>
+      <p>Run the same Docker commands:</p>
+      <pre><code>docker pull grobid/grobid:0.9.0-full
+docker run --name grobid -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+
+      <p>With this foreground command, keep the terminal that is running GROBID open while using citation analysis. The first startup can take time because GROBID loads its models. Press <kbd>Ctrl</kbd> + <kbd>C</kbd> when you are done.</p>
+      <p>If you prefer to run GROBID without keeping a terminal occupied, use detached mode in Windows PowerShell, Windows Command Prompt, macOS Terminal, or Ubuntu Terminal:</p>
+      <pre><code>docker run --name grobid -d -p 8070:8070 grobid/grobid:0.9.0-full</code></pre>
+      <p>A reusable container named <code>grobid</code> will appear in Docker Desktop. After that, you can start, stop, restart, or pause it from Docker Desktop instead of typing the full <code>docker run</code> command again.</p>
+      <p>Expected service details:</p>
+      <pre><code>Docker image: grobid/grobid:0.9.0-full
+Container name: grobid
+Service URL: http://127.0.0.1:8070
+Health endpoint: GET /api/isalive
+Reference endpoint: POST /api/processReferences</code></pre>
+    </section>
+
+    <section id="manage-grobid">
+      <h2>Manage GROBID in Docker Desktop</h2>
+      <p>After the GROBID container has been created once, Docker Desktop can manage it from the <strong>Containers</strong> view.</p>
+      <ol>
+        <li>Open Docker Desktop.</li>
+        <li>Go to <strong>Containers</strong>.</li>
+        <li>Find the container named <strong>grobid</strong>.</li>
+        <li>Use the controls to start, stop, restart, pause, or resume the container.</li>
+      </ol>
+      <p>You do not need GROBID running in the background all day. Start it when you plan to use citation analysis in Research Mind Map, and stop or pause it when you are finished.</p>
+      <p>Opening Docker Desktop starts Docker itself, but it does not always start the GROBID container automatically. If <strong>grobid</strong> is stopped, start it from Docker Desktop before clicking <strong>Check GROBID</strong> in the app.</p>
+      <p>If you created the container with <code>--rm</code>, Docker removes it when it stops, so it will not appear later in Docker Desktop. The commands in this guide do not use <code>--rm</code> so the container can be reused.</p>
+    </section>
+
+    <section id="app-start-stop">
+      <h2>Start and Stop GROBID from the App</h2>
+      <p>Research Mind Map can also start and stop an established Docker GROBID container from the GROBID panel.</p>
+      <ol>
+        <li>Start Docker Desktop or Docker Engine first.</li>
+        <li>Start the Research Mind Map backend with Uvicorn.</li>
+        <li>Open the app in the browser.</li>
+        <li>Open <strong>Sources</strong>, then <strong>GROBID</strong>.</li>
+        <li>Click <strong>Check GROBID</strong> to refresh the current service state.</li>
+        <li>If GROBID is stopped, click the green <strong>Start GROBID</strong> button.</li>
+        <li>If GROBID is running, click the red <strong>Stop GROBID</strong> button when you are done.</li>
+      </ol>
+      <p>While the app is checking, starting, or stopping GROBID, the button turns grey and is temporarily disabled. <strong>Analyze All Publications</strong> is enabled only when GROBID is running.</p>
+      <p>The app uses Docker on the computer running <code>server.py</code>. If Docker Desktop is closed, Docker is not accessible, or the backend process does not have Docker permission, the app cannot start or stop the container.</p>
+    </section>
+
+    <section id="check-service">
+      <h2>Check the Service</h2>
+      <p>On Windows PowerShell, run:</p>
+      <pre><code>Invoke-RestMethod -Uri "http://127.0.0.1:8070/api/isalive"</code></pre>
+      <p>In Windows Command Prompt, run:</p>
+      <pre><code>curl http://127.0.0.1:8070/api/isalive</code></pre>
+      <p>In macOS Terminal, run:</p>
+      <pre><code>curl http://127.0.0.1:8070/api/isalive</code></pre>
+      <p>In Ubuntu Terminal, run:</p>
+      <pre><code>curl http://127.0.0.1:8070/api/isalive</code></pre>
+      <p>A healthy service should respond after GROBID finishes starting. If the first check fails, wait a minute and try again.</p>
+    </section>
+
+    <section id="use-in-app">
+      <h2>Use It in the App</h2>
+      <ol>
+        <li>Start the Research Mind Map backend with Uvicorn.</li>
+        <li>Start GROBID from the app's green <strong>Start GROBID</strong> button or from Docker Desktop.</li>
+        <li>Import publication nodes from Zotero.</li>
+        <li>Make sure those Zotero items have local PDF attachments.</li>
+        <li>Open the GROBID tools in the app.</li>
+        <li>Click <strong>Check GROBID</strong>.</li>
+        <li>Analyze publications, review suggestions, and add only the citation links you want.</li>
+      </ol>
+      <p>GROBID can only analyze PDFs that are available on the machine running the FastAPI backend. A remote browser user does not run GROBID on their own computer.</p>
+    </section>
+
+    <section id="stop-grobid">
+      <h2>Stop GROBID</h2>
+      <p>If GROBID is running in the foreground, go to the terminal where it is running and press <kbd>Ctrl</kbd> + <kbd>C</kbd>. This applies to Windows PowerShell, Windows Command Prompt, macOS Terminal, and Ubuntu Terminal.</p>
+      <p>If GROBID is running in detached mode, stop it from Docker Desktop or from any terminal with Docker access:</p>
+      <pre><code>docker stop grobid</code></pre>
+    </section>
+
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+      <h3>Docker command is not recognized</h3>
+      <p>Docker is not installed, or your terminal was opened before Docker was installed. Install Docker Desktop or Docker Engine, then reopen Windows PowerShell, Command Prompt, macOS Terminal, Ubuntu Terminal, or the VS Code integrated terminal.</p>
+
+      <h3>Docker is installed but not running</h3>
+      <p>Open Docker Desktop and wait until it finishes starting. Then rerun <code>docker ps</code>.</p>
+
+      <h3>Port 8070 is already in use</h3>
+      <p>Another service is using the port expected by the app. Stop the other service or stop the existing GROBID container with <code>docker stop grobid</code>.</p>
+
+      <h3>Check GROBID fails in the app</h3>
+      <p>Confirm Docker is running, GROBID has finished starting, and <code>http://127.0.0.1:8070/api/isalive</code> responds from the same computer running <code>server.py</code>.</p>
+
+      <h3>Few or no citation suggestions appear</h3>
+      <p>Suggestion quality depends on PDF quality and reference formatting. Scanned PDFs, incomplete PDFs, or unusual reference sections may produce weak results.</p>
+    </section>
+  </main>
+</body>
+</html>
