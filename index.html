@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Research Mind Map Prototype</title>
-  <link rel="stylesheet" href="style.css?v=20260806-pdf-format-defaults">
+  <link rel="stylesheet" href="style.css?v=20260810-map-zotero-resize">
   <link rel="stylesheet" href="vendor/jodit-4.2.47/jodit.min.css">
   <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
   <script src="vendor/jodit-4.2.47/jodit.min.js"></script>
@@ -93,6 +93,7 @@
         <div class="toolbar-menu-panel">
           <button type="button" id="recoverZoteroKeywordsButton">Keyword Recover</button>
           <button type="button" id="tagEditorButton">Tag Editor</button>
+          <button type="button" id="mapZoteroExportButton">Map to Zotero</button>
         </div>
       </details>
 
@@ -761,6 +762,66 @@
       <div id="zoteroItemsList" class="zotero-items-list"></div>
     </section>
 
+    <section id="mapZoteroExportPanel" class="zotero-panel" hidden>
+      <div class="zotero-panel-header">
+        <div>
+          <h2>Map Publications to Zotero</h2>
+          <p id="mapZoteroExportStatusText">Select map publications and export them to a Zotero collection.</p>
+        </div>
+        <div class="zotero-header-actions">
+          <span id="mapZoteroExportModeBadge" class="zotero-mode-badge unknown">Zotero not checked</span>
+          <button type="button" id="closeMapZoteroExportPanel">Close</button>
+        </div>
+      </div>
+
+      <div class="zotero-controls">
+        <button type="button" id="checkMapZoteroExportButton">Check Zotero</button>
+        <select id="mapZoteroExportLibrarySelect" aria-label="Target Zotero library">
+          <option value="user:0">My Library</option>
+        </select>
+        <select id="mapZoteroExportCollectionSelect" aria-label="Target Zotero collection">
+          <option value="">New collection</option>
+        </select>
+        <input id="mapZoteroExportNewCollectionName" type="text" value="Research Mind Map Export" aria-label="New Zotero collection name">
+      </div>
+
+      <div class="openalex-search-controls">
+        <input id="mapZoteroExportSearchInput" type="search" placeholder="Filter map publication nodes..." autocomplete="off">
+      </div>
+
+      <div class="list-actions">
+        <span id="mapZoteroExportCount">No publications loaded</span>
+        <button type="button" id="selectAllMapZoteroExportButton">Select All</button>
+        <button type="button" id="deselectAllMapZoteroExportButton">Deselect All</button>
+        <button type="button" id="exportMapPublicationsToZoteroButton">Export Selected</button>
+      </div>
+      <div id="mapZoteroExportList" class="zotero-items-list"></div>
+      <div id="mapZoteroExportCredentialOverlay" class="openalex-loading-overlay" hidden>
+        <div class="openalex-credential-dialog">
+          <div class="openalex-credential-header">
+            <strong>Zotero API Access</strong>
+            <button type="button" id="closeMapZoteroExportCredentialsButton">Close</button>
+          </div>
+          <label>
+            API key
+            <input id="mapZoteroExportApiKey" type="password" placeholder="Zotero API key" autocomplete="off" aria-label="Zotero API key">
+          </label>
+          <label class="openalex-api-key-toggle">
+            <input id="showMapZoteroExportApiKey" type="checkbox">
+            <span>Show key</span>
+          </label>
+          <label id="mapZoteroExportUserIdLabel">
+            Numeric user ID
+            <input id="mapZoteroExportUserId" type="text" placeholder="Required for My Library" autocomplete="off" aria-label="Zotero numeric user ID">
+          </label>
+          <div class="openalex-credential-actions">
+            <button type="button" id="confirmMapZoteroExportCredentialsButton">Export Selected</button>
+          </div>
+        </div>
+      </div>
+      <div id="mapZoteroExportResizeHandle" class="openalex-resize-handle" aria-hidden="true"></div>
+    </section>
+
     <section id="openAlexPanel" class="zotero-panel" hidden>
       <div class="zotero-panel-header">
         <div>
@@ -1004,6 +1065,6 @@
     </section>
 
   </div>
-  <script src="app.js?v=20260810-demo-cluster-defaults"></script>
+  <script src="app.js?v=20260810-map-zotero-credentials"></script>
 </body>
 </html>

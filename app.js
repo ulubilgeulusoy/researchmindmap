@@ -780,8 +780,10 @@ let documentEditSnapshot = null;
 let currentView = "map";
 let notesPanelDrag = null;
 let zoteroPanelDrag = null;
+let mapZoteroExportPanelDrag = null;
 let openAlexPanelDrag = null;
 let pdfHighlightsPanelDrag = null;
+let mapZoteroExportPanelResize = null;
 let openAlexPanelResize = null;
 let zoteroItemsCache = [];
 let zoteroLibrariesCache = [];
@@ -1086,6 +1088,22 @@ const zoteroListActions = document.getElementById("zoteroListActions");
 const zoteroSearchInput = document.getElementById("zoteroSearchInput");
 const zoteroSortSelect = document.getElementById("zoteroSortSelect");
 const clearZoteroSearchButton = document.getElementById("clearZoteroSearchButton");
+const mapZoteroExportPanel = document.getElementById("mapZoteroExportPanel");
+const mapZoteroExportPanelHeader = mapZoteroExportPanel.querySelector(".zotero-panel-header");
+const mapZoteroExportResizeHandle = document.getElementById("mapZoteroExportResizeHandle");
+const mapZoteroExportStatusText = document.getElementById("mapZoteroExportStatusText");
+const mapZoteroExportModeBadge = document.getElementById("mapZoteroExportModeBadge");
+const mapZoteroExportLibrarySelect = document.getElementById("mapZoteroExportLibrarySelect");
+const mapZoteroExportCollectionSelect = document.getElementById("mapZoteroExportCollectionSelect");
+const mapZoteroExportNewCollectionName = document.getElementById("mapZoteroExportNewCollectionName");
+const mapZoteroExportSearchInput = document.getElementById("mapZoteroExportSearchInput");
+const mapZoteroExportCredentialOverlay = document.getElementById("mapZoteroExportCredentialOverlay");
+const mapZoteroExportApiKey = document.getElementById("mapZoteroExportApiKey");
+const showMapZoteroExportApiKey = document.getElementById("showMapZoteroExportApiKey");
+const mapZoteroExportUserId = document.getElementById("mapZoteroExportUserId");
+const mapZoteroExportUserIdLabel = document.getElementById("mapZoteroExportUserIdLabel");
+const mapZoteroExportCount = document.getElementById("mapZoteroExportCount");
+const mapZoteroExportList = document.getElementById("mapZoteroExportList");
 const openAlexPanel = document.getElementById("openAlexPanel");
 const openAlexPanelHeader = openAlexPanel.querySelector(".zotero-panel-header");
 const openAlexResizeHandle = document.getElementById("openAlexResizeHandle");
@@ -1533,9 +1551,45 @@ document.getElementById("importButton").addEventListener("click", () => importFi
 document.getElementById("resetViewButton").addEventListener("click", resetView);
 if (presenceIndicator) presenceIndicator.addEventListener("click", refreshPresence);
 document.getElementById("zoteroButton").addEventListener("click", openZoteroPanel);
+document.getElementById("mapZoteroExportButton").addEventListener("click", openMapZoteroExportPanel);
 document.getElementById("openAlexButton").addEventListener("click", openOpenAlexPanel);
 document.getElementById("grobidButton").addEventListener("click", openGrobidPanel);
 document.getElementById("closeZoteroPanel").addEventListener("click", closeZoteroPanel);
+document.getElementById("closeMapZoteroExportPanel").addEventListener("click", closeMapZoteroExportPanel);
+document.getElementById("checkMapZoteroExportButton").addEventListener("click", ensureZoteroTargetsForMapExport);
+document.getElementById("closeMapZoteroExportCredentialsButton").addEventListener("click", hideMapZoteroExportCredentialDialog);
+document.getElementById("confirmMapZoteroExportCredentialsButton").addEventListener("click", exportSelectedMapPublicationsToZotero);
+document.getElementById("selectAllMapZoteroExportButton").addEventListener("click", () => {
+  setPanelCheckboxes(mapZoteroExportList, true);
+  updateMapZoteroExportCount();
+});
+document.getElementById("deselectAllMapZoteroExportButton").addEventListener("click", () => {
+  setPanelCheckboxes(mapZoteroExportList, false);
+  updateMapZoteroExportCount();
+});
+document.getElementById("exportMapPublicationsToZoteroButton").addEventListener("click", openMapZoteroExportCredentialDialog);
+mapZoteroExportSearchInput.addEventListener("input", renderMapZoteroExportList);
+mapZoteroExportList.addEventListener("change", updateMapZoteroExportCount);
+mapZoteroExportLibrarySelect.addEventListener("change", async () => {
+  zoteroLibrarySelect.value = mapZoteroExportLibrarySelect.value || "user:0";
+  await loadZoteroCollections();
+  syncMapZoteroExportCollectionTargets();
+  updateMapZoteroExportCredentialFields();
+});
+mapZoteroExportCollectionSelect.addEventListener("change", () => {
+  mapZoteroExportNewCollectionName.disabled = Boolean(mapZoteroExportCollectionSelect.value);
+});
+mapZoteroExportCredentialOverlay.addEventListener("click", (event) => {
+  if (event.target === mapZoteroExportCredentialOverlay) hideMapZoteroExportCredentialDialog();
+});
+showMapZoteroExportApiKey.addEventListener("change", () => {
+  mapZoteroExportApiKey.type = showMapZoteroExportApiKey.checked ? "text" : "password";
+});
+[mapZoteroExportApiKey, mapZoteroExportUserId].forEach((input) => {
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") exportSelectedMapPublicationsToZotero();
+  });
+});
 document.getElementById("checkZoteroButton").addEventListener("click", checkZotero);
 document.getElementById("loadZoteroItemsButton").addEventListener("click", loadZoteroItems);
 document.getElementById("selectAllZoteroItemsButton").addEventListener("click", () => setPanelCheckboxes(zoteroItemsList, true));
@@ -1812,18 +1866,24 @@ pdfHighlightsModal.addEventListener("click", (event) => {
 });
 publicationNotesDragHandle.addEventListener("pointerdown", startNotesPanelDrag);
 zoteroPanelHeader.addEventListener("pointerdown", startZoteroPanelDrag);
+mapZoteroExportPanelHeader.addEventListener("pointerdown", startMapZoteroExportPanelDrag);
 openAlexPanelHeader.addEventListener("pointerdown", startOpenAlexPanelDrag);
 pdfHighlightsHeader.addEventListener("pointerdown", startPdfHighlightsPanelDrag);
+mapZoteroExportResizeHandle.addEventListener("pointerdown", startMapZoteroExportPanelResize);
 openAlexResizeHandle.addEventListener("pointerdown", startOpenAlexPanelResize);
 window.addEventListener("pointermove", continueNotesPanelDrag);
 window.addEventListener("pointermove", continueZoteroPanelDrag);
+window.addEventListener("pointermove", continueMapZoteroExportPanelDrag);
 window.addEventListener("pointermove", continueOpenAlexPanelDrag);
 window.addEventListener("pointermove", continuePdfHighlightsPanelDrag);
+window.addEventListener("pointermove", continueMapZoteroExportPanelResize);
 window.addEventListener("pointermove", continueOpenAlexPanelResize);
 window.addEventListener("pointerup", finishNotesPanelDrag);
 window.addEventListener("pointerup", finishZoteroPanelDrag);
+window.addEventListener("pointerup", finishMapZoteroExportPanelDrag);
 window.addEventListener("pointerup", finishOpenAlexPanelDrag);
 window.addEventListener("pointerup", finishPdfHighlightsPanelDrag);
+window.addEventListener("pointerup", finishMapZoteroExportPanelResize);
 window.addEventListener("pointerup", finishOpenAlexPanelResize);
 Object.values(publicationNoteFields).forEach((field) => {
   field.addEventListener("input", updatePublicationNotes);
@@ -3553,6 +3613,43 @@ function closeZoteroPanel() {
   zoteroPanel.hidden = true;
 }
 
+function openMapZoteroExportPanel() {
+  closeToolbarMenus();
+  renderMapZoteroExportList();
+  mapZoteroExportPanel.hidden = false;
+  ensureZoteroTargetsForMapExport();
+}
+
+function closeMapZoteroExportPanel() {
+  hideMapZoteroExportCredentialDialog();
+  mapZoteroExportPanel.hidden = true;
+}
+
+function updateMapZoteroExportCredentialFields() {
+  const isUserLibrary = (mapZoteroExportLibrarySelect.value || "user:0").startsWith("user:");
+  mapZoteroExportUserIdLabel.hidden = !isUserLibrary;
+  mapZoteroExportUserId.disabled = !isUserLibrary;
+}
+
+function hideMapZoteroExportCredentialDialog() {
+  mapZoteroExportCredentialOverlay.hidden = true;
+}
+
+function openMapZoteroExportCredentialDialog() {
+  const items = selectedMapZoteroExportPublications();
+  if (!items.length) {
+    mapZoteroExportStatusText.textContent = "Select at least one map publication to export.";
+    return;
+  }
+  if (!mapZoteroExportCollectionSelect.value && !mapZoteroExportNewCollectionName.value.trim()) {
+    mapZoteroExportStatusText.textContent = "Choose an existing collection or enter a new collection name.";
+    return;
+  }
+  updateMapZoteroExportCredentialFields();
+  mapZoteroExportCredentialOverlay.hidden = false;
+  mapZoteroExportApiKey.focus();
+}
+
 async function checkZotero() {
   zoteroStatusText.textContent = "Checking Zotero Desktop...";
   updateZoteroModeBadge("");
@@ -3628,6 +3725,31 @@ async function ensureZoteroTargetsForOpenAlex() {
   }
 }
 
+async function ensureZoteroTargetsForMapExport() {
+  mapZoteroExportStatusText.textContent = "Checking Zotero libraries for export targets...";
+  updateMapZoteroExportModeBadge("");
+  try {
+    const status = await fetchJson(`/api/zotero/status?_=${Date.now()}`);
+    zoteroMode = status.mode || "";
+    updateMapZoteroExportModeBadge(zoteroMode, status.ok);
+    if (!status.ok) {
+      mapZoteroExportStatusText.textContent = status.message || "Could not reach Zotero export targets.";
+      syncMapZoteroExportTargets();
+      return false;
+    }
+    await loadZoteroLibraries();
+    await loadZoteroCollections();
+    syncMapZoteroExportTargets();
+    mapZoteroExportStatusText.textContent = "Loaded Zotero export targets.";
+    return true;
+  } catch (error) {
+    updateMapZoteroExportModeBadge("error");
+    mapZoteroExportStatusText.textContent = error.message;
+    syncMapZoteroExportTargets();
+    return false;
+  }
+}
+
 async function loadZoteroLibraries() {
   const previousSelection = zoteroLibrarySelect.value || "user:0";
   const data = await fetchJson(`/api/zotero/libraries?_=${Date.now()}`);
@@ -3644,6 +3766,7 @@ async function loadZoteroLibraries() {
   });
   zoteroLibrarySelect.value = seen.has(previousSelection) ? previousSelection : "user:0";
   syncOpenAlexZoteroTargets();
+  syncMapZoteroExportTargets();
 }
 
 async function loadZoteroCollections() {
@@ -3672,6 +3795,7 @@ async function loadZoteroCollections() {
     zoteroCollectionSelect.dataset.loaded = "true";
     renderZoteroSubcollectionOptions();
     syncOpenAlexZoteroTargets();
+    syncMapZoteroExportTargets();
     zoteroStatusText.textContent = `Loaded ${zoteroTopCollectionsCache.length} main Zotero folder(s).`;
   } catch (error) {
     zoteroStatusText.textContent = error.message;
@@ -4048,6 +4172,68 @@ function syncOpenAlexCollectionTargets() {
   updateOpenAlexCredentialFields();
 }
 
+function syncMapZoteroExportTargets() {
+  const previousLibrary = mapZoteroExportLibrarySelect.value || zoteroLibrarySelect.value || "user:0";
+  const libraries = zoteroLibrariesCache.length
+    ? zoteroLibrariesCache
+    : [{ key: "user:0", type: "user", id: 0, name: "My Library" }];
+  mapZoteroExportLibrarySelect.innerHTML = "";
+  const seen = new Set();
+  libraries.forEach((library) => {
+    if (!library.key || seen.has(library.key)) return;
+    seen.add(library.key);
+    const option = document.createElement("option");
+    option.value = library.key;
+    option.textContent = library.name || library.key;
+    mapZoteroExportLibrarySelect.appendChild(option);
+  });
+  mapZoteroExportLibrarySelect.value = seen.has(previousLibrary) ? previousLibrary : "user:0";
+  syncMapZoteroExportCollectionTargets();
+}
+
+function syncMapZoteroExportCollectionTargets() {
+  const library = mapZoteroExportLibrarySelect.value || "user:0";
+  const previousCollection = mapZoteroExportCollectionSelect.value;
+  const collections = zoteroCollectionsCache.filter((collection) => {
+    const collectionLibrary = collection.libraryType && collection.libraryId !== undefined
+      ? `${collection.libraryType}:${collection.libraryId}`
+      : "user:0";
+    return collectionLibrary === library || !collection.libraryType;
+  });
+  mapZoteroExportCollectionSelect.innerHTML = '<option value="">New collection</option>';
+  collections
+    .slice()
+    .sort((left, right) => (left.name || "").localeCompare(right.name || ""))
+    .forEach((collection) => {
+      if (!collection.key) return;
+      const option = document.createElement("option");
+      option.value = collection.key;
+      option.textContent = collection.name || collection.key;
+      mapZoteroExportCollectionSelect.appendChild(option);
+    });
+  mapZoteroExportCollectionSelect.value = Array.from(mapZoteroExportCollectionSelect.options).some((option) => option.value === previousCollection)
+    ? previousCollection
+    : "";
+  mapZoteroExportNewCollectionName.disabled = Boolean(mapZoteroExportCollectionSelect.value);
+}
+
+function updateMapZoteroExportModeBadge(mode, ok = false) {
+  mapZoteroExportModeBadge.classList.remove("live", "backup", "error", "unknown");
+  if (mode === "http") {
+    mapZoteroExportModeBadge.textContent = "Zotero Live";
+    mapZoteroExportModeBadge.classList.add("live");
+  } else if (mode === "sqlite" || mode === "cache") {
+    mapZoteroExportModeBadge.textContent = "Zotero Backup";
+    mapZoteroExportModeBadge.classList.add("backup");
+  } else if (mode === "error" || ok === false && mode) {
+    mapZoteroExportModeBadge.textContent = "Zotero Cannot Reach";
+    mapZoteroExportModeBadge.classList.add("error");
+  } else {
+    mapZoteroExportModeBadge.textContent = "Zotero Checking";
+    mapZoteroExportModeBadge.classList.add("unknown");
+  }
+}
+
 function updateOpenAlexCredentialFields(show = !openAlexCredentialOverlay.hidden) {
   const isUserLibrary = (openAlexZoteroLibrarySelect.value || "user:0").startsWith("user:");
   openAlexCredentialOverlay.hidden = !show;
@@ -4081,6 +4267,135 @@ function openAlexPublicationFromNode(node) {
       zoteroKey: zotero.itemKey || "",
       citation: notes.citation || ""
     };
+}
+
+function mapZoteroExportPublicationFromNode(node) {
+  const zotero = node.data("zotero") || {};
+  const notes = normalizePublicationNotes(node.data("publicationNotes"));
+  return {
+    id: node.id(),
+    title: node.data("label") || "",
+    authors: zotero.authors || node.data("authors") || [],
+    year: zotero.year || node.data("year") || "",
+    doi: zotero.doi || node.data("doi") || "",
+    url: node.data("url") || notes.url || "",
+    citation: notes.citation || node.data("citation") || "",
+    abstract: notes.abstract || node.data("abstract") || "",
+    notes: htmlToPlainText(notes.notesHtml) || notes.notes || "",
+    tags: publicationTagsForNode(node),
+    keywords: normalizeKeywords(node.data("keywords") || zotero.keywords || [])
+  };
+}
+
+function getMapZoteroExportPublicationNodes() {
+  const filter = mapZoteroExportSearchInput.value.trim().toLowerCase();
+  return cy.nodes().filter((node) => {
+    if (node.data("type") !== "Publication") return false;
+    if (!filter) return true;
+    const publication = mapZoteroExportPublicationFromNode(node);
+    const text = [
+      publication.title,
+      publication.doi,
+      publication.year,
+      publication.authors.join(" "),
+      publication.citation,
+      publication.tags.join(" "),
+      publication.keywords.join(" ")
+    ].join(" ").toLowerCase();
+    return text.includes(filter);
+  }).sort((a, b) => (a.data("label") || "").localeCompare(b.data("label") || ""));
+}
+
+function renderMapZoteroExportList() {
+  const checked = new Set(Array.from(mapZoteroExportList.querySelectorAll("input:checked")).map((input) => input.value));
+  const nodes = getMapZoteroExportPublicationNodes();
+  mapZoteroExportList.innerHTML = "";
+  if (!nodes.length) {
+    mapZoteroExportList.textContent = "No matching publication nodes.";
+    mapZoteroExportCount.textContent = "No publications loaded";
+    return;
+  }
+  nodes.forEach((node) => {
+    const publication = mapZoteroExportPublicationFromNode(node);
+    const row = document.createElement("label");
+    row.className = "zotero-item-row";
+    row.innerHTML = `
+      <input type="checkbox" value="${escapeHtml(node.id())}" ${checked.has(node.id()) ? "checked" : ""}>
+      <span>
+        <strong>${escapeHtml(publication.title || "Untitled publication")}</strong>
+        <span>${escapeHtml([publication.authors.slice(0, 4).join(", "), publication.year, publication.doi, publication.tags.join(", ")].filter(Boolean).join(" - "))}</span>
+      </span>
+    `;
+    mapZoteroExportList.appendChild(row);
+  });
+  updateMapZoteroExportCount();
+}
+
+function updateMapZoteroExportCount() {
+  const total = mapZoteroExportList.querySelectorAll('input[type="checkbox"]').length;
+  const selectedCount = mapZoteroExportList.querySelectorAll("input:checked").length;
+  mapZoteroExportCount.textContent = `${selectedCount} selected of ${total}`;
+}
+
+function selectedMapZoteroExportPublications() {
+  const checkedIds = Array.from(mapZoteroExportList.querySelectorAll("input:checked")).map((input) => input.value);
+  return checkedIds
+    .map((id) => cy.getElementById(id))
+    .filter((node) => node.length && node.data("type") === "Publication")
+    .map(mapZoteroExportPublicationFromNode);
+}
+
+async function exportSelectedMapPublicationsToZotero() {
+  const items = selectedMapZoteroExportPublications();
+  if (!items.length) {
+    mapZoteroExportStatusText.textContent = "Select at least one map publication to export.";
+    return;
+  }
+  if (!mapZoteroExportCollectionSelect.value && !mapZoteroExportNewCollectionName.value.trim()) {
+    mapZoteroExportStatusText.textContent = "Choose an existing collection or enter a new collection name.";
+    return;
+  }
+  const library = mapZoteroExportLibrarySelect.value || "user:0";
+  const zoteroApiKey = mapZoteroExportApiKey.value.trim();
+  const zoteroUserId = mapZoteroExportUserId.value.trim();
+  if (!zoteroApiKey) {
+    mapZoteroExportStatusText.textContent = "Enter a Zotero API key to export selected publications.";
+    openMapZoteroExportCredentialDialog();
+    return;
+  }
+  if (library.startsWith("user:") && !zoteroUserId) {
+    mapZoteroExportStatusText.textContent = "Enter the numeric Zotero user ID for My Library.";
+    openMapZoteroExportCredentialDialog();
+    mapZoteroExportUserId.focus();
+    return;
+  }
+  hideMapZoteroExportCredentialDialog();
+  setOpenAlexLoading(true, `Exporting ${items.length} map publication(s) to Zotero...`, "Exporting to Zotero");
+  mapZoteroExportStatusText.textContent = `Exporting ${items.length} map publication(s) to Zotero...`;
+  try {
+    const result = await postJson("/api/zotero/export-map-publications", {
+      library,
+      collection: mapZoteroExportCollectionSelect.value || "",
+      newCollectionName: mapZoteroExportNewCollectionName.value.trim(),
+      zoteroApiKey,
+      zoteroUserId,
+      items
+    });
+    const membership = result.diagnostics?.existingMembership || {};
+    mapZoteroExportStatusText.textContent = [
+      `Created ${result.createdCount || 0}`,
+      `reused ${result.existingCount || 0}`,
+      `added existing to collection ${membership.added || 0}`,
+      `already in collection ${membership["already-present"] || 0}`,
+      `skipped ${result.skippedCount || 0}`
+    ].join(", ") + ".";
+    setStatus("Exported selected map publications to Zotero.");
+  } catch (error) {
+    mapZoteroExportStatusText.textContent = error.message;
+    setStatus("Could not export map publications to Zotero.");
+  } finally {
+    setOpenAlexLoading(false);
+  }
 }
 
 function getOpenAlexPublicationNodes() {
@@ -10590,6 +10905,44 @@ function finishZoteroPanelDrag() {
   zoteroPanelDrag = null;
 }
 
+function startMapZoteroExportPanelDrag(event) {
+  if (event.button !== 0 || event.target.closest("button, select, input, textarea")) return;
+
+  event.preventDefault();
+  const rect = mapZoteroExportPanel.getBoundingClientRect();
+  mapZoteroExportPanelDrag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top
+  };
+  mapZoteroExportPanel.style.left = `${rect.left}px`;
+  mapZoteroExportPanel.style.top = `${rect.top}px`;
+  mapZoteroExportPanel.style.right = "auto";
+  mapZoteroExportPanelHeader.setPointerCapture(event.pointerId);
+}
+
+function continueMapZoteroExportPanelDrag(event) {
+  if (!mapZoteroExportPanelDrag) return;
+
+  event.preventDefault();
+  const panelRect = mapZoteroExportPanel.getBoundingClientRect();
+  const maxLeft = Math.max(8, window.innerWidth - panelRect.width - 8);
+  const maxTop = Math.max(8, window.innerHeight - Math.min(panelRect.height, window.innerHeight - 16) - 8);
+  const nextLeft = clamp(event.clientX - mapZoteroExportPanelDrag.offsetX, 8, maxLeft);
+  const nextTop = clamp(event.clientY - mapZoteroExportPanelDrag.offsetY, 8, maxTop);
+  mapZoteroExportPanel.style.left = `${nextLeft}px`;
+  mapZoteroExportPanel.style.top = `${nextTop}px`;
+}
+
+function finishMapZoteroExportPanelDrag() {
+  if (!mapZoteroExportPanelDrag) return;
+
+  if (mapZoteroExportPanelHeader.hasPointerCapture(mapZoteroExportPanelDrag.pointerId)) {
+    mapZoteroExportPanelHeader.releasePointerCapture(mapZoteroExportPanelDrag.pointerId);
+  }
+  mapZoteroExportPanelDrag = null;
+}
+
 function startOpenAlexPanelDrag(event) {
   if (event.button !== 0 || event.target.closest("button")) return;
 
@@ -10664,6 +11017,52 @@ function finishPdfHighlightsPanelDrag() {
     pdfHighlightsHeader.releasePointerCapture(pdfHighlightsPanelDrag.pointerId);
   }
   pdfHighlightsPanelDrag = null;
+}
+
+function startMapZoteroExportPanelResize(event) {
+  if (event.button !== 0) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = mapZoteroExportPanel.getBoundingClientRect();
+  mapZoteroExportPanelResize = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startWidth: rect.width,
+    startHeight: rect.height,
+    left: rect.left,
+    top: rect.top
+  };
+  mapZoteroExportPanel.style.left = `${rect.left}px`;
+  mapZoteroExportPanel.style.top = `${rect.top}px`;
+  mapZoteroExportPanel.style.right = "auto";
+  mapZoteroExportPanel.style.width = `${rect.width}px`;
+  mapZoteroExportPanel.style.height = `${rect.height}px`;
+  mapZoteroExportResizeHandle.setPointerCapture(event.pointerId);
+}
+
+function continueMapZoteroExportPanelResize(event) {
+  if (!mapZoteroExportPanelResize) return;
+
+  event.preventDefault();
+  const minWidth = Math.min(680, window.innerWidth - 16);
+  const minHeight = Math.min(420, window.innerHeight - 16);
+  const maxWidth = Math.max(minWidth, window.innerWidth - mapZoteroExportPanelResize.left - 8);
+  const maxHeight = Math.max(minHeight, window.innerHeight - mapZoteroExportPanelResize.top - 8);
+  const nextWidth = clamp(mapZoteroExportPanelResize.startWidth + event.clientX - mapZoteroExportPanelResize.startX, minWidth, maxWidth);
+  const nextHeight = clamp(mapZoteroExportPanelResize.startHeight + event.clientY - mapZoteroExportPanelResize.startY, minHeight, maxHeight);
+  mapZoteroExportPanel.style.width = `${nextWidth}px`;
+  mapZoteroExportPanel.style.height = `${nextHeight}px`;
+}
+
+function finishMapZoteroExportPanelResize() {
+  if (!mapZoteroExportPanelResize) return;
+
+  if (mapZoteroExportResizeHandle.hasPointerCapture(mapZoteroExportPanelResize.pointerId)) {
+    mapZoteroExportResizeHandle.releasePointerCapture(mapZoteroExportPanelResize.pointerId);
+  }
+  mapZoteroExportPanelResize = null;
 }
 
 function startOpenAlexPanelResize(event) {

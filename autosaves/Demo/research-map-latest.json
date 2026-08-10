@@ -1,11 +1,6 @@
 {
-  "savedAt": "2026-08-10T11:39:54.612606-06:00",
+  "savedAt": "2026-08-10T11:58:18.918214-06:00",
   "project": "Demo",
-  "clusterView": {
-    "mode": "tags",
-    "spacing": 1.05,
-    "groupSpacing": 0.65
-  },
   "nodeTypes": [
     {
       "name": "Publication",
@@ -20,6 +15,11 @@
       "color": "#9ca3af"
     }
   ],
+  "clusterView": {
+    "mode": "tags",
+    "spacing": 1.05,
+    "groupSpacing": 0.65
+  },
   "elements": [
     {
       "group": "nodes",

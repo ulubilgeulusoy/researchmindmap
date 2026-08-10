@@ -108,6 +108,29 @@ class OpenAlexImportRequest(BaseModel):
     items: list[OpenAlexImportItem]
 
 
+class MapZoteroExportItem(BaseModel):
+    id: str = ""
+    title: str = ""
+    authors: list[str] = []
+    year: str = ""
+    doi: str = ""
+    url: str = ""
+    citation: str = ""
+    abstract: str = ""
+    notes: str = ""
+    tags: list[str] = []
+    keywords: list[str] = []
+
+
+class MapZoteroExportRequest(BaseModel):
+    library: str = "user:0"
+    collection: str = ""
+    newCollectionName: str = ""
+    zoteroApiKey: str = ""
+    zoteroUserId: str = ""
+    items: list[MapZoteroExportItem]
+
+
 class ZoteroKeywordRecoverRequest(BaseModel):
     library: str = "user:0"
     itemKeys: list[str] = []
@@ -153,6 +176,7 @@ class ImageReconcileRequest(BaseModel):
 class AutosaveRequest(BaseModel):
     elements: Any
     nodeTypes: Any = None
+    clusterView: Any = None
 
 
 class ProjectCreateRequest(BaseModel):
@@ -230,6 +254,7 @@ def read_project_latest(project: str) -> dict[str, Any]:
         "path": str(latest_path),
         "savedAt": data.get("savedAt", ""),
         "nodeTypes": data.get("nodeTypes"),
+        "clusterView": data.get("clusterView"),
         "elements": data.get("elements", data if isinstance(data, list) else []),
     }
 
@@ -242,6 +267,7 @@ def write_project_autosave(project: str, payload: AutosaveRequest) -> dict[str, 
         "savedAt": saved_at.isoformat(),
         "project": safe_project_name(project),
         "nodeTypes": payload.nodeTypes,
+        "clusterView": payload.clusterView,
         "elements": payload.elements,
     }
     latest_path = latest_autosave_path(project)
@@ -262,6 +288,7 @@ def write_project_snapshot(project: str, payload: AutosaveRequest) -> dict[str, 
         "savedAt": saved_at.isoformat(),
         "project": safe_project_name(project),
         "nodeTypes": payload.nodeTypes,
+        "clusterView": payload.clusterView,
         "elements": payload.elements,
     }
     timestamp = saved_at.strftime("%Y%m%d-%H%M%S")
@@ -1948,6 +1975,52 @@ def zotero_item_from_openalex(item: OpenAlexImportItem, collection_key: str = ""
     return zotero_item
 
 
+def zotero_existing_item_by_map_publication(library_value: str, item: MapZoteroExportItem) -> Optional[dict[str, Any]]:
+    query = normalize_doi(item.doi) or item.title.strip()
+    if not query:
+        return None
+    candidates = zotero_api_items(library_value, None, 20, query, "apa", False)
+    item_doi = normalize_doi(item.doi)
+    item_title = normalize_title(item.title)
+    for candidate in candidates:
+        candidate_doi = normalize_doi(candidate.get("doi", ""))
+        candidate_title = normalize_title(candidate.get("title", ""))
+        if item_doi and candidate_doi and item_doi == candidate_doi:
+            return candidate
+        if item_title and candidate_title and item_title == candidate_title:
+            return candidate
+    return None
+
+
+def zotero_item_from_map_publication(item: MapZoteroExportItem, collection_key: str = "") -> dict[str, Any]:
+    doi = normalize_doi(item.doi)
+    url = item.url or (f"https://doi.org/{doi}" if doi else "")
+    extra_lines = []
+    if item.citation:
+        extra_lines.append(f"Map citation: {strip_html(item.citation)}")
+    if item.notes:
+        extra_lines.append(f"Map notes: {strip_html(item.notes)}")
+    if item.keywords:
+        extra_lines.append(f"Keywords: {'; '.join(split_keyword_text(item.keywords))}")
+    tags = [{"tag": tag} for tag in split_keyword_text(item.tags) if tag]
+    return {
+        "itemType": "journalArticle",
+        "title": item.title or "Untitled map publication",
+        "creators": [
+            creator for creator in (creator_from_openalex_author(author) for author in item.authors)
+            if creator
+        ],
+        "abstractNote": item.abstract or "",
+        "date": item.year or "",
+        "DOI": doi,
+        "url": url,
+        "extra": "\n".join(extra_lines),
+        "tags": tags,
+        "collections": [collection_key] if collection_key else [],
+        "relations": {},
+    }
+
+
 def zotero_items_by_keys(library_value: str, keys: list[str], api_key: str = "", user_id: str = "") -> list[dict[str, Any]]:
     if not keys:
         return []
@@ -2429,6 +2502,92 @@ def openalex_import_to_zotero(payload: OpenAlexImportRequest, response: Response
             "createdItemKeys": created_keys,
             "existingItemKeys": [item.get("zoteroKey", "") for item in existing],
             "existingMembership": membership_results,
+        },
+    }
+
+
+@app.post("/api/zotero/export-map-publications")
+def zotero_export_map_publications(payload: MapZoteroExportRequest, response: Response) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No map publications were selected.")
+    if len(payload.items) > 100:
+        raise HTTPException(status_code=400, detail="Select 100 or fewer map publications at a time.")
+
+    export_items = [item for item in payload.items if item.title.strip() or item.doi.strip()]
+    if not export_items:
+        raise HTTPException(status_code=400, detail="Selected publications need at least a title or DOI.")
+
+    library_path = zotero_web_library_path(payload.library, payload.zoteroUserId)
+    collection_key, collection, collection_created = zotero_collection_for_openalex_import(
+        payload.library,
+        payload.collection,
+        payload.newCollectionName,
+        payload.zoteroApiKey,
+        payload.zoteroUserId,
+    )
+
+    existing: list[dict[str, Any]] = []
+    to_create: list[MapZoteroExportItem] = []
+    membership_results = {"added": 0, "already-present": 0, "skipped": 0}
+    skipped: list[dict[str, str]] = []
+    for item in export_items:
+        try:
+            match = zotero_existing_item_by_map_publication(payload.library, item)
+        except HTTPException as exc:
+            skipped.append({"id": item.id, "title": item.title, "reason": str(exc.detail)})
+            continue
+        if match:
+            membership_result = zotero_add_item_to_collection(
+                payload.library,
+                match.get("zoteroKey", ""),
+                collection_key,
+                payload.zoteroApiKey,
+                payload.zoteroUserId,
+            )
+            membership_results[membership_result] = membership_results.get(membership_result, 0) + 1
+            existing.append(match)
+        else:
+            to_create.append(item)
+
+    created_keys: list[str] = []
+    created: list[dict[str, Any]] = []
+    if to_create:
+        response_data = zotero_post(
+            f"{library_path}/items",
+            [zotero_item_from_map_publication(item, collection_key) for item in to_create],
+            payload.zoteroApiKey,
+        )
+        created_keys = zotero_success_keys(response_data)
+        failed = response_data.get("failed") if isinstance(response_data, dict) else None
+        if failed:
+            failed_indexes = {str(index) for index in failed.keys()} if isinstance(failed, dict) else set()
+            for index, item in enumerate(to_create):
+                if str(index) in failed_indexes:
+                    skipped.append({"id": item.id, "title": item.title, "reason": str(failed.get(str(index), failed))})
+        if created_keys:
+            created = zotero_items_by_keys(payload.library, created_keys, payload.zoteroApiKey, payload.zoteroUserId)
+
+    items = unique_publications(existing + created)
+    return {
+        "ok": True,
+        "items": items,
+        "createdCount": len(created),
+        "existingCount": len(existing),
+        "skippedCount": len(skipped),
+        "collection": collection or ({"key": collection_key} if collection_key else None),
+        "collectionCreated": collection_created,
+        "diagnostics": {
+            "targetLibrary": payload.library,
+            "targetPath": library_path,
+            "collectionRequested": payload.collection or payload.newCollectionName or "",
+            "collectionKey": collection_key,
+            "collectionName": (collection or {}).get("name") or payload.newCollectionName or "",
+            "collectionAction": "created" if collection_created else "selected" if payload.collection else "reused" if collection_key else "none",
+            "createdItemKeys": created_keys,
+            "existingItemKeys": [item.get("zoteroKey", "") for item in existing],
+            "existingMembership": membership_results,
+            "skipped": skipped,
         },
     }
 

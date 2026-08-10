@@ -3122,6 +3122,24 @@ button:disabled {
   display: none;
 }
 
+#mapZoteroExportPanel {
+  width: min(1120px, calc(100vw - 36px));
+  height: min(720px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+}
+
+#mapZoteroExportPanel[hidden] {
+  display: none;
+}
+
+#mapZoteroExportPanel .zotero-items-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
 .zotero-panel-header {
   display: flex;
   align-items: flex-start;
