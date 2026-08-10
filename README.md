@@ -74,6 +74,12 @@ http://127.0.0.1:8000
 
 If `python` is not the command for your environment, activate your preferred Python environment first. Restart Uvicorn after changing `server.py`. A hard refresh can help after frontend changes because browser assets are cache-versioned in `index.html`.
 
+## Included Demo
+
+The repository includes a `Demo` project that opens as a PhD quick-start literature map for bioastronautics, focused on human-robot interaction for crew autonomy in long-duration spaceflight. It uses only Publication and Idea nodes, with curated publications, synthesis ideas, tags, keywords, and connections around themes such as crew workload, trust calibration, shared control, intravehicular robots, EVA/surface operations, function allocation, and analog validation.
+
+Demo disclaimer: the included demo content was built by Codex 5.5 as a starter example. Treat the publication notes and synthesis links as editable demonstration material, not as a completed literature review or authoritative bibliography.
+
 For the full publication workflow:
 
 - Zotero requires Zotero Desktop installed and running locally. Zotero Connector in the browser is recommended for saving papers found through OpenAlex, DOI, or publisher pages into Zotero before importing them as nodes.

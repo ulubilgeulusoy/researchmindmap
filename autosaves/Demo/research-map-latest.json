@@ -1,6 +1,11 @@
 {
-  "savedAt": "2026-08-10T11:24:23.610732-06:00",
+  "savedAt": "2026-08-10T11:39:54.612606-06:00",
   "project": "Demo",
+  "clusterView": {
+    "mode": "tags",
+    "spacing": 1.05,
+    "groupSpacing": 0.65
+  },
   "nodeTypes": [
     {
       "name": "Publication",
@@ -19,83 +24,820 @@
     {
       "group": "nodes",
       "data": {
-        "id": "node-example-publication",
-        "label": "Example Publication",
+        "id": "pub-fong-nourbakhsh-2005",
+        "label": "Interaction Challenges in Human-Robot Space Exploration",
         "type": "Publication",
         "nodeColor": "#2d7ff9",
-        "url": "",
+        "url": "https://publications.ri.cmu.edu/interaction-challenges-in-human-robot-space-exploration",
         "tags": [
-          "example"
+          "HRI",
+          "surface operations",
+          "crew autonomy"
         ],
-        "size": 96,
-        "textWidth": 88,
+        "primaryTag": "HRI",
+        "keywords": [
+          "human-robot interaction",
+          "space robotics",
+          "exploration",
+          "crew workload"
+        ],
+        "size": 128,
+        "textWidth": 120,
         "fontSize": 13,
         "fontFamily": "Arial, Helvetica, sans-serif",
         "fontStyle": "bold",
         "fontStyleValue": "normal",
         "fontWeight": 700,
-        "publicationNotes": {
-          "notes": "This is an example publication node.Use the Node button to add a new node.Select the node and set its type to Publication in the right-side details panel.Add a title, URL, citation, tags, and notes for literature review work.If imported from Zotero, this node can also connect to a local PDF.",
-          "notesHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>",
-          "citation": "Example citation text can go here.",
-          "url": "",
-          "abstract": ""
-        },
         "zIndex": 1,
-        "primaryTag": "",
-        "documentHtml": "<p>This is an example publication node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Publication</strong> in the right-side details panel.</li><li>Add a title, URL, citation, tags, and notes for literature review work.</li><li>If imported from Zotero, this node can also connect to a local PDF.</li></ul>",
-        "keywords": []
+        "publicationNotes": {
+          "notes": "A broad framing paper for why future exploration missions need effective human-robot teams. Useful for identifying interaction challenges and mission tasks where robots reduce workload, cost, fatigue, and risk.",
+          "notesHtml": "<p>A broad framing paper for why future exploration missions need effective human-robot teams.</p><ul><li>Use as the map's entry point for space HRI challenges.</li><li>Connects workload, fatigue, autonomy, and sustainable exploration.</li><li>Good seed for literature questions about team effectiveness.</li></ul>",
+          "citation": "Fong, T. W., & Nourbakhsh, I. (2005). Interaction Challenges in Human-Robot Space Exploration. Interactions, 12(2), 42-45.",
+          "url": "https://publications.ri.cmu.edu/interaction-challenges-in-human-robot-space-exploration",
+          "abstract": "This paper describes exploration tasks that could be performed by human-robot teams and identifies interaction challenges that must be addressed to make such teams effective."
+        },
+        "documentHtml": ""
       },
       "position": {
-        "x": 697.0631594483035,
-        "y": 1283.0457682048932
+        "x": -1044.986675551178,
+        "y": -2942.337711201899
       }
     },
     {
       "group": "nodes",
       "data": {
-        "id": "node-example-idea",
-        "label": "Example Idea",
-        "type": "Idea",
-        "nodeColor": "#2f9d68",
-        "url": "",
+        "id": "pub-heikkila-2012",
+        "label": "Affordance-based task communication for astronaut-robot cooperation",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "https://onlinelibrary.wiley.com/doi/10.1002/rob.21413",
         "tags": [
-          "example"
+          "HRI",
+          "communication",
+          "EVA"
         ],
-        "size": 96,
-        "textWidth": 88,
+        "primaryTag": "communication",
+        "keywords": [
+          "affordances",
+          "astronaut-robot cooperation",
+          "speech",
+          "gesture",
+          "workload"
+        ],
+        "size": 128,
+        "textWidth": 120,
         "fontSize": 13,
         "fontFamily": "Arial, Helvetica, sans-serif",
         "fontStyle": "bold",
         "fontStyleValue": "normal",
         "fontWeight": 700,
-        "documentHtml": "<p>This is an example idea node.</p><ul><li>Use the <strong>Node</strong> button to add a new node.</li><li>Select the node and set its type to <strong>Idea</strong> in the right-side details panel.</li><li>Use idea nodes for concepts, themes, hypotheses, questions, or synthesis notes.</li><li>Use the <strong>Connection</strong> button to link ideas to publications or other ideas.</li></ul>",
         "zIndex": 1,
-        "primaryTag": "",
+        "publicationNotes": {
+          "notes": "Compares direct task communication with affordance-based indirect communication for astronaut-robot cooperation. Good anchor for interface design and workload reduction.",
+          "notesHtml": "<p>Compares direct task communication with affordance-based indirect communication for astronaut-robot cooperation.</p><ul><li>Relevant to speech and gesture interfaces embedded in suits.</li><li>Shows how indirect task communication can reduce communication time and workload.</li><li>Useful for EVA and planetary surface operations.</li></ul>",
+          "citation": "Heikkila, S. S., Halme, A., & Schiele, A. (2012). Affordance-based indirect task communication for astronaut-robot cooperation. Journal of Field Robotics, 29(4), 576-600.",
+          "url": "https://onlinelibrary.wiley.com/doi/10.1002/rob.21413",
+          "abstract": "The paper evaluates affordance-based communication methods for astronaut-robot cooperation in planetary exploration style work contexts."
+        },
+        "documentHtml": ""
+      },
+      "position": {
+        "x": -1296.986675551178,
+        "y": -2942.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "pub-nesnas-2021",
+        "label": "Autonomy for Space Robots: Past, Present, and Future",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "https://link.springer.com/article/10.1007/s43154-021-00057-2",
+        "tags": [
+          "autonomy",
+          "space robotics",
+          "review"
+        ],
+        "primaryTag": "autonomy",
+        "keywords": [
+          "autonomy",
+          "space robots",
+          "supervised autonomy",
+          "mission operations"
+        ],
+        "size": 124,
+        "textWidth": 116,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 1,
+        "publicationNotes": {
+          "notes": "Review of autonomy across space mission phases.Good background node for autonomy capability and limits.Helps separate robotic autonomy from human-robot teaming questions.Useful for future-work ideas around delay-tolerant supervised autonomy.",
+          "notesHtml": "<p>Review of autonomy across space mission phases.</p><ul><li>Good background node for autonomy capability and limits.</li><li>Helps separate robotic autonomy from human-robot teaming questions.</li><li>Useful for future-work ideas around delay-tolerant supervised autonomy.</li></ul>",
+          "citation": "Nesnas, I. A. D., Fesq, L. M., & Volpe, R. A. (2021). Autonomy for Space Robots: Past, Present, and Future. Current Robotics Reports, 2, 251-263.",
+          "url": "https://link.springer.com/article/10.1007/s43154-021-00057-2",
+          "abstract": "A review of space autonomy advances, current practice, and future needs for space exploration."
+        },
+        "documentHtml": "<p>Review of autonomy across space mission phases.</p><ul><li>Good background node for autonomy capability and limits.</li><li>Helps separate robotic autonomy from human-robot teaming questions.</li><li>Useful for future-work ideas around delay-tolerant supervised autonomy.</li></ul>"
+      },
+      "position": {
+        "x": 671.013324448822,
+        "y": -2942.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "pub-nasa-hrs",
+        "label": "NASA Human-Robotic Systems",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/human-robotic-systems-hrs/",
+        "tags": [
+          "NASA",
+          "program context",
+          "HRI"
+        ],
+        "primaryTag": "program context",
+        "keywords": [
+          "human-robotic systems",
+          "robot assistants",
+          "mobility",
+          "NASA"
+        ],
+        "size": 116,
+        "textWidth": 108,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 1,
+        "publicationNotes": {
+          "notes": "NASA program context for robot systems that help humans operate more effectively in space.Useful for grounding the demo in NASA exploration priorities.Highlights robots working before, alongside, or after human explorers.",
+          "notesHtml": "<p>NASA program context for robot systems that help humans operate more effectively in space.</p><ul><li>Useful for grounding the demo in NASA exploration priorities.</li><li>Highlights robots working before, alongside, or after human explorers.</li></ul>",
+          "citation": "NASA. Human-Robotic Systems (HRS).",
+          "url": "https://www.nasa.gov/directorates/stmd/game-changing-development-program/human-robotic-systems-hrs/",
+          "abstract": "NASA description of human-robotic systems for improving human operations in space."
+        },
+        "documentHtml": "<p>NASA program context for robot systems that help humans operate more effectively in space.</p><ul><li>Useful for grounding the demo in NASA exploration priorities.</li><li>Highlights robots working before, alongside, or after human explorers.</li></ul>"
+      },
+      "position": {
+        "x": -1044.986675551178,
+        "y": -2240.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "pub-nasa-astrobee",
+        "label": "NASA Astrobee free-flying robot system",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "https://www.nasa.gov/astrobee/",
+        "tags": [
+          "IVA",
+          "robot assistant",
+          "ISS"
+        ],
+        "primaryTag": "IVA",
+        "keywords": [
+          "Astrobee",
+          "free-flying robot",
+          "inventory",
+          "microgravity",
+          "crew time"
+        ],
+        "size": 116,
+        "textWidth": 108,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 1,
+        "publicationNotes": {
+          "notes": "Operational example of an intravehicular robotic assistant on ISS. Useful for thinking about routine task offloading and crew time protection.",
+          "notesHtml": "<p>Operational example of an intravehicular robotic assistant on ISS.</p><ul><li>Supports inventory, documentation, remote operation, and research payloads.</li><li>Good concrete node for crew-time and workload discussions.</li></ul>",
+          "citation": "NASA. Astrobee.",
+          "url": "https://www.nasa.gov/astrobee/",
+          "abstract": "Astrobee is a free-flying robotic system designed to help astronauts with routine duties and serve as a microgravity robotics research platform."
+        },
+        "documentHtml": ""
+      },
+      "position": {
+        "x": -186.986675551178,
+        "y": -2942.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "pub-nasa-function-allocation",
+        "label": "Function allocation for human-automation/robotic interaction",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "https://techport.nasa.gov/projects/95457",
+        "tags": [
+          "function allocation",
+          "crew autonomy",
+          "deep space"
+        ],
+        "primaryTag": "function allocation",
+        "keywords": [
+          "function allocation",
+          "human-system performance",
+          "deep space",
+          "crew-robot roles"
+        ],
+        "size": 128,
+        "textWidth": 120,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 1,
+        "publicationNotes": {
+          "notes": "NASA TechPort project on methods for assigning functions between robots, automation, and crew for deep-space missions.",
+          "notesHtml": "<p>NASA TechPort project on methods for assigning functions between robots, automation, and crew.</p><ul><li>Good anchor for trade-space reasoning.</li><li>Connects HRI to human-system performance rather than robot capability alone.</li></ul>",
+          "citation": "NASA TechPort. Objective Function Allocation Method for Human-Automation/Robotic Interaction using Work Models that Compute.",
+          "url": "https://techport.nasa.gov/projects/95457",
+          "abstract": "Project description for evaluating function allocation between robots, automated systems, and human crew members for deep space exploration missions."
+        },
+        "documentHtml": ""
+      },
+      "position": {
+        "x": -1902.986675551178,
+        "y": -2942.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "pub-patel-geiskkovitch-2024",
+        "label": "The Space Between Us: Bridging Human and Robotic Worlds",
+        "type": "Publication",
+        "nodeColor": "#2d7ff9",
+        "url": "https://experts.mcmaster.ca/scholarly-works/3407479",
+        "tags": [
+          "review",
+          "HRI",
+          "space exploration"
+        ],
+        "primaryTag": "review",
+        "keywords": [
+          "scoping review",
+          "space HRI",
+          "human-centered computing",
+          "themes"
+        ],
+        "size": 124,
+        "textWidth": 116,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 1,
+        "publicationNotes": {
+          "notes": "Recent scoping-review direction for HRI in outer space exploration. Useful for identifying themes and literature gaps.",
+          "notesHtml": "<p>Recent scoping-review direction for HRI in outer space exploration.</p><ul><li>Good modern synthesis node.</li><li>Useful for turning a demo map into a PhD literature review plan.</li></ul>",
+          "citation": "Patel, D. D., & Geiskkovitch, D. Y. (2024). The Space Between Us: Bridging Human and Robotic Worlds in Space Exploration. Companion of the ACM/IEEE International Conference on Human-Robot Interaction, 833-836.",
+          "url": "https://experts.mcmaster.ca/scholarly-works/3407479",
+          "abstract": "A scoping-review oriented paper identifying interconnected themes in space human-robot interaction research."
+        },
+        "documentHtml": ""
+      },
+      "position": {
+        "x": -186.986675551178,
+        "y": -2240.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-bioastronautics-framing",
+        "label": "Robot support as crew health and performance protection",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "bioastronautics",
+          "crew performance",
+          "workload"
+        ],
+        "primaryTag": "bioastronautics",
+        "size": 132,
+        "textWidth": 124,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>Frame HRI as a bioastronautics problem: robots are not only tools, they are countermeasures against crew overload, fatigue, time pressure, and operational risk.</p><ul><li>Question: which robot behaviors measurably protect crew health and performance?</li><li>Useful outcomes: workload, stress, situation awareness, error risk, and crew time.</li></ul>",
+        "keywords": [],
         "publicationNotes": {
           "notes": "",
           "notesHtml": "",
           "citation": "",
           "url": "",
           "abstract": ""
-        },
-        "keywords": []
+        }
       },
       "position": {
-        "x": 549.2453770112455,
-        "y": 1328.8370240186873
+        "x": -1902.986675551178,
+        "y": -2240.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-workload-buffer",
+        "label": "Robots as workload buffers during long-duration missions",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "workload",
+          "crew autonomy",
+          "IVA"
+        ],
+        "primaryTag": "workload",
+        "size": 124,
+        "textWidth": 116,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>Long-duration missions need robotic systems that absorb routine monitoring, logistics, documentation, and setup tasks so crew attention can stay on science, health, and off-nominal decisions.</p>",
+        "keywords": [],
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": -186.986675551178,
+        "y": -1538.3377112018989
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-trust-calibration",
+        "label": "Trust calibration matters more than raw autonomy",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "trust",
+          "autonomy",
+          "HRI"
+        ],
+        "primaryTag": "trust",
+        "size": 120,
+        "textWidth": 112,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>For mission use, the question is not simply whether a robot is autonomous. Crew must understand what the robot can do, when to supervise it, and when to take over.</p>",
+        "keywords": [],
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": -1902.986675551178,
+        "y": -1538.3377112018989
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-shared-control-delay",
+        "label": "Shared control must adapt to communication delay",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "shared control",
+          "communication",
+          "deep space"
+        ],
+        "primaryTag": "shared control",
+        "size": 124,
+        "textWidth": 116,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>Future Moon and Mars operations require interfaces that support local crew autonomy and delayed ground support. Shared control should shift based on latency, task risk, and crew workload.</p>",
+        "keywords": [],
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": 671.013324448822,
+        "y": -2240.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-mission-contexts",
+        "label": "IVA, EVA, and surface habitats need different HRI patterns",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "IVA",
+          "EVA",
+          "surface operations"
+        ],
+        "primaryTag": "surface operations",
+        "size": 132,
+        "textWidth": 124,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>Intravehicular assistants, suited EVA assistants, and planetary surface robots impose different constraints on speech, gesture, mobility, proximity, and autonomy.</p>",
+        "keywords": [],
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": -438.986675551178,
+        "y": -2942.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-function-allocation",
+        "label": "Function allocation is a human-system trade space",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "function allocation",
+          "human-system performance",
+          "deep space"
+        ],
+        "primaryTag": "function allocation",
+        "size": 124,
+        "textWidth": 116,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>Robot roles should be assigned by modeling crew performance, workload, risk, and mission constraints, not by assuming that automation is always preferable.</p>",
+        "keywords": [],
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": -2154.986675551178,
+        "y": -2942.337711201899
+      }
+    },
+    {
+      "group": "nodes",
+      "data": {
+        "id": "idea-analog-validation-gap",
+        "label": "Analog testing gap: lab HRI does not capture mission constraints",
+        "type": "Idea",
+        "nodeColor": "#2f9d68",
+        "url": "",
+        "tags": [
+          "validation",
+          "analogs",
+          "PhD plan"
+        ],
+        "primaryTag": "validation",
+        "size": 132,
+        "textWidth": 124,
+        "fontSize": 13,
+        "fontFamily": "Arial, Helvetica, sans-serif",
+        "fontStyle": "bold",
+        "fontStyleValue": "normal",
+        "fontWeight": 700,
+        "zIndex": 2,
+        "documentHtml": "<p>A PhD plan should identify what can be tested in lab studies, what needs analog missions, and what metrics transfer to real spaceflight operations.</p>",
+        "keywords": [],
+        "publicationNotes": {
+          "notes": "",
+          "notesHtml": "",
+          "citation": "",
+          "url": "",
+          "abstract": ""
+        }
+      },
+      "position": {
+        "x": -1044.986675551178,
+        "y": -1538.3377112018989
       }
     },
     {
       "group": "edges",
       "data": {
-        "id": "edge-example-publication-idea",
-        "source": "node-example-publication",
-        "target": "node-example-idea",
+        "id": "edge-fong-contexts",
+        "source": "pub-fong-nourbakhsh-2005",
+        "target": "idea-mission-contexts",
         "tags": [
-          "example"
+          "synthesis"
         ],
-        "notes": "Example connection between a publication and an idea.",
+        "notes": "Fong and Nourbakhsh frame different exploration tasks where human-robot interaction patterns diverge.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-fong-bio",
+        "source": "pub-fong-nourbakhsh-2005",
+        "target": "idea-bioastronautics-framing",
+        "tags": [
+          "synthesis"
+        ],
+        "notes": "Workload, fatigue, and risk connect space HRI directly to crew health and performance.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-heikkila-shared",
+        "source": "pub-heikkila-2012",
+        "target": "idea-shared-control-delay",
+        "tags": [
+          "interface"
+        ],
+        "notes": "Affordance-based communication suggests how astronauts can issue task requests without exhaustive parameter entry.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-heikkila-contexts",
+        "source": "pub-heikkila-2012",
+        "target": "idea-mission-contexts",
+        "tags": [
+          "EVA"
+        ],
+        "notes": "Speech and gesture interaction requirements are especially relevant for suited field work.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-nesnas-trust",
+        "source": "pub-nesnas-2021",
+        "target": "idea-trust-calibration",
+        "tags": [
+          "autonomy"
+        ],
+        "notes": "Autonomy capability must be paired with supervision, transparency, and appropriate crew trust.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-nesnas-delay",
+        "source": "pub-nesnas-2021",
+        "target": "idea-shared-control-delay",
+        "tags": [
+          "autonomy"
+        ],
+        "notes": "Deep-space autonomy becomes more important as communication delay increases.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-hrs-bio",
+        "source": "pub-nasa-hrs",
+        "target": "idea-bioastronautics-framing",
+        "tags": [
+          "program context"
+        ],
+        "notes": "NASA's HRS framing supports the idea that robots should help humans operate more effectively.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-astrobee-workload",
+        "source": "pub-nasa-astrobee",
+        "target": "idea-workload-buffer",
+        "tags": [
+          "IVA"
+        ],
+        "notes": "Astrobee is a concrete example of task offloading inside a spacecraft habitat.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-astrobee-contexts",
+        "source": "pub-nasa-astrobee",
+        "target": "idea-mission-contexts",
+        "tags": [
+          "IVA"
+        ],
+        "notes": "IVA free-flying robots have different HRI constraints than EVA or surface systems.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-function-allocation",
+        "source": "pub-nasa-function-allocation",
+        "target": "idea-function-allocation",
+        "tags": [
+          "methods"
+        ],
+        "notes": "The TechPort project is a direct anchor for modeling crew-robot function allocation.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-function-workload",
+        "source": "idea-function-allocation",
+        "target": "idea-workload-buffer",
+        "tags": [
+          "synthesis"
+        ],
+        "notes": "Task allocation should be evaluated by its impact on crew workload and mission performance.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-patel-validation",
+        "source": "pub-patel-geiskkovitch-2024",
+        "target": "idea-analog-validation-gap",
+        "tags": [
+          "review"
+        ],
+        "notes": "A scoping review helps expose what HRI findings still need mission-relevant validation.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-patel-trust",
+        "source": "pub-patel-geiskkovitch-2024",
+        "target": "idea-trust-calibration",
+        "tags": [
+          "review"
+        ],
+        "notes": "Trust is one likely cross-cutting theme for future space HRI research.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-bio-workload",
+        "source": "idea-bioastronautics-framing",
+        "target": "idea-workload-buffer",
+        "tags": [
+          "PhD question"
+        ],
+        "notes": "Crew workload buffering is one measurable way to operationalize a bioastronautics HRI argument.",
+        "zIndex": 1,
+        "notesHtml": ""
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "group": "edges",
+      "data": {
+        "id": "edge-validation-function",
+        "source": "idea-analog-validation-gap",
+        "target": "idea-function-allocation",
+        "tags": [
+          "PhD plan"
+        ],
+        "notes": "Function-allocation methods need validation settings that preserve mission constraints.",
         "zIndex": 1,
         "notesHtml": ""
       },
