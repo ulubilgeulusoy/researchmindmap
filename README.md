@@ -6,9 +6,8 @@ Local browser-based research mapping and literature-review prototype. It combine
 
 Start here for beginner setup, Docker/GROBID setup, and the application manual:
 
-```text
 [Research Mind Map Documentation](https://ulubilgeulusoy.github.io/researchmindmap/)
-```
+
 
 ## Project Status
 
