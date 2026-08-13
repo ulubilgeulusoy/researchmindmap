@@ -1214,7 +1214,7 @@ const cy = cytoscape({
     {
       selector: "node[clusterBackground]",
       style: {
-        "shape": "round-rectangle",
+        "shape": "ellipse",
         "width": "data(clusterWidth)",
         "height": "data(clusterHeight)",
         "background-color": "data(clusterCircleColor)",
