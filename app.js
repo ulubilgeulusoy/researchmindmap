@@ -878,7 +878,8 @@ const fields = {
   sizeNumber: document.getElementById("nodeSizeNumber"),
   fontSize: document.getElementById("nodeFontSize"),
   fontFamily: document.getElementById("nodeFontFamily"),
-  fontStyle: document.getElementById("nodeFontStyle")
+  fontStyle: document.getElementById("nodeFontStyle"),
+  shape: document.getElementById("nodeShape")
 };
 
 const multiFormatFields = {
@@ -886,7 +887,8 @@ const multiFormatFields = {
   sizeNumber: document.getElementById("multiNodeSizeNumber"),
   fontSize: document.getElementById("multiNodeFontSize"),
   fontFamily: document.getElementById("multiNodeFontFamily"),
-  fontStyle: document.getElementById("multiNodeFontStyle")
+  fontStyle: document.getElementById("multiNodeFontStyle"),
+  shape: document.getElementById("multiNodeShape")
 };
 
 const statusMessage = document.getElementById("statusMessage");
@@ -1191,7 +1193,7 @@ const cy = cytoscape({
         "label": "data(label)",
         "width": "data(size)",
         "height": "data(size)",
-        "shape": "ellipse",
+        "shape": "data(nodeShape)",
         "background-color": "data(nodeColor)",
         "color": "#1f2937",
         "font-size": "data(fontSize)",
@@ -1212,7 +1214,7 @@ const cy = cytoscape({
     {
       selector: "node[clusterBackground]",
       style: {
-        "shape": "ellipse",
+        "shape": "round-rectangle",
         "width": "data(clusterWidth)",
         "height": "data(clusterHeight)",
         "background-color": "data(clusterCircleColor)",
@@ -2766,6 +2768,7 @@ function addNode(type) {
       fontStyle: "bold",
       fontStyleValue: "normal",
       fontWeight: 700,
+      nodeShape: "ellipse",
       publicationNotes: normalizePublicationNotes()
     },
     position
@@ -2816,6 +2819,7 @@ function addPublicationFromZotero(item, index = 0, batchOrigin = null, options =
       fontStyle: "bold",
       fontStyleValue: "normal",
       fontWeight: 700,
+      nodeShape: "ellipse",
       zotero: {
         itemKey: item.zoteroKey,
         libraryType: item.libraryType || "user",
@@ -3167,6 +3171,7 @@ function selectNode(node) {
   fields.fontSize.value = getNodeFontSize(node);
   fields.fontFamily.value = getNodeFontFamily(node);
   fields.fontStyle.value = getNodeFontStyle(node);
+  fields.shape.value = getNodeShape(node);
   syncMultiFormatFields(node);
   selectedKind.textContent = node.data("type") || "Node";
   panelMessage.textContent = hasMultipleNodes
@@ -3410,12 +3415,14 @@ function updateSelectedNodeFormatting(options = {}) {
   const nextFontFamily = getValidFontFamily(fields.fontFamily.value);
   const nextFontStyle = getValidFontStyle(fields.fontStyle.value);
   const nextFontParts = getFontStyleParts(nextFontStyle);
+  const nextShape = fields.shape.value || "ellipse";
 
   fields.size.value = nextSize;
   fields.sizeNumber.value = nextSize;
   if (clampFontSizeField) fields.fontSize.value = nextFontSize;
   fields.fontFamily.value = nextFontFamily;
   fields.fontStyle.value = nextFontStyle;
+  fields.shape.value = nextShape;
 
   targets.forEach((node) => {
     node.data({
@@ -3425,7 +3432,8 @@ function updateSelectedNodeFormatting(options = {}) {
       fontFamily: nextFontFamily,
       fontStyle: nextFontStyle,
       fontStyleValue: nextFontParts.fontStyleValue,
-      fontWeight: nextFontParts.fontWeight
+      fontWeight: nextFontParts.fontWeight,
+      nodeShape: nextShape
     });
   });
 
@@ -3519,7 +3527,8 @@ function isFormattingField(field) {
     || field === fields.sizeNumber
     || field === fields.fontSize
     || field === fields.fontFamily
-    || field === fields.fontStyle;
+    || field === fields.fontStyle
+    || field === fields.shape;
 }
 
 function handleFieldInput(event) {
@@ -3580,6 +3589,7 @@ function updateSelectedNodeFromMultiFormat(options = {}) {
   fields.fontSize.value = multiFormatFields.fontSize.value;
   fields.fontFamily.value = multiFormatFields.fontFamily.value;
   fields.fontStyle.value = multiFormatFields.fontStyle.value;
+  fields.shape.value = multiFormatFields.shape.value;
   updateSelectedNodeFormatting(options);
   syncMultiFormatFields(selectedNode || getSelectedNodes()[0]);
 }
@@ -11692,6 +11702,7 @@ function normalizeElements(elements) {
       normalized.data.fontFamily = getValidFontFamily(normalized.data.fontFamily);
       normalized.data.fontStyle = getValidFontStyle(normalized.data.fontStyle);
       Object.assign(normalized.data, getFontStyleParts(normalized.data.fontStyle));
+      normalized.data.nodeShape = normalized.data.nodeShape && (normalized.data.nodeShape === "ellipse" || normalized.data.nodeShape === "round-rectangle") ? normalized.data.nodeShape : "ellipse";
       normalized.data.publicationNotes = normalizePublicationNotes(normalized.data.publicationNotes);
       normalized.data.documentHtml = normalizeDocumentHtml(normalized.data.documentHtml, normalized.data.type);
     } else if (element.group === "edges") {
@@ -12469,6 +12480,7 @@ function syncMultiFormatFields(node) {
   multiFormatFields.fontSize.value = getNodeFontSize(node);
   multiFormatFields.fontFamily.value = getNodeFontFamily(node);
   multiFormatFields.fontStyle.value = getNodeFontStyle(node);
+  multiFormatFields.shape.value = getNodeShape(node);
 }
 
 function clearMultiFormatFields() {
@@ -12477,6 +12489,7 @@ function clearMultiFormatFields() {
   multiFormatFields.fontSize.value = DEFAULT_FONT_SIZE;
   multiFormatFields.fontFamily.value = DEFAULT_FONT_FAMILY;
   multiFormatFields.fontStyle.value = "bold";
+  multiFormatFields.shape.value = "ellipse";
 }
 
 function clearForm() {
@@ -12499,6 +12512,7 @@ function clearForm() {
   fields.fontSize.value = DEFAULT_FONT_SIZE;
   fields.fontFamily.value = DEFAULT_FONT_FAMILY;
   fields.fontStyle.value = "bold";
+  fields.shape.value = "ellipse";
   openLinkButton.disabled = true;
   copyNodeStyleButton.disabled = true;
   pasteNodeStyleButton.disabled = true;
@@ -12638,6 +12652,11 @@ function getNodeFontFamily(node) {
 
 function getNodeFontStyle(node) {
   return getValidFontStyle(node.data("fontStyle"));
+}
+
+function getNodeShape(node) {
+  const shape = node.data("nodeShape");
+  return shape && (shape === "ellipse" || shape === "round-rectangle") ? shape : "ellipse";
 }
 
 function clampNodeSize(size) {
