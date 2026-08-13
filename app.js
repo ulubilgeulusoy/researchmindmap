@@ -3353,11 +3353,13 @@ function updateSelectedNode(options = {}) {
   const nextFontFamily = getValidFontFamily(fields.fontFamily.value);
   const nextFontStyle = getValidFontStyle(fields.fontStyle.value);
   const nextFontParts = getFontStyleParts(nextFontStyle);
+  const nextShape = fields.shape.value || "ellipse";
   fields.size.value = nextSize;
   fields.sizeNumber.value = nextSize;
   if (clampFontSizeField) fields.fontSize.value = nextFontSize;
   fields.fontFamily.value = nextFontFamily;
   fields.fontStyle.value = nextFontStyle;
+  fields.shape.value = nextShape;
 
   selectedNode.data({
     label: nextLabel,
@@ -3372,7 +3374,8 @@ function updateSelectedNode(options = {}) {
     fontFamily: nextFontFamily,
     fontStyle: nextFontStyle,
     fontStyleValue: nextFontParts.fontStyleValue,
-    fontWeight: nextFontParts.fontWeight
+    fontWeight: nextFontParts.fontWeight,
+    nodeShape: nextShape
   });
 
   if (nextType === "Publication") {
