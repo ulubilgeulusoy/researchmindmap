@@ -4017,10 +4017,31 @@ function importSelectedZoteroItems() {
     return;
   }
 
+  const selectedItems = selectedIndexes.map((index) => zoteroItemsCache[index]).filter(Boolean);
+  const duplicates = selectedItems
+    .map((item) => ({ item, existingNode: findExistingPublicationNodeForItem(item) }))
+    .filter((entry) => entry.existingNode);
+
+  if (duplicates.length) {
+    const duplicateTitles = duplicates
+      .slice(0, 5)
+      .map((entry) => `- ${entry.item.title || entry.existingNode.data("label") || "Untitled publication"}`)
+      .join("\n");
+    const extraCount = duplicates.length > 5 ? `\n- ...and ${duplicates.length - 5} more` : "";
+    const confirmed = window.confirm(
+      `${duplicates.length} selected publication node(s) already exist in this map:\n\n${duplicateTitles}${extraCount}\n\nAdd new duplicate node(s) anyway?`
+    );
+    if (!confirmed) {
+      zoteroStatusText.textContent = "Import canceled because selected publication node(s) already exist.";
+      return;
+    }
+  }
+
   pushUndoState("import Zotero items");
   let lastNode = null;
-  selectedIndexes.forEach((index, offset) => {
-    lastNode = addPublicationFromZotero(zoteroItemsCache[index], offset);
+  const batchOrigin = findEmptyPublicationBatchOrigin(selectedItems.length);
+  selectedItems.forEach((item, offset) => {
+    lastNode = addPublicationFromZotero(item, offset, batchOrigin);
   });
 
   if (lastNode) {
@@ -4036,7 +4057,9 @@ function importSelectedZoteroItems() {
   renderMapLegend();
   cy.fit(undefined, 70);
   scheduleAutosave("Autosaved Zotero imports.");
-  zoteroStatusText.textContent = `Imported ${selectedIndexes.length} publication nodes.`;
+  zoteroStatusText.textContent = duplicates.length
+    ? `Imported ${selectedItems.length} publication node(s), including ${duplicates.length} duplicate node(s).`
+    : `Imported ${selectedItems.length} publication node(s).`;
 }
 
 async function recoverZoteroKeywordsForMapNodes() {
