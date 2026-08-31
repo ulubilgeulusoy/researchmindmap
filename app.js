@@ -3469,6 +3469,7 @@ function updateSelectedNodePrimaryTag() {
   node.data("primaryTag", primaryTag);
   updateDocumentPrimaryTagControl();
   renderDocumentOutline();
+  if (currentClusterMode === "tags") applyClusterMode("tags", { autosave: false });
   setStatus(primaryTag ? `Cluster tag set to ${primaryTag}.` : "Cluster tag uses first tag.");
   scheduleAutosave("Autosaved cluster tag.");
 }
@@ -7090,7 +7091,8 @@ function removeBubbleSets() {
 
 function getPrimaryTagClusterKey(node) {
   const tags = Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
-  return normalizeClusterLabel(tags[0]) || "Untagged";
+  const primary = getValidPrimaryTag(node.data("primaryTag"), tags);
+  return normalizeClusterLabel(primary || tags[0]) || "Untagged";
 }
 
 function groupNodesForKeywordCluster() {
@@ -7158,7 +7160,8 @@ function getTagClusterKeys(node, options = {}) {
   const tags = Array.isArray(node.data("tags")) ? node.data("tags") : parseTags(node.data("tags") || "");
   const normalizedTags = tags.map(normalizeClusterLabel).filter(Boolean);
   if (useAllTags) return normalizedTags.length ? Array.from(new Set(normalizedTags)) : ["Untagged"];
-  return [normalizedTags[0] || "Untagged"];
+  const primary = normalizeClusterLabel(getValidPrimaryTag(node.data("primaryTag"), tags));
+  return [primary || normalizedTags[0] || "Untagged"];
 }
 
 function groupNodesForTagBackgrounds() {
